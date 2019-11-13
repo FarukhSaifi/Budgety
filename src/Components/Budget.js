@@ -2,16 +2,17 @@ import React, { Component } from "react";
 
 class Budget extends Component {
   render() {
+    const { records } = this.props;
     return (
       <div className="container">
         <div className="row">
           <div className="col-6">
             <h4 className="text-uppercase mb-0 text-info">Income</h4>
-            {console.log(this.props.records.map(one => one.id))}
+            {/* {console.log(this.state.records.map(one => one.id))} */}
             <table className="table table-striped">
               <tbody>
-                {this.props.records.map(one =>
-                  one.type === "inc" ? (
+                {records.map(one =>
+                  one.mType === "inc" ? (
                     <tr key={one.id}>
                       <td>{one.note}</td>
                       <td>{one.dollar}</td>
@@ -25,8 +26,8 @@ class Budget extends Component {
             <h4 className="text-uppercase mb-0 text-danger">Expensive</h4>
             <table className="table table-striped">
               <tbody>
-                {this.props.records.map(exp =>
-                  exp.type === "exp" ? (
+                {records.map(exp =>
+                  exp.mType === "exp" ? (
                     <tr key={exp.id}>
                       <td>{exp.note}</td>
                       <td>{exp.dollar}</td>
