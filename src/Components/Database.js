@@ -31,28 +31,9 @@ export default class Provider extends Component {
     ]
   };
 
-  onChange = e => this.setState({ [e.target.name]: e.target.value });
-
-  onSubmit = e => {
-    e.preventDefault();
-    const obj = {
-      dollar: this.state.dollar,
-      mType: this.state.mType,
-      note: this.state.note
-    };
-    console.log(`test: ${test}`);
-    this.setState({
-      records: [...this.state.records, obj]
-    });
-  };
-
   render() {
-    const accessState = {
-      onChange: this.onChange,
-      onSubmit: this.onSubmit
-    };
     return (
-      <Context.Provider value={(accessState, this.state)}>
+      <Context.Provider value={this.state}>
         {this.props.children}
       </Context.Provider>
     );
