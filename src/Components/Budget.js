@@ -10,7 +10,7 @@ class Budget extends Component {
           const { records } = accessState;
           return (
             <div className="container">
-              {console.log(records)}
+              {/* {console.log(records)} */}
               <div className="row">
                 <div className="col-6">
                   <h4 className="text-uppercase mb-0 text-info">Income</h4>

@@ -1,6 +1,19 @@
 import React, { Component } from "react";
 const Context = React.createContext();
 
+const reducer = (state, action) => {
+  switch (action.type) {
+    case "ADD_BALANCE":
+      return {
+        ...state,
+        records: [action.payload, ...state.records]
+      };
+
+    default:
+      return state;
+  }
+};
+
 export default class Provider extends Component {
   state = {
     records: [
@@ -28,7 +41,8 @@ export default class Provider extends Component {
         mType: "exp",
         note: "bang money"
       }
-    ]
+    ],
+    dispatch: action => this.setState(state => reducer(state, action))
   };
 
   render() {
