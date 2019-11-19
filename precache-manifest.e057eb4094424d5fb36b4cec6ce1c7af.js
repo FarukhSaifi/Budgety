@@ -1,6 +1,6 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "084d1b27eb2eb80b3db94ceff2c6314b",
+    "revision": "acae6ad966f30d8cc85f073005bec22f",
     "url": "/Budgety/index.html"
   },
   {
