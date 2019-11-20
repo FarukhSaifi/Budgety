@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/Budgety/static/css/main.9a1efd4f.chunk.css",
-    "main.js": "/Budgety/static/js/main.54e3ceaa.chunk.js",
-    "main.js.map": "/Budgety/static/js/main.54e3ceaa.chunk.js.map",
+    "main.js": "/Budgety/static/js/main.c97433b1.chunk.js",
+    "main.js.map": "/Budgety/static/js/main.c97433b1.chunk.js.map",
     "runtime-main.js": "/Budgety/static/js/runtime-main.7aa0a729.js",
     "runtime-main.js.map": "/Budgety/static/js/runtime-main.7aa0a729.js.map",
     "static/js/2.a4f01861.chunk.js": "/Budgety/static/js/2.a4f01861.chunk.js",
     "static/js/2.a4f01861.chunk.js.map": "/Budgety/static/js/2.a4f01861.chunk.js.map",
     "index.html": "/Budgety/index.html",
-    "precache-manifest.f290cb18cff174c90411f21d9299bdec.js": "/Budgety/precache-manifest.f290cb18cff174c90411f21d9299bdec.js",
+    "precache-manifest.0769b1af5ba79d00a7974084017bd2eb.js": "/Budgety/precache-manifest.0769b1af5ba79d00a7974084017bd2eb.js",
     "service-worker.js": "/Budgety/service-worker.js",
     "static/css/main.9a1efd4f.chunk.css.map": "/Budgety/static/css/main.9a1efd4f.chunk.css.map"
   },
@@ -16,6 +16,6 @@
     "static/js/runtime-main.7aa0a729.js",
     "static/js/2.a4f01861.chunk.js",
     "static/css/main.9a1efd4f.chunk.css",
-    "static/js/main.54e3ceaa.chunk.js"
+    "static/js/main.c97433b1.chunk.js"
   ]
 }
