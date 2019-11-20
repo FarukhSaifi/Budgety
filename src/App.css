@@ -63,12 +63,8 @@
 
 .del__btn {
   font-size: 20px;
-  background: none;
-  border: none;
   color: #ff5049;
   cursor: pointer;
-  display: inline-block;
-  vertical-align: middle;
   line-height: 1.1;
   margin-left: 10px;
 }
