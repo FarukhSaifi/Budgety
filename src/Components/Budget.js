@@ -54,7 +54,7 @@ class Budget extends Component {
                                 dispatch
                               )}
                             >
-                              X
+                              <i className="del__btn ion-close-round"></i>
                             </td>
                           </tr>
                         ) : null

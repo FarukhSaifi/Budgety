@@ -23,7 +23,7 @@ export default class Provider extends Component {
   state = {
     records: [
       {
-        id: 1,
+        id: "",
         dollar: "",
         mType: "",
         note: ""

@@ -31,7 +31,7 @@ class BudgetHeader extends Component {
                   <div className="income-total rounded p-3 mb-2">
                     <h4 className="text-uppercase mb-0 text-left  ">
                       Income: {console.log(records)}
-                      <span className="float-right">${totalinc}</span>
+                      <span className="float-right">+ ${totalinc}</span>
                     </h4>
                   </div>
                   <div className="exp-total rounded p-3">
