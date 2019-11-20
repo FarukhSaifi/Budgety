@@ -3,23 +3,11 @@ import { Consumer } from "./Database";
 
 class BudgetHeader extends Component {
   render() {
-    // const { records } = this.props.records;
-
-    // const sum = this.props.reduce(
-    //   (accmulator, currentValue) => accmulator + currentValue
-    // );
-
     return (
       <Consumer>
         {value => {
           const { records } = value;
-          // let sum = records.dollar.reduce(
-          //   (accmulator, currentValue) => accmulator + currentValue
-          // );
 
-          // records
-          //   .filter(income => income.mType === "inc")
-          //   .map(income => (income.dollar = ));
           let totalinc = 0;
           const incsum = records
             .filter(i => i.mType === "inc")
@@ -41,16 +29,16 @@ class BudgetHeader extends Component {
                   <p className="lead">Available Bugdet </p>
                   <h1 className="display-4">+ ${balance} </h1>
                   <div className="income-total rounded p-3 mb-2">
-                    <p className="text-uppercase mb-0 text-left font-weight-bold">
+                    <h4 className="text-uppercase mb-0 text-left  ">
                       Income: {console.log(records)}
                       <span className="float-right">${totalinc}</span>
-                    </p>
+                    </h4>
                   </div>
                   <div className="exp-total rounded p-3">
-                    <p className="text-uppercase mb-0 text-left font-weight-bold">
-                      Expensive:{" "}
+                    <h4 className="text-uppercase mb-0 text-left  ">
+                      Expensive:
                       <span className="float-right">- ${totalexp}</span>
-                    </p>
+                    </h4>
                   </div>
                 </div>
               </header>
