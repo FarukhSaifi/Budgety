@@ -13,25 +13,43 @@ class BudgetHeader extends Component {
       <Consumer>
         {value => {
           const { records } = value;
-          const sum = records
-            .filter(income => income.mType === "inc")
-            .map(income => (income.dollar = income.dollar + income.dollar));
-          console.log(sum);
+          // let sum = records.dollar.reduce(
+          //   (accmulator, currentValue) => accmulator + currentValue
+          // );
+
+          // records
+          //   .filter(income => income.mType === "inc")
+          //   .map(income => (income.dollar = ));
+          let totalinc = 0;
+          const incsum = records
+            .filter(i => i.mType === "inc")
+            .map(c => (totalinc += c.dollar));
+          console.log(`Total inc:  ${totalinc}`);
+
+          let totalexp = 0;
+          const expsum = records
+            .filter(i => i.mType === "exp")
+            .map(c => (totalexp += c.dollar));
+          console.log(`Total Exp:  ${totalexp}`);
+
+          let balance = totalinc - totalexp;
+
           return (
             <div>
               <header className="container d-flex justify-content-center py-4 text-center">
                 <div className="col-12 col-md-6 ">
                   <p className="lead">Available Bugdet </p>
-                  <h1 className="display-4">+ 16699 $ </h1>
+                  <h1 className="display-4">+ ${balance} </h1>
                   <div className="income-total rounded p-3 mb-2">
-                    <p className="text-uppercase mb-0 text-left">
+                    <p className="text-uppercase mb-0 text-left font-weight-bold">
                       Income: {console.log(records)}
-                      <span className="float-right">${sum}</span>
+                      <span className="float-right">${totalinc}</span>
                     </p>
                   </div>
                   <div className="exp-total rounded p-3">
-                    <p className="text-uppercase mb-0 text-left">
-                      Expensive: <span className="float-right">1234 </span>
+                    <p className="text-uppercase mb-0 text-left font-weight-bold">
+                      Expensive:{" "}
+                      <span className="float-right">- ${totalexp}</span>
                     </p>
                   </div>
                 </div>

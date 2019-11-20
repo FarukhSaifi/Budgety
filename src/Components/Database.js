@@ -24,27 +24,9 @@ export default class Provider extends Component {
     records: [
       {
         id: 1,
-        dollar: 900,
-        mType: "inc",
-        note: "black money"
-      },
-      {
-        id: 2,
-        dollar: 345,
-        mType: "inc",
-        note: "fun time"
-      },
-      {
-        id: 3,
-        dollar: 250,
-        mType: "exp",
-        note: "pocket money"
-      },
-      {
-        id: 4,
-        dollar: 550,
-        mType: "exp",
-        note: "bang money"
+        dollar: "",
+        mType: "",
+        note: ""
       }
     ],
     dispatch: action => this.setState(state => reducer(state, action))
