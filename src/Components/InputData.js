@@ -16,9 +16,9 @@ class InputData extends Component {
     const { mType, note, dollar } = this.state;
     const newRecords = {
       id: uuid(),
-      mType,
-      note,
-      dollar
+      mType: mType,
+      note: note,
+      dollar: Number(dollar)
     };
     dispatch({ type: "ADD_BALANCE", payload: newRecords });
     console.log(newRecords);
