@@ -2,12 +2,14 @@ import React, { Component } from "react";
 import { Consumer } from "./Database";
 
 class Budget extends Component {
+  deleteItem = (id, dispatch) => {
+    dispatch({ type: "DELETE_BALANCE", payload: id });
+  };
   render() {
-    // const records = this.props.records;
     return (
       <Consumer>
-        {accessState => {
-          const { records } = accessState;
+        {value => {
+          const { records, dispatch } = value;
           return (
             <div className="container">
               {/* {console.log(records)} */}
@@ -16,11 +18,20 @@ class Budget extends Component {
                   <h4 className="text-uppercase mb-0 text-info">Income</h4>
                   <table className="table table-striped">
                     <tbody>
-                      {records.map((one, index) =>
+                      {records.map(one =>
                         one.mType === "inc" ? (
-                          <tr key={index}>
+                          <tr key={one.id}>
                             <td>{one.note}</td>
-                            <td>{one.dollar}</td>
+                            <td>$ {one.dollar}</td>
+                            <td
+                              onClick={this.deleteItem.bind(
+                                this,
+                                one.id,
+                                dispatch
+                              )}
+                            >
+                              X
+                            </td>
                           </tr>
                         ) : null
                       )}
@@ -31,11 +42,20 @@ class Budget extends Component {
                   <h4 className="text-uppercase mb-0 text-danger">Expensive</h4>
                   <table className="table table-striped">
                     <tbody>
-                      {records.map((exp, index) =>
+                      {records.map(exp =>
                         exp.mType === "exp" ? (
-                          <tr key={index}>
+                          <tr key={exp.id}>
                             <td>{exp.note}</td>
-                            <td>{exp.dollar}</td>
+                            <td>$ {exp.dollar}</td>
+                            <td
+                              onClick={this.deleteItem.bind(
+                                this,
+                                exp.id,
+                                dispatch
+                              )}
+                            >
+                              X
+                            </td>
                           </tr>
                         ) : null
                       )}

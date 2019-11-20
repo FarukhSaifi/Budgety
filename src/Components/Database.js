@@ -8,6 +8,11 @@ const reducer = (state, action) => {
         ...state,
         records: [action.payload, ...state.records]
       };
+    case "DELETE_BALANCE":
+      return {
+        ...state,
+        records: state.records.filter(records => records.id !== action.payload)
+      };
 
     default:
       return state;

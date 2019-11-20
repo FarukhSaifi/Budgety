@@ -34,7 +34,11 @@ class InputData extends Component {
 
           return (
             <div className="d-flex justify-content-center align-items-center p-2 my-2 text-dark-50 bg-light rounded shadow-sm">
-              <form onSubmit={this.onSubmit.bind(this, dispatch)} key={this.id}>
+              <form
+                className="d-flex"
+                onSubmit={this.onSubmit.bind(this, dispatch)}
+                key={this.id}
+              >
                 <div className="form-group">
                   <select
                     value={mType}
