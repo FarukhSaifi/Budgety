@@ -22,6 +22,12 @@ class InputData extends Component {
     };
     dispatch({ type: "ADD_BALANCE", payload: newRecords });
     console.log(newRecords);
+    this.setState({
+      id: "",
+      mType: "",
+      note: "",
+      dollar: ""
+    });
   };
 
   render() {
