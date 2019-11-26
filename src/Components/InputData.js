@@ -41,11 +41,11 @@ class InputData extends Component {
           return (
             <div className="d-flex justify-content-center align-items-center p-2 my-2 text-dark-50 bg-light rounded shadow-sm">
               <form
-                className="d-flex flex-wrap"
+                className="d-flex"
                 onSubmit={this.onSubmit.bind(this, dispatch)}
                 key={this.id}
               >
-                <div className="form-group col-6">
+                <div className="form-group col-3">
                   <select
                     value={mType}
                     className="form-control"
@@ -58,7 +58,7 @@ class InputData extends Component {
                     <option value={"exp"}>-</option>
                   </select>
                 </div>
-                <div className="form-group col-6">
+                <div className="form-group col-4">
                   <input
                     className="add__description"
                     type="text"
@@ -69,7 +69,7 @@ class InputData extends Component {
                     required
                   />
                 </div>
-                <div className="form-group col-6">
+                <div className="form-group col-4">
                   <input
                     type="number"
                     name="dollar"
@@ -80,7 +80,7 @@ class InputData extends Component {
                     onChange={this.onChange}
                   />
                 </div>
-                <button className="add__btn col-4">
+                <button className="add__btn">
                   <i className="ion-ios-checkmark-outline"></i>
                 </button>
               </form>
