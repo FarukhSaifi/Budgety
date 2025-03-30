@@ -6,12 +6,14 @@ const reducer = (state, action) => {
     case "ADD_BALANCE":
       return {
         ...state,
-        records: [action.payload, ...state.records]
+        records: [action.payload, ...state.records],
       };
     case "DELETE_BALANCE":
       return {
         ...state,
-        records: state.records.filter(records => records.id !== action.payload)
+        records: state.records.filter(
+          (records) => records.id !== action.payload
+        ),
       };
 
     default:
@@ -26,10 +28,10 @@ export default class Provider extends Component {
         id: "",
         dollar: "",
         mType: "",
-        note: ""
-      }
+        note: "",
+      },
     ],
-    dispatch: action => this.setState(state => reducer(state, action))
+    dispatch: (action) => this.setState((state) => reducer(state, action)),
   };
 
   render() {
