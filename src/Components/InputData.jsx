@@ -1,15 +1,15 @@
 import React, { Component } from "react";
+import { v4 as uuid } from "uuid";
 import { Consumer } from "./Database";
-import uuid from "uuid";
 
 class InputData extends Component {
   state = {
     mType: "",
     note: "",
-    dollar: ""
+    dollar: "",
   };
 
-  onChange = e => this.setState({ [e.target.name]: e.target.value });
+  onChange = (e) => this.setState({ [e.target.name]: e.target.value });
 
   onSubmit = (dispatch, e) => {
     e.preventDefault();
@@ -18,7 +18,7 @@ class InputData extends Component {
       id: uuid(),
       mType: mType,
       note: note,
-      dollar: Number(dollar)
+      dollar: Number(dollar),
     };
     dispatch({ type: "ADD_BALANCE", payload: newRecords });
     console.log(newRecords);
@@ -26,7 +26,7 @@ class InputData extends Component {
       id: "",
       mType: "",
       note: "",
-      dollar: ""
+      dollar: "",
     });
   };
 
@@ -35,7 +35,7 @@ class InputData extends Component {
 
     return (
       <Consumer>
-        {value => {
+        {(value) => {
           const { dispatch } = value;
 
           return (
