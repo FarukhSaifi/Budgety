@@ -2,9 +2,9 @@ import React from "react";
 import "./App.css";
 import Provider from "./Components/Database";
 
-import InputData from "./Components/InputData";
-import BudgetHeader from "./Components/BudgetHeader";
 import Budget from "./Components/Budget";
+import BudgetHeader from "./Components/BudgetHeader";
+import InputData from "./Components/InputData";
 
 function App() {
   return (
