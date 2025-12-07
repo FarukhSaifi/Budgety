@@ -1,0 +1,1 @@
+import{j as e}from"./index-8lZlQ1VF.js";const m=({message:s,icon:t,className:r="",iconClassName:a=""})=>e.jsxs("div",{className:`bg-blue-50 border border-blue-200 rounded-lg p-2 md:p-4 text-center ${r}`,children:[t&&e.jsx("span",{className:`mr-2 text-blue-600 ${a}`,children:t}),e.jsx("span",{className:"text-sm md:text-base text-blue-800",children:s})]});export{m as E};
