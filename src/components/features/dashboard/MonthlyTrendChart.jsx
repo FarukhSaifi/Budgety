@@ -14,7 +14,7 @@ import { ChartContainer } from "@ui/ChartContainer";
 import { Widget } from "@ui/Widget";
 import { exportChartData } from "@utils/exportUtils";
 import { showInfo } from "@utils/toast";
-import React from "react";
+import { useMemo } from "react";
 import {
   Bar,
   BarChart,
@@ -38,7 +38,7 @@ const MonthlyTrendChart = () => {
   const { formatDate } = useDateFormatter();
 
   // Prepare data for the chart
-  const chartData = React.useMemo(() => {
+  const chartData = useMemo(() => {
     if (viewPeriod === VIEW_PERIODS.MONTHLY) {
       // For monthly view, show daily breakdown or just current month
       const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();

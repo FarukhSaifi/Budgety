@@ -1,10 +1,10 @@
 import {
   ACTION_TYPES,
-  EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   NUMBER_FORMAT,
   RECURRENCE_LABELS,
   RECURRENCE_TYPES,
+  SORTED_EXPENSE_CATEGORIES,
   TRANSACTION_TYPES,
   TRANSACTION_TYPE_LABELS,
   UI_TEXT,
@@ -110,7 +110,7 @@ const RecurringTransactionModal = ({ open, onClose, recurring = null }) => {
       return Object.values(INCOME_CATEGORIES);
     }
     if (formData.type === TRANSACTION_TYPES.EXPENSE) {
-      return Object.values(EXPENSE_CATEGORIES);
+      return SORTED_EXPENSE_CATEGORIES;
     }
     return [];
   };

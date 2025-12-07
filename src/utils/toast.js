@@ -1,3 +1,4 @@
+import { TIMEOUTS } from "@constants";
 import { toast } from "react-toastify";
 
 /**
@@ -13,7 +14,7 @@ import { toast } from "react-toastify";
 export const showSuccess = (message, options = {}) => {
   toast.success(message, {
     position: "top-right",
-    autoClose: 3000,
+    autoClose: TIMEOUTS.TOAST_SUCCESS,
     hideProgressBar: false,
     closeOnClick: true,
     pauseOnHover: true,
@@ -30,7 +31,7 @@ export const showSuccess = (message, options = {}) => {
 export const showError = (message, options = {}) => {
   toast.error(message, {
     position: "top-right",
-    autoClose: 5000,
+    autoClose: TIMEOUTS.TOAST_ERROR,
     hideProgressBar: false,
     closeOnClick: true,
     pauseOnHover: true,
@@ -47,7 +48,7 @@ export const showError = (message, options = {}) => {
 export const showWarning = (message, options = {}) => {
   toast.warning(message, {
     position: "top-right",
-    autoClose: 4000,
+    autoClose: TIMEOUTS.TOAST_WARNING,
     hideProgressBar: false,
     closeOnClick: true,
     pauseOnHover: true,
@@ -64,7 +65,7 @@ export const showWarning = (message, options = {}) => {
 export const showInfo = (message, options = {}) => {
   toast.info(message, {
     position: "top-right",
-    autoClose: 3000,
+    autoClose: TIMEOUTS.TOAST_INFO,
     hideProgressBar: false,
     closeOnClick: true,
     pauseOnHover: true,
@@ -95,7 +96,7 @@ export const updateToast = (toastId, message, type = "success") => {
     render: message,
     type,
     isLoading: false,
-    autoClose: 3000,
+    autoClose: TIMEOUTS.TOAST_SUCCESS,
   });
 };
 

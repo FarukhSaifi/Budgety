@@ -6,6 +6,7 @@ import {
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   NUMBER_FORMAT,
+  SORTED_EXPENSE_CATEGORIES,
   TIMEOUTS,
   TRANSACTION_MODES,
   TRANSACTION_TYPES,
@@ -28,7 +29,8 @@ import {
   parseDate,
 } from "@utils/bankStatementParser";
 import { filterDuplicates } from "@utils/duplicateDetection";
-import { showError, showSuccess, showWarning } from "@utils/toast";
+import { parsePDF } from "@utils/pdfParser";
+import { showError, showInfo, showSuccess, showWarning } from "@utils/toast";
 import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 import * as XLSX from "xlsx";
@@ -95,11 +97,14 @@ const BankStatementImport = () => {
     }
   };
 
-  const parseFile = (file) => {
+  const parseFile = async (file) => {
     const fileName = file.name.toLowerCase();
     const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+    const isPDF = fileName.endsWith(".pdf");
 
-    if (isExcel) {
+    if (isPDF) {
+      await parsePDFFile(file);
+    } else if (isExcel) {
       parseExcel(file);
     } else {
       parseCSV(file);
@@ -108,29 +113,76 @@ const BankStatementImport = () => {
 
   const parseCSV = (file) => {
     const reader = new FileReader();
+    reader.onerror = () => {
+      showError("Failed to read CSV file. Please try again.");
+    };
     reader.onload = (e) => {
       try {
-        const text = e.target.result;
+        let text = e.target.result;
+
+        // Handle different line endings (CRLF, LF, CR)
+        text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+        // Split by lines and filter empty lines
         const lines = text.split("\n").filter((line) => line.trim());
 
         if (lines.length < 2) {
-          showError("CSV file appears to be empty or invalid");
+          showError(
+            "CSV file appears to be empty or invalid. Please ensure the file contains at least a header row and one data row."
+          );
           return;
         }
 
         // Parse header row
         const headers = parseCSVLine(lines[0]);
+
+        // Check if headers are valid
+        if (headers.length === 0 || headers.every((h) => !h || !h.trim())) {
+          showError(
+            "CSV file has no valid headers. Please ensure the first row contains column names."
+          );
+          return;
+        }
+
         const mapping = detectColumnMapping(headers);
+
+        // Validate that essential columns are found
+        const hasDate = mapping.date >= 0;
+        const hasDescription = mapping.description >= 0;
+        const hasAmount =
+          mapping.amount >= 0 || mapping.deposits >= 0 || mapping.withdraw >= 0;
+
+        if (!hasDate || !hasDescription || !hasAmount) {
+          const missingColumns = [];
+          if (!hasDate) missingColumns.push("Date");
+          if (!hasDescription)
+            missingColumns.push("Description/Particulars/Narration");
+          if (!hasAmount) missingColumns.push("Amount/Deposits/Withdrawals");
+
+          showError(
+            `CSV file format doesn't match expected format. Missing required columns: ${missingColumns.join(
+              ", "
+            )}. ` +
+              `Found columns: ${headers.join(", ")}. ` +
+              `Please ensure your CSV file has columns for Date, Description/Particulars, and Amount/Deposits/Withdrawals.`
+          );
+          return;
+        }
 
         // Parse data rows
         const parsedTransactions = [];
         for (let i = 1; i < lines.length; i++) {
-          const values = parseCSVLine(lines[i]);
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          const values = parseCSVLine(line);
 
           // Skip empty rows
           if (
             values.length === 0 ||
-            values.every((v) => !v || v.trim() === "")
+            values.every(
+              (v) => !v || (typeof v === "string" && v.trim() === "")
+            )
           ) {
             continue;
           }
@@ -140,7 +192,9 @@ const BankStatementImport = () => {
         }
 
         if (parsedTransactions.length === 0) {
-          alert("No valid transactions found in the file");
+          showError(
+            "No valid transactions found in the CSV file. Please ensure the file contains transaction data with Date, Description, and Amount columns."
+          );
           return;
         }
 
@@ -151,41 +205,142 @@ const BankStatementImport = () => {
         );
         setEditedCategories({});
         setShowPreview(true);
-      } catch {
+      } catch (error) {
         showError(
-          "Error parsing CSV file. Please ensure it's a valid CSV file."
+          `Error parsing CSV file: ${error.message}. Please ensure it's a valid CSV file with proper column headers (Date, Mode, Particulars, Deposits, Withdrawals, Balance).`
         );
       }
     };
-    reader.readAsText(file);
+    // Try to read with UTF-8 encoding, fallback to default
+    reader.readAsText(file, "UTF-8");
+  };
+
+  const parsePDFFile = async (file) => {
+    try {
+      showInfo("Extracting data from PDF... This may take a moment.");
+
+      const parsedTransactions = await parsePDF(file);
+
+      if (parsedTransactions.length === 0) {
+        showError("No valid transactions found in the PDF file");
+        return;
+      }
+
+      // For PDF, we don't have a clear column mapping, so we'll use a default structure
+      // The parsePDF function returns transactions in a format similar to extractTransactionData
+      const mapping = {
+        date: 0,
+        description: 1,
+        amount: 2,
+        type: 3,
+        mode: 4,
+        balance: 5,
+      };
+
+      setColumnMapping(mapping);
+      setAllParsedData(parsedTransactions);
+      setPreviewData(parsedTransactions.slice(0, DISPLAY_LIMITS.PREVIEW_ROWS));
+      setEditedCategories({});
+      setShowPreview(true);
+    } catch (error) {
+      showError(
+        `Error parsing PDF file: ${error.message}. Please ensure it's a valid PDF file with readable text.`
+      );
+    }
   };
 
   const parseExcel = (file) => {
     const reader = new FileReader();
+    reader.onerror = () => {
+      showError("Failed to read Excel file. Please try again.");
+    };
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
+        let workbook;
+
+        try {
+          workbook = XLSX.read(data, { type: "array" });
+        } catch (readError) {
+          showError(
+            `Failed to parse Excel file: ${readError.message}. Please ensure the file is a valid Excel file (.xlsx or .xls format).`
+          );
+          return;
+        }
+
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          showError(
+            "Excel file has no sheets. Please ensure the file contains data."
+          );
+          return;
+        }
 
         // Get the first sheet
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
 
-        // Convert to JSON with header row
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-          header: 1,
-          defval: "",
-          raw: false,
-        });
+        if (!worksheet) {
+          showError("Could not read the first sheet from Excel file.");
+          return;
+        }
 
-        if (jsonData.length < 2) {
-          showError("Excel file appears to be empty or invalid");
+        // Convert to JSON with header row
+        let jsonData;
+        try {
+          jsonData = XLSX.utils.sheet_to_json(worksheet, {
+            header: 1,
+            defval: "",
+            raw: false,
+            blankrows: false,
+          });
+        } catch (jsonError) {
+          showError(
+            `Failed to convert Excel data: ${jsonError.message}. Please check the file format.`
+          );
+          return;
+        }
+
+        if (!jsonData || jsonData.length < 2) {
+          showError(
+            "Excel file appears to be empty or has no data rows. Please ensure the file contains at least a header row and one data row."
+          );
           return;
         }
 
         // Get headers from first row
         const headers = jsonData[0].map((h) => String(h || "").trim());
+
+        // Check if headers are valid
+        if (headers.length === 0 || headers.every((h) => !h)) {
+          showError(
+            "Excel file has no valid headers. Please ensure the first row contains column names."
+          );
+          return;
+        }
+
         const mapping = detectColumnMapping(headers);
+
+        // Validate that essential columns are found
+        const hasDate = mapping.date >= 0;
+        const hasDescription = mapping.description >= 0;
+        const hasAmount =
+          mapping.amount >= 0 || mapping.deposits >= 0 || mapping.withdraw >= 0;
+
+        if (!hasDate || !hasDescription || !hasAmount) {
+          const missingColumns = [];
+          if (!hasDate) missingColumns.push("Date");
+          if (!hasDescription) missingColumns.push("Description/Narration");
+          if (!hasAmount) missingColumns.push("Amount/Deposit/Withdrawal");
+
+          showError(
+            `Excel file format doesn't match expected format. Missing required columns: ${missingColumns.join(
+              ", "
+            )}. ` +
+              `Found columns: ${headers.join(", ")}. ` +
+              `Please ensure your Excel file has columns for Date, Description, and Amount.`
+          );
+          return;
+        }
 
         // Parse data rows
         const parsedTransactions = [];
@@ -193,7 +348,15 @@ const BankStatementImport = () => {
           const row = jsonData[i];
           if (!Array.isArray(row) || row.length === 0) continue;
 
-          const values = row.map((cell) => String(cell || "").trim());
+          const values = row.map((cell) => {
+            // Handle different cell types
+            if (cell === null || cell === undefined) return "";
+            if (typeof cell === "number") {
+              // Preserve numbers as strings for consistency
+              return String(cell);
+            }
+            return String(cell || "").trim();
+          });
 
           // Skip empty rows
           if (values.every((v) => !v || v === "")) {
@@ -205,7 +368,9 @@ const BankStatementImport = () => {
         }
 
         if (parsedTransactions.length === 0) {
-          showError("No valid transactions found in the file");
+          showError(
+            "No valid transactions found in the Excel file. Please ensure the file contains transaction data with Date, Description, and Amount columns."
+          );
           return;
         }
 
@@ -216,9 +381,9 @@ const BankStatementImport = () => {
         );
         setEditedCategories({});
         setShowPreview(true);
-      } catch {
+      } catch (error) {
         showError(
-          "Error parsing Excel file. Please ensure it's a valid Excel file."
+          `Error parsing Excel file: ${error.message}. Please ensure it's a valid Excel file (.xlsx or .xls format) with proper column headers.`
         );
       }
     };
@@ -491,12 +656,12 @@ const BankStatementImport = () => {
                       )}
                     </p>
                     <p className="text-xs text-gray-500 mt-1 break-words px-2">
-                      CSV, XLS, or XLSX files
+                      CSV, XLS, XLSX, or PDF files
                     </p>
                   </div>
                   <input
                     type="file"
-                    accept=".csv,.xlsx,.xls"
+                    accept=".csv,.xlsx,.xls,.pdf"
                     onChange={handleFileChange}
                     className="hidden"
                   />
@@ -613,7 +778,7 @@ const BankStatementImport = () => {
                         const categoryOptions =
                           type === TRANSACTION_TYPES.INCOME
                             ? Object.values(INCOME_CATEGORIES)
-                            : Object.values(EXPENSE_CATEGORIES);
+                            : SORTED_EXPENSE_CATEGORIES;
 
                         const handleCategoryChange = (e) => {
                           const newCategory = e.target.value;
@@ -738,7 +903,7 @@ const BankStatementImport = () => {
                     const categoryOptions =
                       type === TRANSACTION_TYPES.INCOME
                         ? Object.values(INCOME_CATEGORIES)
-                        : Object.values(EXPENSE_CATEGORIES);
+                        : SORTED_EXPENSE_CATEGORIES;
 
                     const handleCategoryChange = (e) => {
                       const newCategory = e.target.value;

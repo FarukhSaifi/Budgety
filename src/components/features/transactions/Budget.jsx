@@ -1,6 +1,8 @@
 import {
   ACTION_TYPES,
+  CURRENCY_FORMAT_OPTIONS,
   CURRENCY_SYMBOL,
+  DEFAULT_VALUES,
   TRANSACTION_TYPES,
   UI_TEXT,
 } from "@constants";
@@ -80,7 +82,10 @@ const Budget = () => {
       const dateB = new Date(b.date);
       if (dateA.getTime() === dateB.getTime()) {
         // If same date, sort by creation time
-        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        return (
+          new Date(a.createdAt || DEFAULT_VALUES.DATE_TIMESTAMP) -
+          new Date(b.createdAt || DEFAULT_VALUES.DATE_TIMESTAMP)
+        );
       }
       return dateA - dateB;
     });
@@ -88,7 +93,7 @@ const Budget = () => {
 
   // Calculate starting balance from all transactions before the current view period
   const startingBalance = useMemo(() => {
-    if (sortedTransactions.length === 0) return 0;
+    if (sortedTransactions.length === 0) return DEFAULT_VALUES.BALANCE;
 
     // Get the earliest date in the filtered transactions
     const earliestDate = new Date(sortedTransactions[0].date);
@@ -107,24 +112,27 @@ const Budget = () => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
       if (dateA.getTime() === dateB.getTime()) {
-        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        return (
+          new Date(a.createdAt || DEFAULT_VALUES.DATE_TIMESTAMP) -
+          new Date(b.createdAt || DEFAULT_VALUES.DATE_TIMESTAMP)
+        );
       }
       return dateA - dateB;
     });
 
     // Calculate running balance from previous transactions
     return sortedPrevious.reduce((balance, transaction) => {
-      const amount = transaction.amount || 0;
+      const amount = transaction.amount || DEFAULT_VALUES.AMOUNT;
       return transaction.type === TRANSACTION_TYPES.INCOME
         ? balance + amount
         : balance - amount;
-    }, 0);
+    }, DEFAULT_VALUES.BALANCE);
   }, [transactions, sortedTransactions]);
 
   // Calculate running balance with starting balance
   const transactionsWithBalance = useMemo(() => {
     return sortedTransactions.reduce((acc, transaction) => {
-      const amount = transaction.amount || 0;
+      const amount = transaction.amount || DEFAULT_VALUES.AMOUNT;
       const previousBalance =
         acc.length > 0 ? acc[acc.length - 1].balance : startingBalance;
       const newBalance =
@@ -210,36 +218,37 @@ const Budget = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {/* Opening Balance Row */}
-                  {startingBalance !== 0 && sortedTransactions.length > 0 && (
-                    <tr className="bg-blue-50 border-b-2 border-blue-200">
-                      <td className="whitespace-nowrap text-center text-sm text-gray-600 font-medium">
-                        -
-                      </td>
-                      <td className="whitespace-nowrap text-sm text-gray-700 italic">
-                        {UI_TEXT.OPENING_BALANCE}
-                      </td>
-                      <td className="whitespace-nowrap text-sm text-gray-700">
-                        -
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700 italic">
-                        {UI_TEXT.BALANCE_BROUGHT_FORWARD}
-                      </td>
-                      <td className="whitespace-nowrap text-right text-sm font-semibold text-gray-600">
-                        -
-                      </td>
-                      <td className="whitespace-nowrap text-right text-sm font-semibold text-gray-600">
-                        -
-                      </td>
-                      <td className="whitespace-nowrap text-right text-sm font-semibold text-gray-800">
-                        {CURRENCY_SYMBOL}
-                        {formatCurrency(startingBalance, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="whitespace-nowrap text-center">-</td>
-                    </tr>
-                  )}
+                  {startingBalance !== DEFAULT_VALUES.BALANCE &&
+                    sortedTransactions.length > 0 && (
+                      <tr className="bg-blue-50 border-b-2 border-blue-200">
+                        <td className="whitespace-nowrap text-center text-sm text-gray-600 font-medium">
+                          -
+                        </td>
+                        <td className="whitespace-nowrap text-sm text-gray-700 italic">
+                          {UI_TEXT.OPENING_BALANCE}
+                        </td>
+                        <td className="whitespace-nowrap text-sm text-gray-700">
+                          -
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 italic">
+                          {UI_TEXT.BALANCE_BROUGHT_FORWARD}
+                        </td>
+                        <td className="whitespace-nowrap text-right text-sm font-semibold text-gray-600">
+                          -
+                        </td>
+                        <td className="whitespace-nowrap text-right text-sm font-semibold text-gray-600">
+                          -
+                        </td>
+                        <td className="whitespace-nowrap text-right text-sm font-semibold text-gray-800">
+                          {CURRENCY_SYMBOL}
+                          {formatCurrency(
+                            startingBalance,
+                            CURRENCY_FORMAT_OPTIONS.STANDARD
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap text-center">-</td>
+                      </tr>
+                    )}
                   {transactionsWithBalance.map((transaction, index) => (
                     <tr
                       key={transaction.id}
@@ -273,10 +282,7 @@ const Budget = () => {
                         {transaction.type === TRANSACTION_TYPES.INCOME
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
-                              {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }
+                              CURRENCY_FORMAT_OPTIONS.STANDARD
                             )}`
                           : "-"}
                       </td>
@@ -284,19 +290,16 @@ const Budget = () => {
                         {transaction.type === TRANSACTION_TYPES.EXPENSE
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
-                              {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }
+                              CURRENCY_FORMAT_OPTIONS.STANDARD
                             )}`
                           : "-"}
                       </td>
                       <td className="whitespace-nowrap text-right text-sm font-semibold text-gray-800">
                         {CURRENCY_SYMBOL}
-                        {formatCurrency(transaction.balance, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatCurrency(
+                          transaction.balance,
+                          CURRENCY_FORMAT_OPTIONS.STANDARD
+                        )}
                       </td>
                       <td className="whitespace-nowrap text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -329,27 +332,28 @@ const Budget = () => {
             {/* Mobile Card View */}
             <div className="lg:hidden divide-y divide-gray-200">
               {/* Opening Balance Card */}
-              {startingBalance !== 0 && sortedTransactions.length > 0 && (
-                <div className="p-2 md:p-4 bg-blue-50 border-b-2 border-blue-200">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium text-sm sm:text-base text-gray-800 mb-1">
-                        {UI_TEXT.OPENING_BALANCE}
+              {startingBalance !== DEFAULT_VALUES.BALANCE &&
+                sortedTransactions.length > 0 && (
+                  <div className="p-2 md:p-4 bg-blue-50 border-b-2 border-blue-200">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="font-medium text-sm sm:text-base text-gray-800 mb-1">
+                          {UI_TEXT.OPENING_BALANCE}
+                        </div>
+                        <div className="text-xs text-gray-600 italic">
+                          {UI_TEXT.BALANCE_BROUGHT_FORWARD}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-600 italic">
-                        {UI_TEXT.BALANCE_BROUGHT_FORWARD}
+                      <div className="text-sm sm:text-base font-semibold text-gray-800">
+                        {CURRENCY_SYMBOL}
+                        {formatCurrency(
+                          startingBalance,
+                          CURRENCY_FORMAT_OPTIONS.STANDARD
+                        )}
                       </div>
-                    </div>
-                    <div className="text-sm sm:text-base font-semibold text-gray-800">
-                      {CURRENCY_SYMBOL}
-                      {formatCurrency(startingBalance, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
               {transactionsWithBalance.map((transaction) => (
                 <div
                   key={transaction.id}
@@ -406,10 +410,7 @@ const Budget = () => {
                         {transaction.type === TRANSACTION_TYPES.INCOME
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
-                              {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }
+                              CURRENCY_FORMAT_OPTIONS.STANDARD
                             )}`
                           : "-"}
                       </div>
@@ -422,10 +423,7 @@ const Budget = () => {
                         {transaction.type === TRANSACTION_TYPES.EXPENSE
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
-                              {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }
+                              CURRENCY_FORMAT_OPTIONS.STANDARD
                             )}`
                           : "-"}
                       </div>
@@ -436,10 +434,10 @@ const Budget = () => {
                       </div>
                       <div className="text-sm sm:text-base font-semibold text-gray-800 break-words">
                         {CURRENCY_SYMBOL}
-                        {formatCurrency(transaction.balance, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatCurrency(
+                          transaction.balance,
+                          CURRENCY_FORMAT_OPTIONS.STANDARD
+                        )}
                       </div>
                     </div>
                   </div>

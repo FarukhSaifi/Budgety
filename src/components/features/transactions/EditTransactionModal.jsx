@@ -1,8 +1,8 @@
 import {
   ACTION_TYPES,
-  EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   NUMBER_FORMAT,
+  SORTED_EXPENSE_CATEGORIES,
   TRANSACTION_MODES,
   TRANSACTION_TYPES,
   TRANSACTION_TYPE_LABELS,
@@ -18,7 +18,7 @@ import {
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { showSuccess } from "@utils/toast";
-import React, { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const EditTransactionModal = ({ open, onClose, transaction }) => {
   const { dispatch } = useBudget();
@@ -48,7 +48,7 @@ const EditTransactionModal = ({ open, onClose, transaction }) => {
   const [formData, setFormData] = useState(initialFormData);
 
   // Update form data when transaction changes
-  React.useEffect(() => {
+  useEffect(() => {
     setFormData(initialFormData);
   }, [initialFormData]);
 
@@ -93,7 +93,7 @@ const EditTransactionModal = ({ open, onClose, transaction }) => {
       return Object.values(INCOME_CATEGORIES);
     }
     if (formData.type === TRANSACTION_TYPES.EXPENSE) {
-      return Object.values(EXPENSE_CATEGORIES);
+      return SORTED_EXPENSE_CATEGORIES;
     }
     return [];
   };
@@ -111,13 +111,13 @@ const EditTransactionModal = ({ open, onClose, transaction }) => {
       }}
     >
       <DialogTitle className="text-lg sm:text-xl font-semibold pb-3">
-        {UI_TEXT.EDIT_TRANSACTION || "Edit Transaction"}
+        {UI_TEXT.EDIT_TRANSACTION}
       </DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent className="px-4 sm:px-6">
           <FormFieldGroup columns={2} spacing={3} className="mb-4">
             <FormField
-              label="Type"
+              label={UI_TEXT.TYPE_LABEL}
               name="type"
               value={formData.type}
               onChange={handleChange}
@@ -145,7 +145,7 @@ const EditTransactionModal = ({ open, onClose, transaction }) => {
               InputLabelProps={{ shrink: true }}
             />
             <FormField
-              label="Mode"
+              label={UI_TEXT.MODE_LABEL}
               name="mode"
               value={formData.mode}
               onChange={handleChange}
@@ -207,7 +207,7 @@ const EditTransactionModal = ({ open, onClose, transaction }) => {
             size="md"
             className="flex-1 sm:flex-initial py-2.5 sm:py-2 touch-manipulation"
           >
-            {UI_TEXT.SAVE || "Save"}
+            {UI_TEXT.SAVE}
           </Button>
         </DialogActions>
       </form>

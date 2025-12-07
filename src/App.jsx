@@ -1,4 +1,5 @@
 import AppLayout from "@components/layout/AppLayout";
+import { TIMEOUTS } from "@constants";
 import { BudgetProvider } from "@context/BudgetContext";
 import { TabProvider } from "@context/TabContext";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -17,7 +18,7 @@ const App = () => {
           <AppLayout />
           <ToastContainer
             position="top-right"
-            autoClose={3000}
+            autoClose={TIMEOUTS.TOAST_SUCCESS}
             hideProgressBar={false}
             newestOnTop={false}
             closeOnClick

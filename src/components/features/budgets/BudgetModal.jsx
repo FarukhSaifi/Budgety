@@ -1,7 +1,7 @@
 import {
   ACTION_TYPES,
-  EXPENSE_CATEGORIES,
   NUMBER_FORMAT,
+  SORTED_EXPENSE_CATEGORIES,
   UI_TEXT,
 } from "@constants";
 import { useBudget } from "@context/BudgetContext";
@@ -14,14 +14,17 @@ import {
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { showSuccess } from "@utils/toast";
-import React, { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { v4 as uuid } from "uuid";
 
 const getInitialFormData = (selectedMonth, selectedYear, budget = null) => {
   if (budget) {
     return {
       category: budget.category || "",
-      amount: budget.amount !== undefined && budget.amount !== null ? String(budget.amount) : "",
+      amount:
+        budget.amount !== undefined && budget.amount !== null
+          ? String(budget.amount)
+          : "",
       month: budget.month ? String(budget.month) : String(selectedMonth || ""),
       year: budget.year ? String(budget.year) : String(selectedYear || ""),
     };
@@ -36,10 +39,8 @@ const getInitialFormData = (selectedMonth, selectedYear, budget = null) => {
 
 const BudgetModal = ({ open, onClose, budget = null }) => {
   const { dispatch, selectedMonth, selectedYear } = useBudget();
-  const prevOpenRef = useRef(false);
-  const prevBudgetIdRef = useRef(null);
 
-  // Compute initial form data using useMemo
+  // Compute initial form data using useMemo - this will reset when budget or selectedMonth/Year changes
   const initialFormData = useMemo(
     () => getInitialFormData(selectedMonth, selectedYear, budget),
     [selectedMonth, selectedYear, budget]
@@ -49,21 +50,6 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
   const [error, setError] = useState("");
 
   const isEditMode = !!budget;
-
-  // Reset form data when modal opens or budget changes, using refs to avoid cascading renders
-  React.useEffect(() => {
-    const isOpening = open && !prevOpenRef.current;
-    const budgetChanged = budget?.id !== prevBudgetIdRef.current;
-
-    if (isOpening || (open && budgetChanged)) {
-      const newFormData = getInitialFormData(selectedMonth, selectedYear, budget);
-      setFormData(newFormData);
-      setError("");
-    }
-
-    prevOpenRef.current = open;
-    prevBudgetIdRef.current = budget?.id ?? null;
-  }, [open, budget, selectedMonth, selectedYear]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -81,27 +67,49 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
 
     const { category, amount, month, year } = formData;
 
-    if (!category || !amount || amount === "" || !month || month === "" || !year || year === "") {
+    if (
+      !category ||
+      !amount ||
+      amount === "" ||
+      !month ||
+      month === "" ||
+      !year ||
+      year === ""
+    ) {
       setError("Please fill in all required fields.");
       return;
     }
 
-    const amountValue = Number(parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES));
+    const amountValue = Number(
+      parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES)
+    );
     const monthValue = parseInt(month, 10);
     const yearValue = parseInt(year, 10);
-    
+
     if (isNaN(amountValue) || amountValue <= 0) {
       setError("Budget amount must be greater than 0.");
       return;
     }
 
-    if (isNaN(monthValue) || monthValue < NUMBER_FORMAT.MIN_MONTH || monthValue > NUMBER_FORMAT.MAX_MONTH) {
-      setError(`Month must be between ${NUMBER_FORMAT.MIN_MONTH} and ${NUMBER_FORMAT.MAX_MONTH}.`);
+    if (
+      isNaN(monthValue) ||
+      monthValue < NUMBER_FORMAT.MIN_MONTH ||
+      monthValue > NUMBER_FORMAT.MAX_MONTH
+    ) {
+      setError(
+        `Month must be between ${NUMBER_FORMAT.MIN_MONTH} and ${NUMBER_FORMAT.MAX_MONTH}.`
+      );
       return;
     }
 
-    if (isNaN(yearValue) || yearValue < NUMBER_FORMAT.MIN_YEAR || yearValue > NUMBER_FORMAT.MAX_YEAR) {
-      setError(`Year must be between ${NUMBER_FORMAT.MIN_YEAR} and ${NUMBER_FORMAT.MAX_YEAR}.`);
+    if (
+      isNaN(yearValue) ||
+      yearValue < NUMBER_FORMAT.MIN_YEAR ||
+      yearValue > NUMBER_FORMAT.MAX_YEAR
+    ) {
+      setError(
+        `Year must be between ${NUMBER_FORMAT.MIN_YEAR} and ${NUMBER_FORMAT.MAX_YEAR}.`
+      );
       return;
     }
 
@@ -145,8 +153,14 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
     onClose();
   };
 
+  // Use key to reset form when budget changes
+  const modalKey = useMemo(() => {
+    return budget?.id ?? `new-${selectedMonth}-${selectedYear}`;
+  }, [budget?.id, selectedMonth, selectedYear]);
+
   return (
     <Dialog
+      key={modalKey}
       open={open}
       onClose={handleClose}
       maxWidth="md"
@@ -172,7 +186,7 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
               required
               options={[
                 { value: "", label: UI_TEXT.CHOOSE || "Choose..." },
-                ...Object.values(EXPENSE_CATEGORIES).map((category) => ({
+                ...SORTED_EXPENSE_CATEGORIES.map((category) => ({
                   value: category,
                   label: category,
                 })),
@@ -249,4 +263,3 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
 };
 
 export default BudgetModal;
-
