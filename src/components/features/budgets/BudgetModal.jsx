@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
+import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { showSuccess } from "@utils/toast";
 import { useMemo, useState } from "react";
 import { v4 as uuid } from "uuid";
@@ -177,20 +178,17 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
       <form onSubmit={handleSubmit}>
         <DialogContent className="px-4 sm:px-6">
           <FormFieldGroup columns={2} spacing={3} className="mb-4">
-            <FormField
+            <SearchableCategorySelect
               label="Category"
               name="category"
               value={formData.category}
               onChange={handleChange}
-              type="select"
               required
-              options={[
-                { value: "", label: UI_TEXT.CHOOSE || "Choose..." },
-                ...SORTED_EXPENSE_CATEGORIES.map((category) => ({
-                  value: category,
-                  label: category,
-                })),
-              ]}
+              options={SORTED_EXPENSE_CATEGORIES.map((category) => ({
+                value: category,
+                label: category,
+              }))}
+              placeholder="Search or select category..."
             />
             <FormField
               label={UI_TEXT.BUDGET_LIMIT}

@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
+import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { hasDuplicate } from "@utils/duplicateDetection";
 import { showError, showSuccess } from "@utils/toast";
 import { useState } from "react";
@@ -157,21 +158,18 @@ const AddTransactionModal = ({ open, onClose }) => {
                 label: mode,
               }))}
             />
-            <FormField
+            <SearchableCategorySelect
               label={UI_TEXT.CATEGORY_PLACEHOLDER}
               name="category"
               value={formData.category}
               onChange={handleChange}
-              type="select"
               required
               disabled={!formData.type}
-              options={[
-                { value: "", label: UI_TEXT.CHOOSE },
-                ...getCategoryOptions().map((category) => ({
-                  value: category,
-                  label: category,
-                })),
-              ]}
+              options={getCategoryOptions().map((category) => ({
+                value: category,
+                label: category,
+              }))}
+              placeholder="Search or select category..."
             />
             <FormField
               label={UI_TEXT.DESCRIPTION_PLACEHOLDER}
