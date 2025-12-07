@@ -1,21 +1,36 @@
-import React from "react";
+import AppLayout from "@components/layout/AppLayout";
+import { BudgetProvider } from "@context/BudgetContext";
+import { TabProvider } from "@context/TabContext";
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider } from "@mui/material/styles";
+import { theme } from "@theme";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "./App.css";
-import Provider from "./Components/Database";
 
-import Budget from "./Components/Budget";
-import BudgetHeader from "./Components/BudgetHeader";
-import InputData from "./Components/InputData";
-
-function App() {
+const App = () => {
   return (
-    <Provider>
-      <div className="App">
-        <BudgetHeader />
-        <InputData />
-        <Budget />
-      </div>
-    </Provider>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <BudgetProvider>
+        <TabProvider>
+          <AppLayout />
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+          />
+        </TabProvider>
+      </BudgetProvider>
+    </ThemeProvider>
   );
-}
+};
 
 export default App;
