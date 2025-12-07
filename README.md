@@ -2,7 +2,7 @@
 
 A comprehensive personal budget management application built with React. Track your income, expenses, budgets, bills, and savings goals all in one place.
 
-**Live Demo:** [https://farukh1x95.github.io/Budgety](https://farukh1x95.github.io/Budgety)
+**Live Demo:** [https://FarukhSaifi.github.io/Budgety](https://FarukhSaifi.github.io/Budgety)
 
 ## ✨ Features
 
