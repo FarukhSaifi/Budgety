@@ -1,7 +1,9 @@
 import {
   ACTION_TYPES,
   CURRENCY_SYMBOL,
+  DEFAULT_VALUES,
   MONTHS,
+  NUMBER_FORMAT,
   TRANSACTION_TYPES,
   UI_TEXT,
 } from "@constants";
@@ -65,10 +67,10 @@ const CalendarView = () => {
       }
       if (transaction.type === TRANSACTION_TYPES.INCOME) {
         grouped[dateKey].income.push(transaction);
-        grouped[dateKey].totalIncome += transaction.amount || 0;
+        grouped[dateKey].totalIncome += transaction.amount || DEFAULT_VALUES.AMOUNT;
       } else {
         grouped[dateKey].expense.push(transaction);
-        grouped[dateKey].totalExpense += transaction.amount || 0;
+        grouped[dateKey].totalExpense += transaction.amount || DEFAULT_VALUES.AMOUNT;
       }
     });
     return grouped;
@@ -110,7 +112,7 @@ const CalendarView = () => {
   };
 
   const getDayBalance = (day) => {
-    if (!day || !transactionsByDate[day]) return 0;
+    if (!day || !transactionsByDate[day]) return DEFAULT_VALUES.BALANCE;
     return (
       transactionsByDate[day].totalIncome - transactionsByDate[day].totalExpense
     );
@@ -122,14 +124,14 @@ const CalendarView = () => {
 
     if (direction === "prev") {
       newMonth -= 1;
-      if (newMonth < 1) {
-        newMonth = 12;
+      if (newMonth < NUMBER_FORMAT.MIN_MONTH) {
+        newMonth = NUMBER_FORMAT.MAX_MONTH;
         newYear -= 1;
       }
     } else {
       newMonth += 1;
-      if (newMonth > 12) {
-        newMonth = 1;
+      if (newMonth > NUMBER_FORMAT.MAX_MONTH) {
+        newMonth = NUMBER_FORMAT.MIN_MONTH;
         newYear += 1;
       }
     }
@@ -169,10 +171,10 @@ const CalendarView = () => {
   const monthlyTotals = useMemo(() => {
     const income = monthTransactions
       .filter((t) => t.type === TRANSACTION_TYPES.INCOME)
-      .reduce((sum, t) => sum + (t.amount || 0), 0);
+      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
     const expense = monthTransactions
       .filter((t) => t.type === TRANSACTION_TYPES.EXPENSE)
-      .reduce((sum, t) => sum + (t.amount || 0), 0);
+      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
     return {
       income,
       expense,
@@ -212,7 +214,7 @@ const CalendarView = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
-                Calendar View
+                {UI_TEXT.CALENDAR_VIEW}
               </h2>
               <p className="text-sm text-blue-100">
                 {MONTHS[selectedMonth - 1]} {selectedYear}
@@ -225,7 +227,7 @@ const CalendarView = () => {
                 onClick={goToToday}
                 className="bg-white text-blue-600 hover:bg-blue-50 border-white"
               >
-                Today
+                {UI_TEXT.TODAY}
               </Button>
               <div className="flex items-center gap-1">
                 <Button
@@ -403,7 +405,7 @@ const CalendarView = () => {
                   onClick={() => setSelectedDate(null)}
                   className="text-gray-600"
                 >
-                  Close
+                  {UI_TEXT.CLOSE}
                 </Button>
               </div>
               <div className="space-y-3">

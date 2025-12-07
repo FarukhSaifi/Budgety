@@ -144,24 +144,39 @@ export const INCOME_CATEGORIES = {
   OTHER: "Other",
 };
 
-// Expense Categories
+// Expense Categories (sorted alphabetically by display value)
 export const EXPENSE_CATEGORIES = {
-  HOUSING: "Housing",
-  GROCERIES: "Groceries",
-  TRANSPORTATION: "Transportation",
-  ENTERTAINMENT: "Entertainment",
-  UTILITIES: "Utilities",
-  HEALTHCARE: "Healthcare",
-  EDUCATION: "Education",
+  BONDS: "Bonds",
   DINING: "Dining Out",
-  SHOPPING: "Shopping",
-  TRAVEL: "Travel",
-  INSURANCE: "Insurance",
-  PERSONAL_CARE: "Personal Care",
+  EDUCATION: "Education",
+  ELSS: "ELSS",
+  ENTERTAINMENT: "Entertainment",
+  ETF: "ETF",
   GIFTS: "Gifts & Donations",
-  SUBSCRIPTIONS: "Subscriptions",
+  GROCERIES: "Groceries",
+  HEALTHCARE: "Healthcare",
+  HOUSING: "Housing",
+  INSURANCE: "Insurance",
+  INVESTMENTS: "Investments",
+  LOAN_PAYMENTS: "Loan Payments",
+  MISC_EXPENSES: "Miscellaneous Expenses",
+  MUTUAL_FUNDS: "Mutual Funds",
+  NPS: "NPS",
   OTHER: "Other",
+  PERSONAL_CARE: "Personal Care",
+  PPF: "PPF",
+  REIT: "REIT",
+  SHOPPING: "Shopping",
+  SIP: "SIP",
+  SUBSCRIPTIONS: "Subscriptions",
+  TRANSPORTATION: "Transportation",
+  TRAVEL: "Travel",
+  UTILITIES: "Utilities",
 };
+
+// Sorted expense categories array for dropdowns (alphabetically sorted)
+export const SORTED_EXPENSE_CATEGORIES =
+  Object.values(EXPENSE_CATEGORIES).sort();
 
 // Category Colors for Charts
 export const CATEGORY_COLORS = {
@@ -172,21 +187,32 @@ export const CATEGORY_COLORS = {
   [INCOME_CATEGORIES.RENTAL]: "#1abc9c",
   [INCOME_CATEGORIES.BONUS]: "#16a085",
   [INCOME_CATEGORIES.OTHER]: "#95a5a6",
-  [EXPENSE_CATEGORIES.HOUSING]: "#e74c3c",
-  [EXPENSE_CATEGORIES.GROCERIES]: "#f39c12",
-  [EXPENSE_CATEGORIES.TRANSPORTATION]: "#3498db",
-  [EXPENSE_CATEGORIES.ENTERTAINMENT]: "#9b59b6",
-  [EXPENSE_CATEGORIES.UTILITIES]: "#1abc9c",
-  [EXPENSE_CATEGORIES.HEALTHCARE]: "#e67e22",
-  [EXPENSE_CATEGORIES.EDUCATION]: "#34495e",
+  [EXPENSE_CATEGORIES.BONDS]: "#8e44ad",
   [EXPENSE_CATEGORIES.DINING]: "#e91e63",
-  [EXPENSE_CATEGORIES.SHOPPING]: "#ff5722",
-  [EXPENSE_CATEGORIES.TRAVEL]: "#00bcd4",
-  [EXPENSE_CATEGORIES.INSURANCE]: "#607d8b",
-  [EXPENSE_CATEGORIES.PERSONAL_CARE]: "#ff9800",
+  [EXPENSE_CATEGORIES.EDUCATION]: "#34495e",
+  [EXPENSE_CATEGORIES.ELSS]: "#16a085",
+  [EXPENSE_CATEGORIES.ENTERTAINMENT]: "#9b59b6",
+  [EXPENSE_CATEGORIES.ETF]: "#27ae60",
   [EXPENSE_CATEGORIES.GIFTS]: "#9c27b0",
-  [EXPENSE_CATEGORIES.SUBSCRIPTIONS]: "#795548",
+  [EXPENSE_CATEGORIES.GROCERIES]: "#f39c12",
+  [EXPENSE_CATEGORIES.HEALTHCARE]: "#e67e22",
+  [EXPENSE_CATEGORIES.HOUSING]: "#e74c3c",
+  [EXPENSE_CATEGORIES.INSURANCE]: "#607d8b",
+  [EXPENSE_CATEGORIES.INVESTMENTS]: "#3498db",
+  [EXPENSE_CATEGORIES.LOAN_PAYMENTS]: "#c0392b",
+  [EXPENSE_CATEGORIES.MISC_EXPENSES]: "#95a5a6",
+  [EXPENSE_CATEGORIES.MUTUAL_FUNDS]: "#2980b9",
+  [EXPENSE_CATEGORIES.NPS]: "#1abc9c",
   [EXPENSE_CATEGORIES.OTHER]: "#ff5049",
+  [EXPENSE_CATEGORIES.PERSONAL_CARE]: "#ff9800",
+  [EXPENSE_CATEGORIES.PPF]: "#16a085",
+  [EXPENSE_CATEGORIES.REIT]: "#27ae60",
+  [EXPENSE_CATEGORIES.SHOPPING]: "#ff5722",
+  [EXPENSE_CATEGORIES.SIP]: "#2980b9",
+  [EXPENSE_CATEGORIES.SUBSCRIPTIONS]: "#795548",
+  [EXPENSE_CATEGORIES.TRANSPORTATION]: "#3498db",
+  [EXPENSE_CATEGORIES.TRAVEL]: "#00bcd4",
+  [EXPENSE_CATEGORIES.UTILITIES]: "#1abc9c",
 };
 
 // View Periods
@@ -246,6 +272,8 @@ export const UI_TEXT = {
   DATE_PLACEHOLDER: "Date",
   CATEGORY_PLACEHOLDER: "Category",
   MODE_PLACEHOLDER: "Mode",
+  TYPE_LABEL: "Type",
+  MODE_LABEL: "Mode",
   INCOME_SYMBOL: "+",
   EXPENSE_SYMBOL: "-",
   ADD_TRANSACTION: "Add Transaction",
@@ -266,6 +294,7 @@ export const UI_TEXT = {
   SELECT_YEAR: "Select Year",
   DELETE: "Delete",
   EDIT: "Edit",
+  EDIT_TRANSACTION: "Edit Transaction",
   SAVE: "Save",
   CANCEL: "Cancel",
   CONFIRM: "Confirm",
@@ -347,7 +376,7 @@ export const UI_TEXT = {
   MODE: "MODE",
   PARTICULARS: "PARTICULARS",
   IMPORT_BANK_STATEMENT: "Import Bank Statement",
-  UPLOAD_CSV_EXCEL: "Upload CSV or Excel file to import transactions",
+  UPLOAD_CSV_EXCEL: "Upload CSV, Excel, or PDF file to import transactions",
   TOTAL_GOALS: "Total Goals",
   TOTAL_TARGET: "Total Target",
   TOTAL_SAVED: "Total Saved",
@@ -364,6 +393,7 @@ export const UI_TEXT = {
   GOALS: "Goals",
   ALL_TIME: "All Time",
   PAYMENTS_CALENDAR: "Payments Calendar",
+  CALENDAR_VIEW: "Calendar View",
   TOTAL_PAYMENTS: "Total Payments",
   OVERDUE: "Overdue",
   RECURRING: "Recurring",
@@ -429,7 +459,7 @@ export const DEFAULT_STATE = {
 export const CURRENCY_SYMBOL = "₹";
 
 // Date Format
-export const DATE_FORMAT = "YYYY-MM-DD";
+export const DATE_FORMAT = "DD-MM-YYYY";
 
 // Months
 export const MONTHS = [
@@ -533,6 +563,28 @@ export const NUMBER_FORMAT = {
   MAX_YEAR: 2100,
   MIN_MONTH: 1,
   MAX_MONTH: 12,
+};
+
+// Currency Formatting Options
+export const CURRENCY_FORMAT_OPTIONS = {
+  STANDARD: {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  },
+};
+
+// Currency Formatting Thresholds
+export const CURRENCY_THRESHOLDS = {
+  MILLION: 1000000,
+  THOUSAND: 1000,
+};
+
+// Default Values
+export const DEFAULT_VALUES = {
+  AMOUNT: 0,
+  BALANCE: 0,
+  DATE_TIMESTAMP: 0,
+  EMPTY_STRING: "",
 };
 
 // Category Detection Patterns
@@ -679,6 +731,61 @@ export const CATEGORY_PATTERNS = {
       "fitness",
     ],
     [EXPENSE_CATEGORIES.GIFTS]: ["gift", "donation", "charity"],
+    [EXPENSE_CATEGORIES.BONDS]: [
+      "bonds",
+      "bond",
+      "government bond",
+      "corporate bond",
+    ],
+    [EXPENSE_CATEGORIES.ELSS]: [
+      "elss",
+      "equity linked savings scheme",
+      "tax saving mutual fund",
+    ],
+    [EXPENSE_CATEGORIES.ETF]: ["etf", "exchange traded fund", "index fund"],
+    [EXPENSE_CATEGORIES.INVESTMENTS]: [
+      "investment",
+      "invest",
+      "portfolio",
+      "asset",
+      "capital",
+    ],
+    [EXPENSE_CATEGORIES.LOAN_PAYMENTS]: [
+      "loan",
+      "emi",
+      "loan payment",
+      "installment",
+      "repayment",
+      "personal loan",
+      "car loan",
+      "education loan",
+    ],
+    [EXPENSE_CATEGORIES.MISC_EXPENSES]: [
+      "misc",
+      "miscellaneous",
+      "other expense",
+      "various",
+    ],
+    [EXPENSE_CATEGORIES.MUTUAL_FUNDS]: [
+      "mutual fund",
+      "mf",
+      "sip",
+      "equity fund",
+      "debt fund",
+      "hybrid fund",
+    ],
+    [EXPENSE_CATEGORIES.NPS]: ["nps", "national pension scheme", "pension"],
+    [EXPENSE_CATEGORIES.PPF]: [
+      "ppf",
+      "public provident fund",
+      "provident fund",
+    ],
+    [EXPENSE_CATEGORIES.REIT]: ["reit", "real estate investment trust"],
+    [EXPENSE_CATEGORIES.SIP]: [
+      "sip",
+      "systematic investment plan",
+      "mutual fund sip",
+    ],
   },
 };
 
@@ -723,6 +830,7 @@ export const COLUMN_MAPPING_PATTERNS = {
     "transaction_remark",
     "narration/particulars",
     "transaction details",
+    "particulars", // Explicitly added for better matching
   ],
   DEPOSITS: [
     "deposit",

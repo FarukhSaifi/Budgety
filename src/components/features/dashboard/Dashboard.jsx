@@ -1,6 +1,7 @@
+import { DEFAULT_VALUES, TRANSACTION_TYPES } from "@constants";
 import { useBudget } from "@context/BudgetContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useMemo } from "react";
 
 // Lazy load dashboard components for further code splitting
 const SummaryCards = lazy(() => import("./SummaryCards"));
@@ -22,12 +23,33 @@ const ChartLoadingFallback = () => (
 
 const Dashboard = () => {
   const { transactions, viewPeriod, selectedMonth, selectedYear } = useBudget();
-  const { totalIncome, totalExpense, netSavings } = useBudgetCalculations(
+  const { totalIncome, totalExpense } = useBudgetCalculations(
     transactions,
     viewPeriod,
     selectedMonth,
     selectedYear
   );
+
+  // Calculate total balance from ALL transactions (not filtered by period)
+  const totalBalance = useMemo(() => {
+    const allIncome = transactions
+      .filter((transaction) => transaction.type === TRANSACTION_TYPES.INCOME)
+      .reduce(
+        (sum, transaction) =>
+          sum + (transaction.amount || DEFAULT_VALUES.AMOUNT),
+        DEFAULT_VALUES.BALANCE
+      );
+
+    const allExpense = transactions
+      .filter((transaction) => transaction.type === TRANSACTION_TYPES.EXPENSE)
+      .reduce(
+        (sum, transaction) =>
+          sum + (transaction.amount || DEFAULT_VALUES.AMOUNT),
+        DEFAULT_VALUES.BALANCE
+      );
+
+    return allIncome - allExpense;
+  }, [transactions]);
 
   return (
     <div className="w-full space-y-2 md:space-y-4">
@@ -47,7 +69,7 @@ const Dashboard = () => {
         <SummaryCards
           totalIncome={totalIncome}
           totalExpense={totalExpense}
-          balance={netSavings}
+          balance={totalBalance}
         />
       </Suspense>
 

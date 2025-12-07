@@ -1,8 +1,8 @@
 import {
   ACTION_TYPES,
-  EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
   NUMBER_FORMAT,
+  SORTED_EXPENSE_CATEGORIES,
   TRANSACTION_MODES,
   TRANSACTION_TYPES,
   TRANSACTION_TYPE_LABELS,
@@ -95,7 +95,7 @@ const AddTransactionModal = ({ open, onClose }) => {
       return Object.values(INCOME_CATEGORIES);
     }
     if (formData.type === TRANSACTION_TYPES.EXPENSE) {
-      return Object.values(EXPENSE_CATEGORIES);
+      return SORTED_EXPENSE_CATEGORIES;
     }
     return [];
   };
@@ -118,7 +118,7 @@ const AddTransactionModal = ({ open, onClose }) => {
         <DialogContent className="px-4 sm:px-6">
           <FormFieldGroup columns={2} spacing={3} className="mb-4">
             <FormField
-              label="Type"
+              label={UI_TEXT.TYPE_LABEL}
               name="type"
               value={formData.type}
               onChange={handleChange}
@@ -146,7 +146,7 @@ const AddTransactionModal = ({ open, onClose }) => {
               InputLabelProps={{ shrink: true }}
             />
             <FormField
-              label="Mode"
+              label={UI_TEXT.MODE_LABEL}
               name="mode"
               value={formData.mode}
               onChange={handleChange}

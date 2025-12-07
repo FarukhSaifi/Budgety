@@ -13,7 +13,7 @@ import { ChartContainer } from "@ui/ChartContainer";
 import { Widget } from "@ui/Widget";
 import { exportChartData } from "@utils/exportUtils";
 import { showInfo } from "@utils/toast";
-import React from "react";
+import { useMemo } from "react";
 import {
   Cell,
   Legend,
@@ -55,7 +55,7 @@ const CategoryBreakdownChart = () => {
   const { formatCurrency } = useCurrencyFormatter();
 
   // Prepare data for pie chart
-  const chartData = React.useMemo(() => {
+  const chartData = useMemo(() => {
     return Object.entries(spendingByCategory)
       .map(([name, value]) => ({
         name,

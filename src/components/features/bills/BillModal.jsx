@@ -1,10 +1,10 @@
 import {
   ACTION_TYPES,
   DATE_CONSTANTS,
-  EXPENSE_CATEGORIES,
   NUMBER_FORMAT,
   RECURRENCE_LABELS,
   RECURRENCE_TYPES,
+  SORTED_EXPENSE_CATEGORIES,
   UI_TEXT,
 } from "@constants";
 import { useBudget } from "@context/BudgetContext";
@@ -217,7 +217,7 @@ const BillModal = ({ open, onClose, bill = null }) => {
               required
               options={[
                 { value: "", label: UI_TEXT.CHOOSE || "Choose..." },
-                ...Object.values(EXPENSE_CATEGORIES).map((category) => ({
+                ...SORTED_EXPENSE_CATEGORIES.map((category) => ({
                   value: category,
                   label: category,
                 })),

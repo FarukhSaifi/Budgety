@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { TRANSACTION_TYPES, VIEW_PERIODS } from "../constants";
+import { DEFAULT_VALUES, TRANSACTION_TYPES, VIEW_PERIODS } from "../constants";
 import { filterTransactionsBySearch } from "../utils/searchUtils";
 
 // Helper function to parse date
@@ -74,21 +74,30 @@ export const useBudgetCalculations = (
 
     const totalIncome = filteredTransactions
       .filter((transaction) => transaction.type === TRANSACTION_TYPES.INCOME)
-      .reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+      .reduce(
+        (sum, transaction) =>
+          sum + (transaction.amount || DEFAULT_VALUES.AMOUNT),
+        DEFAULT_VALUES.BALANCE
+      );
 
     const totalExpense = filteredTransactions
       .filter((transaction) => transaction.type === TRANSACTION_TYPES.EXPENSE)
-      .reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+      .reduce(
+        (sum, transaction) =>
+          sum + (transaction.amount || DEFAULT_VALUES.AMOUNT),
+        DEFAULT_VALUES.BALANCE
+      );
 
     const balance = totalIncome - totalExpense;
-    const netSavings = balance;
 
     // Calculate spending by category
     const spendingByCategory = filteredTransactions
       .filter((transaction) => transaction.type === TRANSACTION_TYPES.EXPENSE)
       .reduce((acc, transaction) => {
         const category = transaction.category || "Other";
-        acc[category] = (acc[category] || 0) + (transaction.amount || 0);
+        acc[category] =
+          (acc[category] || DEFAULT_VALUES.BALANCE) +
+          (transaction.amount || DEFAULT_VALUES.AMOUNT);
         return acc;
       }, {});
 
@@ -97,7 +106,9 @@ export const useBudgetCalculations = (
       .filter((transaction) => transaction.type === TRANSACTION_TYPES.INCOME)
       .reduce((acc, transaction) => {
         const category = transaction.category || "Other";
-        acc[category] = (acc[category] || 0) + (transaction.amount || 0);
+        acc[category] =
+          (acc[category] || DEFAULT_VALUES.BALANCE) +
+          (transaction.amount || DEFAULT_VALUES.AMOUNT);
         return acc;
       }, {});
 
@@ -122,9 +133,11 @@ export const useBudgetCalculations = (
         }
 
         if (transaction.type === TRANSACTION_TYPES.INCOME) {
-          monthlyBreakdown[key].income += transaction.amount || 0;
+          monthlyBreakdown[key].income +=
+            transaction.amount || DEFAULT_VALUES.AMOUNT;
         } else {
-          monthlyBreakdown[key].expense += transaction.amount || 0;
+          monthlyBreakdown[key].expense +=
+            transaction.amount || DEFAULT_VALUES.AMOUNT;
         }
       });
     }
@@ -133,7 +146,6 @@ export const useBudgetCalculations = (
       totalIncome,
       totalExpense,
       balance,
-      netSavings,
       spendingByCategory,
       incomeByCategory,
       monthlyBreakdown: Object.values(monthlyBreakdown).sort((a, b) => {

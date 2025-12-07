@@ -12,8 +12,13 @@ dayjs.extend(customParseFormat);
 
 /**
  * Parse CSV line with proper handling of quoted fields
+ * Handles various CSV formats including quoted fields, escaped quotes, and different delimiters
  */
 export const parseCSVLine = (line) => {
+  if (!line || typeof line !== "string") {
+    return [];
+  }
+
   const result = [];
   let current = "";
   let inQuotes = false;
@@ -24,20 +29,35 @@ export const parseCSVLine = (line) => {
 
     if (char === '"') {
       if (inQuotes && nextChar === '"') {
+        // Escaped quote inside quoted field
         current += '"';
         i++; // Skip next quote
+      } else if (inQuotes && nextChar === ",") {
+        // End of quoted field
+        inQuotes = false;
       } else {
+        // Start or end of quoted field
         inQuotes = !inQuotes;
       }
     } else if (char === "," && !inQuotes) {
+      // Field separator
       result.push(current.trim());
       current = "";
     } else {
       current += char;
     }
   }
+
+  // Push the last field
   result.push(current.trim());
-  return result;
+
+  // Remove quotes from field values if they exist
+  return result.map((field) => {
+    if (field.startsWith('"') && field.endsWith('"')) {
+      return field.slice(1, -1).replace(/""/g, '"');
+    }
+    return field;
+  });
 };
 
 /**
@@ -51,9 +71,16 @@ export const detectColumnMapping = (headers) => {
   );
 
   const findColumnIndex = (patterns) => {
-    return normalizedHeaders.findIndex((header) =>
-      patterns.some((pattern) => header.includes(pattern))
-    );
+    return normalizedHeaders.findIndex((header) => {
+      // Check for exact match first (case-insensitive)
+      const exactMatch = patterns.some(
+        (pattern) => header === pattern.toLowerCase()
+      );
+      if (exactMatch) return true;
+
+      // Then check for partial match
+      return patterns.some((pattern) => header.includes(pattern.toLowerCase()));
+    });
   };
 
   return {
@@ -81,11 +108,12 @@ export const parseDate = (dateStr) => {
   const cleanDateStr = dateStr.trim();
 
   // Common date formats in bank statements
+  // Prioritize DD-MM-YYYY format as it's the app's default format
   const dateFormats = [
-    "YYYY-MM-DD", // ISO format
-    "DD-MM-YYYY", // Common in Indian bank statements
-    "DD/MM/YYYY",
+    "DD-MM-YYYY", // App default format - prioritize this
+    "DD/MM/YYYY", // Alternative format
     "DD.MM.YYYY",
+    "YYYY-MM-DD", // ISO format
     "MM-DD-YYYY", // US format
     "MM/DD/YYYY",
     "MM.DD.YYYY",
@@ -96,6 +124,7 @@ export const parseDate = (dateStr) => {
     "YYYY/MM/DD",
     "YYYY-MM-DD HH:mm:ss", // With time
     "DD-MM-YYYY HH:mm:ss",
+    "DD/MM/YYYY HH:mm:ss",
   ];
 
   // Try parsing with each format
@@ -264,17 +293,27 @@ export const extractTransactionData = (values, mapping) => {
   const withdrawAmount = parseAmount(withdrawValue);
 
   // Use the column that has a value
+  // Prioritize deposits/withdrawals columns over generic amount column
   if (depositAmount > 0) {
     amount = depositValue;
     type = "credit";
   } else if (withdrawAmount > 0) {
     amount = withdrawValue;
     type = "debit";
-  } else if (mapping.amount >= 0) {
+  } else if (mapping.amount >= 0 && amountValue) {
     // Fallback to generic amount column
-    amount = amountValue;
-    if (typeValue) {
-      type = typeValue;
+    const genericAmount = parseAmount(amountValue);
+    if (genericAmount > 0) {
+      amount = amountValue;
+      if (typeValue) {
+        type = typeValue.toLowerCase();
+      } else {
+        // Try to infer from amount sign or description
+        const numericAmount = parseFloat(
+          String(amountValue).replace(/[^0-9.-]/g, "") || "0"
+        );
+        type = numericAmount < 0 ? "debit" : "credit";
+      }
     }
   }
 

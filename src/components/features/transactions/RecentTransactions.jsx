@@ -1,5 +1,6 @@
 import {
   CURRENCY_SYMBOL,
+  DEFAULT_VALUES,
   DISPLAY_LIMITS,
   TRANSACTION_MODES,
   TRANSACTION_TYPES,
@@ -11,7 +12,7 @@ import { useDateFormatter } from "@hooks/useDateFormatter";
 import { ListItem, ListItemGroup } from "@ui/ListItem";
 import { Widget } from "@ui/Widget";
 import { filterTransactionsBySearch } from "@utils/searchUtils";
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
 import EditTransactionModal from "./EditTransactionModal";
 
 const RecentTransactions = ({
@@ -110,7 +111,7 @@ const RecentTransactions = ({
   };
 
   // Get recent transactions sorted by date (newest first) and apply search filter
-  const recentTransactions = React.useMemo(() => {
+  const recentTransactions = useMemo(() => {
     let filtered = transactions;
 
     // Apply search filter if search query exists
@@ -165,7 +166,7 @@ const RecentTransactions = ({
             });
           }
 
-          const amount = Number(transaction.amount) || 0;
+          const amount = Number(transaction.amount) || DEFAULT_VALUES.AMOUNT;
           const formattedAmount = formatCurrency(Math.abs(amount), {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
