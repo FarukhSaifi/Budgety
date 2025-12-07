@@ -17,6 +17,7 @@ import {
 import { Button } from "@ui/Button";
 import { EnhancedCard } from "@ui/EnhancedCard";
 import { FormField, FormFieldGroup } from "@ui/FormField";
+import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { useMemo } from "react";
 
 const ViewControls = () => {
@@ -215,12 +216,11 @@ const ViewControls = () => {
                 </label>
                 <div className="flex gap-2">
                   <div className="flex-1 min-w-0">
-                    <FormField
+                    <SearchableCategorySelect
                       label=""
                       name="category"
                       value={selectedCategory}
                       onChange={handleCategoryChange}
-                      type="select"
                       options={[
                         { value: "", label: UI_TEXT.ALL_CATEGORIES },
                         ...allCategories.map((cat) => ({
@@ -228,7 +228,7 @@ const ViewControls = () => {
                           label: cat,
                         })),
                       ]}
-                      fullWidth
+                      placeholder="Search or select category..."
                     />
                   </div>
                   {selectedCategory && (

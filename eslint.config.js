@@ -37,6 +37,7 @@ export default [
         clearInterval: "readonly",
         localStorage: "readonly",
         crypto: "readonly",
+        fetch: "readonly",
       },
     },
     plugins: {

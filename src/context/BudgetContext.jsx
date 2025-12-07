@@ -159,6 +159,7 @@ const reducer = (state, action) => {
 const loadState = () => {
   try {
     const serializedState = localStorage.getItem("budgetyState");
+
     if (serializedState === null) {
       return DEFAULT_STATE;
     }

@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
+import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { showSuccess } from "@utils/toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
@@ -238,21 +239,18 @@ const RecurringTransactionModal = ({ open, onClose, recurring = null }) => {
                 },
               ]}
             />
-            <FormField
+            <SearchableCategorySelect
               label="Category"
               name="category"
               value={formData.category}
               onChange={handleChange}
-              type="select"
               required
               disabled={!formData.type}
-              options={[
-                { value: "", label: UI_TEXT.CHOOSE || "Choose..." },
-                ...getCategoryOptions().map((category) => ({
-                  value: category,
-                  label: category,
-                })),
-              ]}
+              options={getCategoryOptions().map((category) => ({
+                value: category,
+                label: category,
+              }))}
+              placeholder="Search or select category..."
             />
             <FormField
               label="Description"

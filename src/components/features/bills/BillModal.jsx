@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
+import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { showSuccess } from "@utils/toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
@@ -208,20 +209,17 @@ const BillModal = ({ open, onClose, bill = null }) => {
               required
               placeholder="e.g., Electricity Bill"
             />
-            <FormField
+            <SearchableCategorySelect
               label="Category"
               name="category"
               value={formData.category}
               onChange={handleChange}
-              type="select"
               required
-              options={[
-                { value: "", label: UI_TEXT.CHOOSE || "Choose..." },
-                ...SORTED_EXPENSE_CATEGORIES.map((category) => ({
-                  value: category,
-                  label: category,
-                })),
-              ]}
+              options={SORTED_EXPENSE_CATEGORIES.map((category) => ({
+                value: category,
+                label: category,
+              }))}
+              placeholder="Search or select category..."
             />
             <FormField
               label="Amount"

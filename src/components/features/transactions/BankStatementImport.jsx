@@ -18,6 +18,7 @@ import { Add as AddIcon } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
+import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import {
   detectColumnMapping,
   detectTransactionMode,
@@ -843,18 +844,27 @@ const BankStatementImport = () => {
                               </span>
                             </td>
                             <td className="px-4 py-2">
-                              <select
-                                value={category}
-                                onChange={handleCategoryChange}
-                                className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
-                                title="Click to change category"
-                              >
-                                {categoryOptions.map((cat) => (
-                                  <option key={cat} value={cat}>
-                                    {cat}
-                                  </option>
-                                ))}
-                              </select>
+                              <div className="min-w-[150px]">
+                                <SearchableCategorySelect
+                                  name={`category-${actualIndex}`}
+                                  value={category}
+                                  onChange={handleCategoryChange}
+                                  options={categoryOptions.map((cat) => ({
+                                    value: cat,
+                                    label: cat,
+                                  }))}
+                                  className="text-xs"
+                                  sx={{
+                                    "& .MuiOutlinedInput-root": {
+                                      minHeight: "32px",
+                                      "& input": {
+                                        fontSize: "12px",
+                                        padding: "6px 10px",
+                                      },
+                                    },
+                                  }}
+                                />
+                              </div>
                               {editedCategory && (
                                 <i
                                   className="ion-edit ml-1 text-blue-600"
@@ -998,18 +1008,29 @@ const BankStatementImport = () => {
                           <label className="block text-xs font-semibold text-gray-700 mb-2">
                             Category
                           </label>
-                          <select
+                          <SearchableCategorySelect
+                            name={`category-mobile-${actualIndex}`}
                             value={category}
                             onChange={handleCategoryChange}
-                            className="w-full text-sm md:text-base px-3 py-2 bg-blue-50 text-blue-900 rounded-md border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 touch-manipulation font-medium"
-                            title="Click to change category"
-                          >
-                            {categoryOptions.map((cat) => (
-                              <option key={cat} value={cat}>
-                                {cat}
-                              </option>
-                            ))}
-                          </select>
+                            options={categoryOptions.map((cat) => ({
+                              value: cat,
+                              label: cat,
+                            }))}
+                            className="text-sm"
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                minHeight: "44px", // Mobile-friendly touch target
+                                backgroundColor: "#eff6ff",
+                                "& input": {
+                                  fontSize: "14px",
+                                  padding: "12px 14px",
+                                },
+                                "& fieldset": {
+                                  borderColor: "#93c5fd",
+                                },
+                              },
+                            }}
+                          />
                           {editedCategory && (
                             <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
                               <i className="ion-edit text-xs"></i>
