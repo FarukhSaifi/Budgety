@@ -1,0 +1,102 @@
+export const layoutStyles = {
+  appLayout: {
+    minHeight: "100vh",
+    bgcolor: "background.default",
+    display: "flex",
+  },
+  sidebar: {
+    width: 72,
+    height: "100vh",
+    bgcolor: "background.paper",
+    borderRight: "1px solid",
+    borderColor: "divider",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    py: 2,
+    position: "fixed",
+    left: 0,
+    top: 0,
+    zIndex: 1000,
+  },
+  sidebarLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 2,
+    bgcolor: "primary.main",
+    color: "primary.contrastText",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 700,
+    fontSize: "1.25rem",
+    mb: 3,
+  },
+  sidebarNav: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 1,
+  },
+  sidebarIconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 2,
+    transition: "all 0.2s",
+  },
+  sidebarIconButtonActive: {
+    bgcolor: "primary.main",
+    color: "primary.contrastText",
+    "&:hover": {
+      bgcolor: "primary.main",
+    },
+  },
+  sidebarIconButtonInactive: {
+    bgcolor: "transparent",
+    color: "text.secondary",
+    "&:hover": {
+      bgcolor: "grey.100",
+    },
+  },
+  mainContent: {
+    flex: 1,
+    ml: "72px",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "100vh",
+  },
+  contentArea: {
+    flex: 1,
+    p: 4,
+    bgcolor: "background.default",
+    overflow: "auto",
+  },
+  header: {
+    bgcolor: "background.paper",
+    borderBottom: "1px solid",
+    borderColor: "divider",
+    px: 4,
+    py: 3,
+  },
+  headerContent: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  headerTitle: {
+    mb: 1.5,
+    fontWeight: 700,
+    fontSize: "2rem",
+  },
+  headerDateRange: {
+    display: "flex",
+    alignItems: "center",
+    gap: 1,
+  },
+  headerMetrics: {
+    display: "flex",
+    gap: 4,
+    alignItems: "flex-start",
+  },
+};
+

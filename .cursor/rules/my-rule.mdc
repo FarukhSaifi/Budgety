@@ -1,0 +1,37 @@
+---
+alwaysApply: true
+---
+
+## Code Quality Rules
+
+### 1. Remove Unused Code
+
+- Remove unused files, folders, and components after cleanup
+- Delete unused imports and variables
+- Remove commented-out code
+
+### 2. Design Patterns & Architecture
+
+- Develop the project using senior-level design patterns
+- Make the project maintainable and scalable
+- Use proper separation of concerns
+- Follow React best practices (hooks, context, custom hooks)
+
+### 3. Constants Management
+
+- Move all static variables, magic numbers, and hardcoded strings to constants file
+- Use constants from `@constants` instead of hardcoding values
+- Extract repeated format functions to use hooks (`useCurrencyFormatter`, `useDateFormatter`)
+
+### 4. Code Organization
+
+- Use path aliases (`@components`, `@utils`, `@constants`, etc.)
+- Group related functionality together
+- Keep components focused and single-purpose
+- Also Maintain the Reuseablility of Component.
+
+### 5. Error Handling
+
+- Replace console.log/warn with proper error handling
+- Use error boundaries where appropriate
+- Provide user-friendly error messages
