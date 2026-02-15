@@ -115,6 +115,12 @@ export const SearchableCategorySelect = ({
     closeAddModal();
   };
 
+  const handleBlur = () => {
+    if (inputRef.current && !addModalOpen) {
+      inputRef.current.blur();
+    }
+  };
+
   const handleChange = (event, newValue) => {
     const optionValue =
       typeof newValue === "string" ? newValue : newValue?.value;
@@ -134,7 +140,7 @@ export const SearchableCategorySelect = ({
     };
     onChange(syntheticEvent);
     setInputValue("");
-    inputRef.current?.blur();
+    handleBlur();
   };
 
   const handleInputChange = (event, newInputValue) => {
@@ -149,6 +155,7 @@ export const SearchableCategorySelect = ({
         options={optionsWithAddNew}
         value={selectedOption || null}
         onChange={handleChange}
+        onBlur={handleBlur}
         onInputChange={handleInputChange}
         inputValue={inputValue}
         getOptionLabel={(option) => {
@@ -186,7 +193,7 @@ export const SearchableCategorySelect = ({
             "@media (max-width: 640px)": { maxHeight: "50vh" },
           },
         }}
-        disablePortal={false}
+        disablePortal={true}
         openOnFocus
         clearOnBlur={false}
         selectOnFocus
@@ -197,7 +204,7 @@ export const SearchableCategorySelect = ({
       <Dialog
         open={addModalOpen}
         onClose={closeAddModal}
-        title={UI_TEXT.ADD_NEW_CATEGORY_TITLE || "Add new category"}
+        title={UI_TEXT.ADD_NEW_CATEGORY_TITLE}
         actions={
           <>
             <Button variant="outline" onClick={closeAddModal} size="md">

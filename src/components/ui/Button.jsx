@@ -58,7 +58,6 @@ export const Button = ({
     <MuiButton
       type={type}
       variant={muiVariant}
-      color="inherit"
       className={tw}
       onClick={onClick}
       disabled={disabled}

@@ -1,4 +1,9 @@
-import { ACTION_TYPES, NUMBER_FORMAT, UI_TEXT } from "@constants";
+import {
+  ACTION_TYPES,
+  DIALOG_CONFIG,
+  NUMBER_FORMAT,
+  UI_TEXT,
+} from "@constants";
 import { useBudget } from "@context/BudgetContext";
 import { useCategories } from "@hooks/useCategories";
 import { Button } from "@ui/Button";
@@ -188,7 +193,11 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
       }
     >
       <form id={formId} onSubmit={handleSubmit}>
-        <FormFieldGroup columns={2} spacing={3} className="mb-4">
+        <FormFieldGroup
+          columns={2}
+          spacing={3}
+          className={DIALOG_CONFIG.FORM_GROUP_CLASS}
+        >
           <SearchableCategorySelect
             label={UI_TEXT.CATEGORY_PLACEHOLDER}
             name="category"

@@ -45,7 +45,9 @@ export const Dialog = ({
           {title}
         </DialogTitle>
       )}
-      <DialogContent className="px-4 sm:px-6 pt-4">{children}</DialogContent>
+      <DialogContent className="px-4 sm:px-6 pt-4 sm:pt-6">
+        {children}
+      </DialogContent>
       {actions != null && (
         <DialogActions className="px-4 sm:px-6 pb-4 sm:pb-6 gap-2 sm:gap-3">
           {actions}

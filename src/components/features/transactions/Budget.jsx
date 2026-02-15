@@ -14,10 +14,7 @@ import { useDateFormatter } from "@hooks/useDateFormatter";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
-import {
-  compareByDateThenCreatedAt,
-  parseDate,
-} from "@utils/dateUtils";
+import { compareByDateThenCreatedAt, parseDate } from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
 import { useMemo, useState } from "react";
 
@@ -156,7 +153,7 @@ const Budget = () => {
       ) : (
         <Card>
           <CardHeader bgColor="bg-blue-500">
-            <h5 className="text-sm sm:text-base md:text-lg font-semibold break-words">
+            <h5 className="text-sm sm:text-base md:text-lg font-semibold wrap-break-word">
               <span className="block sm:inline">
                 {UI_TEXT.BANK_STATEMENT} - {categoryFilteredTransactions.length}{" "}
                 {UI_TEXT.TRANSACTION_S}
@@ -170,7 +167,7 @@ const Budget = () => {
           </CardHeader>
           <CardBody className="p-0">
             {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
+            <div className="hidden lg:block">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
@@ -344,8 +341,8 @@ const Budget = () => {
                   className="p-2 md:p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
                 >
                   <div className="flex justify-between items-start mb-2 gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm sm:text-base text-gray-900 mb-1 break-words line-clamp-2">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm sm:text-base text-gray-900 mb-1 wrap-break-word line-clamp-2">
                         {transaction.description}
                       </div>
                       <div className="text-xs text-gray-600 mb-2">
@@ -364,7 +361,7 @@ const Budget = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
+                    <div className="flex gap-1 shrink-0">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -390,7 +387,7 @@ const Budget = () => {
                       <div className="text-xs text-gray-500 mb-1">
                         {UI_TEXT.DEPOSITS}
                       </div>
-                      <div className="text-sm sm:text-base font-semibold text-green-600 break-words">
+                      <div className="text-sm sm:text-base font-semibold text-green-600 wrap-break-word">
                         {transaction.type === TRANSACTION_TYPES.INCOME
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
@@ -403,7 +400,7 @@ const Budget = () => {
                       <div className="text-xs text-gray-500 mb-1">
                         {UI_TEXT.WITHDRAWALS}
                       </div>
-                      <div className="text-sm sm:text-base font-semibold text-red-600 break-words">
+                      <div className="text-sm sm:text-base font-semibold text-red-600 wrap-break-word">
                         {transaction.type === TRANSACTION_TYPES.EXPENSE
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
@@ -416,7 +413,7 @@ const Budget = () => {
                       <div className="text-xs text-gray-500 mb-1">
                         {UI_TEXT.BALANCE}
                       </div>
-                      <div className="text-sm sm:text-base font-semibold text-gray-800 break-words">
+                      <div className="text-sm sm:text-base font-semibold text-gray-800 wrap-break-word">
                         {CURRENCY_SYMBOL}
                         {formatCurrency(
                           transaction.balance,

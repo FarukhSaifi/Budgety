@@ -518,6 +518,7 @@ export const UI_TEXT = {
   SUCCESS_RECURRING_DELETED: "Recurring transaction deleted successfully",
   SUCCESS_RECURRING_ACTIVATED: "Recurring transaction activated successfully!",
   SUCCESS_RECURRING_PAUSED: "Recurring transaction paused successfully!",
+  SUCCESS_GOAL_ADDED: "Savings goal added successfully!",
   SUCCESS_GOAL_DELETED: "Savings goal deleted successfully",
   SUCCESS_EXPORT: "Data exported successfully as {filename}",
 };
@@ -664,6 +665,8 @@ export const DIALOG_CONFIG = {
   ICON_SIZE: "2.5rem",
   ICON_MARGIN_BOTTOM: "0.5rem",
   MIN_BUTTON_WIDTH: "100px",
+  /** Class for FormFieldGroup inside dialogs (consistent top/bottom spacing) */
+  FORM_GROUP_CLASS: "my-4",
 };
 
 // Display Limits

@@ -1,6 +1,7 @@
 import {
   ACTION_TYPES,
   DATE_CONSTANTS,
+  DIALOG_CONFIG,
   NUMBER_FORMAT,
   RECURRENCE_LABELS,
   RECURRENCE_TYPES,
@@ -9,6 +10,7 @@ import {
 import { useBudget } from "@context/BudgetContext";
 import { useCategories } from "@hooks/useCategories";
 import { Button } from "@ui/Button";
+import { DatePicker } from "@ui/DatePicker";
 import { Dialog } from "@ui/Dialog";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
@@ -214,7 +216,11 @@ const BillModal = ({ open, onClose, bill = null }) => {
       }
     >
       <form id={formId} onSubmit={handleSubmit}>
-        <FormFieldGroup columns={2} spacing={3} className="mb-4">
+        <FormFieldGroup
+          columns={2}
+          spacing={3}
+          className={DIALOG_CONFIG.FORM_GROUP_CLASS}
+        >
           <FormField
             label={UI_TEXT.BILL_NAME}
             name="name"
@@ -256,14 +262,12 @@ const BillModal = ({ open, onClose, bill = null }) => {
               step: NUMBER_FORMAT.STEP_VALUE,
             }}
           />
-          <FormField
+          <DatePicker
             label={UI_TEXT.DUE_DATE}
             name="dueDate"
-            type="date"
             value={formData.dueDate}
             onChange={handleChange}
             required
-            InputLabelProps={{ shrink: true }}
           />
           <FormField
             label={UI_TEXT.REMIND_ME_DAYS_BEFORE}

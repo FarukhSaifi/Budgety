@@ -1,5 +1,6 @@
 import {
   ACTION_TYPES,
+  DIALOG_CONFIG,
   NUMBER_FORMAT,
   TRANSACTION_MODES,
   TRANSACTION_TYPES,
@@ -9,6 +10,7 @@ import {
 import { useBudget } from "@context/BudgetContext";
 import { useCategories } from "@hooks/useCategories";
 import { Button } from "@ui/Button";
+import { DatePicker } from "@ui/DatePicker";
 import { Dialog } from "@ui/Dialog";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
@@ -118,7 +120,11 @@ const AddTransactionModal = ({ open, onClose }) => {
       }
     >
       <form id={formId} onSubmit={handleSubmit}>
-        <FormFieldGroup columns={2} spacing={3} className="mb-4">
+        <FormFieldGroup
+          columns={2}
+          spacing={3}
+          className={DIALOG_CONFIG.FORM_GROUP_CLASS}
+        >
           <FormField
             label={UI_TEXT.TYPE_LABEL}
             name="type"
@@ -138,14 +144,12 @@ const AddTransactionModal = ({ open, onClose }) => {
               },
             ]}
           />
-          <FormField
+          <DatePicker
             label={UI_TEXT.DATE_PLACEHOLDER}
             name="date"
             value={formData.date}
             onChange={handleChange}
-            type="date"
             required
-            InputLabelProps={{ shrink: true }}
           />
           <FormField
             label={UI_TEXT.MODE_LABEL}

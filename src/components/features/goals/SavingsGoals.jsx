@@ -1,6 +1,7 @@
 import {
   ACTION_TYPES,
   CURRENCY_SYMBOL,
+  DIALOG_CONFIG,
   NUMBER_FORMAT,
   PERCENTAGE_THRESHOLDS,
   UI_TEXT,
@@ -9,9 +10,9 @@ import { useBudget } from "@context/BudgetContext";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { Button } from "@ui/Button";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
+import { Dialog } from "@ui/Dialog";
 import { EmptyState } from "@ui/EmptyState";
-import { FormActions } from "@ui/FormActions";
-import { FormContainer } from "@ui/FormContainer";
+import { FormField, FormFieldGroup } from "@ui/FormField";
 import { PageContainer } from "@ui/PageContainer";
 import { SectionCard } from "@ui/SectionCard";
 import { nowISO } from "@utils/dateUtils";
@@ -41,6 +42,15 @@ const SavingsGoals = () => {
     }));
   };
 
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setFormData({
+      name: "",
+      targetAmount: "",
+      currentAmount: "",
+    });
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const { name, targetAmount, currentAmount } = formData;
@@ -62,13 +72,8 @@ const SavingsGoals = () => {
     };
 
     dispatch({ type: ACTION_TYPES.ADD_SAVINGS_GOAL, payload: newGoal });
-
-    setFormData({
-      name: "",
-      targetAmount: "",
-      currentAmount: "",
-    });
-    setShowForm(false);
+    showSuccess(UI_TEXT.SUCCESS_GOAL_ADDED);
+    handleCloseForm();
   };
 
   const handleDelete = (id) => {
@@ -111,61 +116,11 @@ const SavingsGoals = () => {
       <SectionCard
         title={UI_TEXT.SAVINGS_GOALS}
         buttonText={UI_TEXT.ADD_GOAL}
-        onButtonClick={() => setShowForm(!showForm)}
+        onButtonClick={() => setShowForm(true)}
         buttonIcon={<i className="ion-plus-round"></i>}
         bgColor="bg-green-500"
         buttonColor="green"
       >
-        {showForm && (
-          <FormContainer title={UI_TEXT.ADD_NEW_SAVINGS_GOAL_TITLE}>
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-2 md:mb-4">
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  name="name"
-                  placeholder={UI_TEXT.GOAL_NAME}
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
-                <input
-                  type="number"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  name="targetAmount"
-                  placeholder={UI_TEXT.TARGET_AMOUNT}
-                  value={formData.targetAmount}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  step={NUMBER_FORMAT.STEP_VALUE}
-                />
-                <input
-                  type="number"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  name="currentAmount"
-                  placeholder={UI_TEXT.CURRENT_AMOUNT}
-                  value={formData.currentAmount}
-                  onChange={handleChange}
-                  min="0"
-                  step={NUMBER_FORMAT.STEP_VALUE}
-                />
-              </div>
-              <FormActions
-                onSave={handleSubmit}
-                onCancel={() => {
-                  setShowForm(false);
-                  setFormData({
-                    name: "",
-                    targetAmount: "",
-                    currentAmount: "",
-                  });
-                }}
-              />
-            </form>
-          </FormContainer>
-        )}
-
         {savingsGoals.length === 0 ? (
           <EmptyState
             message={UI_TEXT.NO_GOALS}
@@ -317,6 +272,72 @@ const SavingsGoals = () => {
           </div>
         )}
       </SectionCard>
+
+      {/* Add Goal Dialog */}
+      <Dialog
+        open={showForm}
+        onClose={handleCloseForm}
+        title={UI_TEXT.ADD_NEW_SAVINGS_GOAL_TITLE}
+        maxWidth="sm"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={handleCloseForm}
+              size="md"
+              className="flex-1 sm:flex-initial py-2.5 sm:py-2 touch-manipulation"
+            >
+              {UI_TEXT.CANCEL}
+            </Button>
+            <Button
+              type="submit"
+              form="add-savings-goal-form"
+              variant="primary"
+              size="md"
+              className="flex-1 sm:flex-initial py-2.5 sm:py-2 touch-manipulation"
+            >
+              {UI_TEXT.SAVE}
+            </Button>
+          </>
+        }
+      >
+        <form id="add-savings-goal-form" onSubmit={handleSubmit}>
+          <FormFieldGroup
+            columns={1}
+            spacing={3}
+            className={DIALOG_CONFIG.FORM_GROUP_CLASS}
+          >
+            <FormField
+              label={UI_TEXT.GOAL_NAME}
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              type="text"
+              required
+              placeholder={UI_TEXT.GOAL_NAME}
+            />
+            <FormField
+              label={UI_TEXT.TARGET_AMOUNT}
+              name="targetAmount"
+              value={formData.targetAmount}
+              onChange={handleChange}
+              type="number"
+              required
+              placeholder={UI_TEXT.TARGET_AMOUNT}
+              inputProps={{ min: "0", step: NUMBER_FORMAT.STEP_VALUE }}
+            />
+            <FormField
+              label={UI_TEXT.CURRENT_AMOUNT}
+              name="currentAmount"
+              value={formData.currentAmount}
+              onChange={handleChange}
+              type="number"
+              placeholder={UI_TEXT.CURRENT_AMOUNT}
+              inputProps={{ min: "0", step: NUMBER_FORMAT.STEP_VALUE }}
+            />
+          </FormFieldGroup>
+        </form>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
