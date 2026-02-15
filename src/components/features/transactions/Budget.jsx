@@ -11,6 +11,7 @@ import { useBudget } from "@context/BudgetContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
+import { Close as CloseIcon, Edit as EditIcon } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
@@ -295,7 +296,7 @@ const Budget = () => {
                             className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 min-w-[32px]"
                             title={UI_TEXT.EDIT}
                           >
-                            <i className="ion-edit text-base md:text-lg"></i>
+                            <EditIcon className="size-5 sm:size-6" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -304,7 +305,7 @@ const Budget = () => {
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 min-w-[32px]"
                             title={UI_TEXT.DELETE}
                           >
-                            <i className="ion-close-round text-base md:text-lg"></i>
+                            <CloseIcon className="size-5 sm:size-6" />
                           </Button>
                         </div>
                       </td>
@@ -379,7 +380,7 @@ const Budget = () => {
                         className="text-blue-500 hover:text-blue-700 active:text-blue-800 p-2 touch-manipulation"
                         title={UI_TEXT.EDIT}
                       >
-                        <i className="ion-edit text-base"></i>
+                        <EditIcon className="size-5" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -388,7 +389,7 @@ const Budget = () => {
                         className="text-red-500 hover:text-red-700 active:text-red-800 p-2 touch-manipulation"
                         title={UI_TEXT.DELETE}
                       >
-                        <i className="ion-close-round text-base"></i>
+                        <CloseIcon className="size-5" />
                       </Button>
                     </div>
                   </div>

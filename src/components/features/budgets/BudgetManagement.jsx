@@ -10,6 +10,7 @@ import {
 import { useBudget } from "@context/BudgetContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { Close as CloseIcon, Edit as EditIcon } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
 import { PageContainer } from "@ui/PageContainer";
@@ -134,7 +135,7 @@ const BudgetManagement = () => {
                         className="text-blue-500 hover:text-blue-700 p-1"
                         title={UI_TEXT.EDIT || "Edit"}
                       >
-                        <i className="ion-edit text-xl"></i>
+                        <EditIcon className="size-5" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -143,7 +144,7 @@ const BudgetManagement = () => {
                         className="text-red-500 hover:text-red-700 p-1"
                         title={UI_TEXT.DELETE}
                       >
-                        <i className="ion-close-round text-xl"></i>
+                        <CloseIcon className="size-5" />
                       </Button>
                     </div>
                   </div>

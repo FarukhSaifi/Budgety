@@ -10,6 +10,7 @@ import {
 import { useBudget } from "@context/BudgetContext";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
+import { Close as CloseIcon, Edit as EditIcon } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
 import { EmptyState } from "@ui/EmptyState";
@@ -134,7 +135,7 @@ const BillReminders = () => {
                         className="text-blue-500 hover:text-blue-700 p-1"
                         title={UI_TEXT.EDIT || "Edit"}
                       >
-                        <i className="ion-edit text-xl"></i>
+                        <EditIcon className="size-5" />
                       </Button>
                       <Button
                         variant="success"
@@ -214,7 +215,7 @@ const BillReminders = () => {
                         className="text-blue-500 hover:text-blue-700 p-1"
                         title={UI_TEXT.EDIT || "Edit"}
                       >
-                        <i className="ion-edit text-xl"></i>
+                        <EditIcon className="size-5" />
                       </Button>
                       <Button
                         variant="success"
@@ -231,7 +232,7 @@ const BillReminders = () => {
                         onClick={() => handleDelete(bill.id)}
                         title={UI_TEXT.DELETE}
                       >
-                        <i className="ion-close-round text-lg md:text-xl"></i>
+                        <CloseIcon className="size-5 sm:size-6" />
                       </Button>
                     </div>
                   </div>

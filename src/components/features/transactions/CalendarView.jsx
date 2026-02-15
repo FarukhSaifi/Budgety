@@ -11,7 +11,12 @@ import {
 import { useBudget } from "@context/BudgetContext";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
-import { ChevronLeft, ChevronRight } from "@mui/icons-material";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Close as CloseIcon,
+  Edit as EditIcon,
+} from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
@@ -466,7 +471,7 @@ const CalendarView = () => {
                             className="text-blue-500 hover:text-blue-700 active:text-blue-800 p-1.5 md:p-2 touch-manipulation"
                             title={UI_TEXT.EDIT}
                           >
-                            <i className="ion-edit text-base md:text-lg"></i>
+                            <EditIcon className="size-5 sm:size-6" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -475,7 +480,7 @@ const CalendarView = () => {
                             className="text-red-500 hover:text-red-700 active:text-red-800 p-1.5 md:p-2 touch-manipulation"
                             title={UI_TEXT.DELETE}
                           >
-                            <i className="ion-close-round text-base md:text-lg"></i>
+                            <CloseIcon className="size-5 sm:size-6" />
                           </Button>
                         </div>
                       </div>

@@ -9,6 +9,7 @@ import {
 import { useBudget } from "@context/BudgetContext";
 import { useCategories } from "@hooks/useCategories";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { Edit as EditIcon } from "@mui/icons-material";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import {
   detectTransactionMode,
@@ -130,7 +131,7 @@ function ImportPreviewRowInner({
           />
           {editedCategory && (
             <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
-              <i className="ion-edit text-xs"></i>
+              <EditIcon className="size-3" />
               <span>Category edited</span>
             </div>
           )}
@@ -201,10 +202,10 @@ function ImportPreviewRowInner({
           />
         </div>
         {editedCategory && (
-          <i
-            className="ion-edit ml-1 text-blue-600"
-            title="Category edited"
-          ></i>
+          <EditIcon
+            className="ml-1 size-4 text-blue-600"
+            titleAccess="Category edited"
+          />
         )}
       </td>
     </tr>

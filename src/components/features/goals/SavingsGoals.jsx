@@ -8,6 +8,7 @@ import {
 } from "@constants";
 import { useBudget } from "@context/BudgetContext";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { Close as CloseIcon } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
 import { Dialog } from "@ui/Dialog";
@@ -151,7 +152,7 @@ const SavingsGoals = () => {
                       onClick={() => handleDelete(goal.id)}
                       title={UI_TEXT.DELETE}
                     >
-                      <i className="ion-close-round text-xl"></i>
+                      <CloseIcon className="size-5" />
                     </Button>
                   </div>
                   <div className="mb-3">
