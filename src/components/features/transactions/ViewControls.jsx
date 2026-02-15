@@ -16,6 +16,7 @@ import {
   Close as CloseIcon,
   List as ListIcon,
   Search as SearchIcon,
+  Upload as UploadIcon,
 } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { EnhancedCard } from "@ui/EnhancedCard";
@@ -39,11 +40,18 @@ const DEFAULT_CONFIG = {
   showPeriodFilter: true,
 };
 
-const ViewControls = ({ variant: variantProp }) => {
+const ViewControls = ({
+  variant: variantProp,
+  showImportPanel = false,
+  onImportClick,
+}) => {
   const { activeTab } = useTab();
   const variant =
     variantProp ?? activeTab ?? VIEW_CONTROL_VARIANTS.TRANSACTIONS;
   const config = VIEW_CONTROL_CONFIG[variant] ?? DEFAULT_CONFIG;
+  const isTransactions = variant === VIEW_CONTROL_VARIANTS.TRANSACTIONS;
+  const showImportButton =
+    isTransactions && typeof onImportClick === "function";
 
   const {
     viewPeriod,
@@ -156,13 +164,30 @@ const ViewControls = ({ variant: variantProp }) => {
     config.showSearch ||
     config.showViewType ||
     config.showCategoryFilter ||
-    config.showPeriodFilter;
+    config.showPeriodFilter ||
+    showImportButton;
 
   if (!hasAnyFilter) return null;
 
   return (
     <div className="mb-2 sm:mb-4">
       <EnhancedCard title={UI_TEXT.VIEW_CONTROLS_TITLE} subtitle={subtitle}>
+        {showImportButton && (
+          <div className="mb-3 sm:mb-4">
+            <Button
+              type="button"
+              variant={showImportPanel ? "primary" : "outline"}
+              size="md"
+              onClick={onImportClick}
+              className="min-h-11 gap-2 touch-manipulation"
+              icon={<UploadIcon className="shrink-0 size-5 sm:size-6" />}
+            >
+              {showImportPanel
+                ? UI_TEXT.HIDE_IMPORT
+                : UI_TEXT.IMPORT_BANK_STATEMENT}
+            </Button>
+          </div>
+        )}
         {config.showSearch && (
           <div className="mb-3 sm:mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">

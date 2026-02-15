@@ -17,6 +17,7 @@ import {
  * @param {string} maxWidth - 'xs' | 'sm' | 'md' | 'lg' | 'xl'
  * @param {boolean} fullWidth - Whether dialog stretches to maxWidth
  * @param {object} PaperProps - Props passed to MUI Paper (e.g. className)
+ * @param {string} contentClassName - Optional class for DialogContent (e.g. overflow-y-auto for scrollable body)
  */
 export const Dialog = ({
   open,
@@ -27,8 +28,12 @@ export const Dialog = ({
   maxWidth = "sm",
   fullWidth = true,
   PaperProps = {},
+  contentClassName = "",
 }) => {
   const paperClassName = ["m-2 sm:m-4", PaperProps.className]
+    .filter(Boolean)
+    .join(" ");
+  const contentClasses = ["px-4 sm:px-6 pt-4 sm:pt-6", contentClassName]
     .filter(Boolean)
     .join(" ");
 
@@ -45,9 +50,7 @@ export const Dialog = ({
           {title}
         </DialogTitle>
       )}
-      <DialogContent className="px-4 sm:px-6 pt-4 sm:pt-6">
-        {children}
-      </DialogContent>
+      <DialogContent className={contentClasses}>{children}</DialogContent>
       {actions != null && (
         <DialogActions className="px-4 sm:px-6 pb-4 sm:pb-6 gap-2 sm:gap-3">
           {actions}

@@ -447,6 +447,7 @@ export const UI_TEXT = {
   MODE: "MODE",
   PARTICULARS: "PARTICULARS",
   IMPORT_BANK_STATEMENT: "Import Bank Statement",
+  HIDE_IMPORT: "Hide Import",
   UPLOAD_CSV_EXCEL: "Upload CSV, Excel, or PDF file to import transactions",
   TOTAL_GOALS: "Total Goals",
   TOTAL_TARGET: "Total Target",

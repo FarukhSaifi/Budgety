@@ -1,7 +1,8 @@
 import { UI_TEXT, VIEW_TYPES } from "@constants";
 import { useBudget } from "@context/BudgetContext";
 import { useTab } from "@context/TabContext";
-import { lazy, Suspense } from "react";
+import { Dialog } from "@ui/Dialog";
+import { lazy, Suspense, useState } from "react";
 
 // Lazy load components for code splitting - organized by features
 const Dashboard = lazy(() => import("./features/dashboard/Dashboard"));
@@ -39,6 +40,7 @@ const LoadingFallback = () => (
 const MainContent = () => {
   const { viewType } = useBudget();
   const { activeTab } = useTab();
+  const [showImportPanel, setShowImportPanel] = useState(false);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -51,8 +53,23 @@ const MainContent = () => {
       case "transactions":
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <ViewControls variant="transactions" />
-            <BankStatementImport />
+            <ViewControls
+              variant="transactions"
+              showImportPanel={showImportPanel}
+              onImportClick={() => setShowImportPanel((prev) => !prev)}
+            />
+            <Dialog
+              open={showImportPanel}
+              onClose={() => setShowImportPanel(false)}
+              maxWidth="lg"
+              fullWidth
+              PaperProps={{
+                className: "max-h-[90vh] overflow-hidden flex flex-col",
+              }}
+              contentClassName="overflow-y-auto min-h-0 flex-1"
+            >
+              <BankStatementImport onClose={() => setShowImportPanel(false)} />
+            </Dialog>
             {viewType === VIEW_TYPES.CALENDAR ? <CalendarView /> : <Budget />}
           </Suspense>
         );

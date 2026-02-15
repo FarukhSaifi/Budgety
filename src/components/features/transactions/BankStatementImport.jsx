@@ -3,7 +3,7 @@ import AddTransactionModal from "@components/features/transactions/TransactionFo
 import { ACTION_TYPES, ERROR_MESSAGES, TIMEOUTS, UI_TEXT } from "@constants";
 import { useBudget } from "@context/BudgetContext";
 import { useDuplicateIndices } from "@hooks/useDuplicateIndices";
-import { Add as AddIcon } from "@mui/icons-material";
+import { Add as AddIcon, Close as CloseIcon } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
@@ -37,7 +37,7 @@ function setPreviewFromParsed(parsedTransactions, mapping, setters) {
   setShowPreview(true);
 }
 
-const BankStatementImport = () => {
+const BankStatementImport = ({ onClose }) => {
   const { dispatch, transactions } = useBudget();
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
@@ -402,23 +402,38 @@ const BankStatementImport = () => {
                 {UI_TEXT.UPLOAD_CSV_EXCEL}
               </p>
             </div>
-            {importedTransactionsCount > 0 && (
-              <Button
-                variant="danger"
-                onClick={handleCleanupImported}
-                size="sm"
-                className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-center py-2.5 sm:py-2 touch-manipulation text-xs sm:text-sm"
-              >
-                <i className="ion-trash-a text-sm sm:text-base shrink-0"></i>
-                <span className="truncate">
-                  <span className="hidden sm:inline">
-                    {UI_TEXT.CLEANUP_IMPORTED_DATA}
+            <div className="flex items-center gap-2 shrink-0">
+              {onClose && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  className="text-white hover:bg-white/20 min-h-9 min-w-9 p-2 touch-manipulation"
+                  title={UI_TEXT.HIDE_IMPORT}
+                  aria-label={UI_TEXT.HIDE_IMPORT}
+                >
+                  <CloseIcon className="size-5" />
+                </Button>
+              )}
+              {importedTransactionsCount > 0 && (
+                <Button
+                  variant="danger"
+                  onClick={handleCleanupImported}
+                  size="sm"
+                  className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-center py-2.5 sm:py-2 touch-manipulation text-xs sm:text-sm"
+                >
+                  <i className="ion-trash-a text-sm sm:text-base shrink-0"></i>
+                  <span className="truncate">
+                    <span className="hidden sm:inline">
+                      {UI_TEXT.CLEANUP_IMPORTED_DATA}
+                    </span>
+                    <span className="sm:hidden">Cleanup</span>
+                    <span className="ml-1">({importedTransactionsCount})</span>
                   </span>
-                  <span className="sm:hidden">Cleanup</span>
-                  <span className="ml-1">({importedTransactionsCount})</span>
-                </span>
-              </Button>
-            )}
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardBody className="overflow-x-hidden">
