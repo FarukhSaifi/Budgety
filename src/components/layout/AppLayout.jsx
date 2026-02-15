@@ -1,9 +1,21 @@
 import MainContent from "@components/MainContent";
+import { UI_TEXT } from "@constants";
+import { useBudget } from "@context/BudgetContext";
 import BottomNavigation from "./BottomNavigation";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
 const AppLayout = () => {
+  const { loading } = useBudget();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-gray-500">{UI_TEXT.LOADING}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />

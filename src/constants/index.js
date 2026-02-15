@@ -21,6 +21,7 @@ export const ACTION_TYPES = {
   SET_VIEW_TYPE: "SET_VIEW_TYPE",
   SET_SELECTED_CATEGORY: "SET_SELECTED_CATEGORY",
   SET_SEARCH_QUERY: "SET_SEARCH_QUERY",
+  RESTORE_STATE: "RESTORE_STATE",
 };
 
 // Transaction Types
@@ -422,6 +423,16 @@ export const UI_TEXT = {
   AMOUNT_MUST_BE_GREATER_THAN_ZERO: "Amount must be greater than 0.",
   BILL_AMOUNT_MUST_BE_GREATER_THAN_ZERO: "Bill amount must be greater than 0.",
   FILTERED: "Filtered",
+  LOADING: "Loading...",
+  TRY_AGAIN: "Try again",
+};
+
+// User-facing error messages (for API and loading)
+export const ERROR_MESSAGES = {
+  REQUEST_FAILED: "Request failed",
+  LOAD_DATA_FAILED: "Could not load data from server. Using empty state.",
+  SAVE_FAILED: "Failed to save",
+  BOUNDARY_FALLBACK: "Something went wrong. Please refresh the page.",
 };
 
 // Recurrence Types

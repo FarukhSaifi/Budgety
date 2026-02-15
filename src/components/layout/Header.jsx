@@ -12,7 +12,7 @@ import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { KeyboardArrowDown as ArrowDownIcon } from "@mui/icons-material";
 import { Popover } from "@mui/material";
 import { MetricCard } from "@ui/MetricCard";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 const Header = () => {
   const { activeTab } = useTab();
@@ -32,6 +32,20 @@ const Header = () => {
   const [tempYear, setTempYear] = useState(
     selectedYear || new Date().getFullYear()
   );
+
+  // Sync temp state with global state when it changes (only when picker is closed)
+  useEffect(() => {
+    if (!datePickerAnchor) {
+      // Only update temp values when picker is closed to avoid conflicts
+      if (selectedMonth && selectedMonth !== tempMonth) {
+        setTempMonth(selectedMonth);
+      }
+      if (selectedYear && selectedYear !== tempYear) {
+        setTempYear(selectedYear);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth, selectedYear, datePickerAnchor]);
 
   const getTabTitle = () => {
     const titles = {
@@ -67,8 +81,11 @@ const Header = () => {
   };
 
   const handleDateClick = (event) => {
-    setTempMonth(selectedMonth || new Date().getMonth() + 1);
-    setTempYear(selectedYear || new Date().getFullYear());
+    // Always sync temp values with current global state when opening picker
+    const currentMonth = selectedMonth || new Date().getMonth() + 1;
+    const currentYear = selectedYear || new Date().getFullYear();
+    setTempMonth(currentMonth);
+    setTempYear(currentYear);
     setDatePickerAnchor(event.currentTarget);
   };
 
@@ -77,27 +94,32 @@ const Header = () => {
   };
 
   const handleMonthChange = (e) => {
-    const newMonth = parseInt(e.target.value);
+    const newMonth = parseInt(e.target.value, 10);
     setTempMonth(newMonth);
+    // Use current selectedYear or tempYear as fallback
+    const yearToUse = selectedYear || tempYear || new Date().getFullYear();
     dispatch({
       type: ACTION_TYPES.SET_VIEW_PERIOD,
       payload: {
         viewPeriod: VIEW_PERIODS.MONTHLY,
         selectedMonth: newMonth,
-        selectedYear: tempYear,
+        selectedYear: yearToUse,
       },
     });
   };
 
   const handleYearChange = (e) => {
-    const newYear = parseInt(e.target.value);
+    const newYear = parseInt(e.target.value, 10);
     setTempYear(newYear);
     if (viewPeriod === VIEW_PERIODS.MONTHLY) {
+      // Use current selectedMonth or tempMonth as fallback
+      const monthToUse =
+        selectedMonth || tempMonth || new Date().getMonth() + 1;
       dispatch({
         type: ACTION_TYPES.SET_VIEW_PERIOD,
         payload: {
           viewPeriod: VIEW_PERIODS.MONTHLY,
-          selectedMonth: tempMonth,
+          selectedMonth: monthToUse,
           selectedYear: newYear,
         },
       });
@@ -114,16 +136,20 @@ const Header = () => {
 
   const handleViewPeriodChange = (e) => {
     const newViewPeriod = e.target.value;
+    // Use current values or temp values as fallback
+    const monthToUse = selectedMonth || tempMonth || new Date().getMonth() + 1;
+    const yearToUse = selectedYear || tempYear || new Date().getFullYear();
+
     dispatch({
       type: ACTION_TYPES.SET_VIEW_PERIOD,
       payload: {
         viewPeriod: newViewPeriod,
         selectedMonth:
-          newViewPeriod === VIEW_PERIODS.MONTHLY ? tempMonth : undefined,
+          newViewPeriod === VIEW_PERIODS.MONTHLY ? monthToUse : undefined,
         selectedYear:
           newViewPeriod === VIEW_PERIODS.YEARLY ||
           newViewPeriod === VIEW_PERIODS.MONTHLY
-            ? tempYear
+            ? yearToUse
             : undefined,
       },
     });
@@ -166,13 +192,13 @@ const Header = () => {
           {metrics.map((metric, index) => (
             <React.Fragment key={metric.label}>
               <div className="flex-1 md:flex-none">
-              <MetricCard
-                value={metric.value}
-                subValue={metric.subValue}
-                label={metric.label}
-                size="large"
-                align="right"
-              />
+                <MetricCard
+                  value={metric.value}
+                  subValue={metric.subValue}
+                  label={metric.label}
+                  size="large"
+                  align="right"
+                />
               </div>
               {index < metrics.length - 1 && (
                 <div className="hidden h-[70px] w-px self-stretch bg-gray-200 md:block" />

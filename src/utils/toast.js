@@ -1,4 +1,4 @@
-import { TIMEOUTS } from "@constants";
+import { TIMEOUTS, UI_TEXT } from "@constants";
 import { toast } from "react-toastify";
 
 /**
@@ -79,7 +79,7 @@ export const showInfo = (message, options = {}) => {
  * @param {string} message - Loading message
  * @returns {number|string} - Toast ID
  */
-export const showLoading = (message = "Loading...") => {
+export const showLoading = (message = UI_TEXT.LOADING) => {
   return toast.loading(message, {
     position: "top-right",
   });

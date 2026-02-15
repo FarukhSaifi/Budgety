@@ -1,10 +1,14 @@
-import { ACTION_TYPES, DEFAULT_STATE } from "@constants";
+import { budgetyApi } from "@api/budgetyApi";
+import { ACTION_TYPES, DEFAULT_STATE, ERROR_MESSAGES } from "@constants";
+import { showError } from "@utils/toast";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useReducer,
+  useState,
 } from "react";
 
 const BudgetContext = createContext();
@@ -12,8 +16,6 @@ const BudgetContext = createContext();
 const reducer = (state, action) => {
   switch (action.type) {
     case ACTION_TYPES.ADD_TRANSACTION:
-      // Add transaction to global state - this will be available to all components
-      // (Dashboard, Budget, Reports, Charts, etc.) and persisted to localStorage
       return {
         ...state,
         transactions: [action.payload, ...state.transactions],
@@ -22,14 +24,14 @@ const reducer = (state, action) => {
       return {
         ...state,
         transactions: state.transactions.filter(
-          (transaction) => transaction.id !== action.payload
+          (transaction) => transaction.id !== action.payload,
         ),
       };
     case ACTION_TYPES.DELETE_ALL_IMPORTED_TRANSACTIONS:
       return {
         ...state,
         transactions: state.transactions.filter(
-          (transaction) => !transaction.imported
+          (transaction) => !transaction.imported,
         ),
       };
     case ACTION_TYPES.UPDATE_TRANSACTION:
@@ -38,7 +40,7 @@ const reducer = (state, action) => {
         transactions: state.transactions.map((transaction) =>
           transaction.id === action.payload.id
             ? { ...transaction, ...action.payload }
-            : transaction
+            : transaction,
         ),
       };
     case ACTION_TYPES.ADD_SAVINGS_GOAL:
@@ -50,14 +52,14 @@ const reducer = (state, action) => {
       return {
         ...state,
         savingsGoals: state.savingsGoals.map((goal) =>
-          goal.id === action.payload.id ? { ...goal, ...action.payload } : goal
+          goal.id === action.payload.id ? { ...goal, ...action.payload } : goal,
         ),
       };
     case ACTION_TYPES.DELETE_SAVINGS_GOAL:
       return {
         ...state,
         savingsGoals: state.savingsGoals.filter(
-          (goal) => goal.id !== action.payload
+          (goal) => goal.id !== action.payload,
         ),
       };
     case ACTION_TYPES.SET_VIEW_PERIOD:
@@ -93,7 +95,7 @@ const reducer = (state, action) => {
         budgets: state.budgets.map((budget) =>
           budget.id === action.payload.id
             ? { ...budget, ...action.payload }
-            : budget
+            : budget,
         ),
       };
     case ACTION_TYPES.DELETE_BUDGET:
@@ -112,14 +114,14 @@ const reducer = (state, action) => {
         recurringTransactions: state.recurringTransactions.map((recurring) =>
           recurring.id === action.payload.id
             ? { ...recurring, ...action.payload }
-            : recurring
+            : recurring,
         ),
       };
     case ACTION_TYPES.DELETE_RECURRING_TRANSACTION:
       return {
         ...state,
         recurringTransactions: state.recurringTransactions.filter(
-          (recurring) => recurring.id !== action.payload
+          (recurring) => recurring.id !== action.payload,
         ),
       };
     case ACTION_TYPES.ADD_BILL_REMINDER:
@@ -131,14 +133,14 @@ const reducer = (state, action) => {
       return {
         ...state,
         billReminders: state.billReminders.map((bill) =>
-          bill.id === action.payload.id ? { ...bill, ...action.payload } : bill
+          bill.id === action.payload.id ? { ...bill, ...action.payload } : bill,
         ),
       };
     case ACTION_TYPES.DELETE_BILL_REMINDER:
       return {
         ...state,
         billReminders: state.billReminders.filter(
-          (bill) => bill.id !== action.payload
+          (bill) => bill.id !== action.payload,
         ),
       };
     case ACTION_TYPES.MARK_BILL_PAID:
@@ -147,57 +149,161 @@ const reducer = (state, action) => {
         billReminders: state.billReminders.map((bill) =>
           bill.id === action.payload
             ? { ...bill, isPaid: true, paidDate: new Date().toISOString() }
-            : bill
+            : bill,
         ),
+      };
+    case ACTION_TYPES.RESTORE_STATE:
+      return {
+        ...state,
+        transactions: action.payload.transactions ?? state.transactions,
+        savingsGoals: action.payload.savingsGoals ?? state.savingsGoals,
+        budgets: action.payload.budgets ?? state.budgets,
+        recurringTransactions:
+          action.payload.recurringTransactions ?? state.recurringTransactions,
+        billReminders: action.payload.billReminders ?? state.billReminders,
       };
     default:
       return state;
   }
 };
 
-// Load data from localStorage on mount
-const loadState = () => {
-  try {
-    const serializedState = localStorage.getItem("budgetyState");
-
-    if (serializedState === null) {
-      return DEFAULT_STATE;
-    }
-    const parsed = JSON.parse(serializedState);
-    // Ensure all required fields exist
-    return {
-      ...DEFAULT_STATE,
-      ...parsed,
-      transactions: parsed.transactions || [],
-      savingsGoals: parsed.savingsGoals || [],
-      budgets: parsed.budgets || [],
-      recurringTransactions: parsed.recurringTransactions || [],
-      billReminders: parsed.billReminders || [],
-      searchQuery: parsed.searchQuery || "",
-    };
-  } catch {
-    return DEFAULT_STATE;
+const persistAction = async (type, payload, api) => {
+  switch (type) {
+    case ACTION_TYPES.ADD_TRANSACTION:
+      await api.addTransaction({
+        id: payload.id,
+        type: payload.type,
+        date: payload.date,
+        mode: payload.mode || "Cash",
+        description: payload.description,
+        category: payload.category,
+        amount: payload.amount,
+        createdAt: payload.createdAt,
+        imported: payload.imported ?? false,
+      });
+      break;
+    case ACTION_TYPES.DELETE_TRANSACTION:
+      await api.deleteTransaction(payload);
+      break;
+    case ACTION_TYPES.DELETE_ALL_IMPORTED_TRANSACTIONS:
+      await api.deleteImportedTransactions();
+      break;
+    case ACTION_TYPES.UPDATE_TRANSACTION:
+      await api.updateTransaction(payload.id, {
+        type: payload.type,
+        date: payload.date,
+        mode: payload.mode,
+        description: payload.description,
+        category: payload.category,
+        amount: payload.amount,
+      });
+      break;
+    case ACTION_TYPES.ADD_SAVINGS_GOAL:
+      await api.addSavingsGoal(payload);
+      break;
+    case ACTION_TYPES.UPDATE_SAVINGS_GOAL:
+      await api.updateSavingsGoal(payload.id, payload);
+      break;
+    case ACTION_TYPES.DELETE_SAVINGS_GOAL:
+      await api.deleteSavingsGoal(payload);
+      break;
+    case ACTION_TYPES.ADD_BUDGET:
+      await api.addBudget(payload);
+      break;
+    case ACTION_TYPES.UPDATE_BUDGET:
+      await api.updateBudget(payload.id, payload);
+      break;
+    case ACTION_TYPES.DELETE_BUDGET:
+      await api.deleteBudget(payload);
+      break;
+    case ACTION_TYPES.ADD_RECURRING_TRANSACTION:
+      await api.addRecurringTransaction(payload);
+      break;
+    case ACTION_TYPES.UPDATE_RECURRING_TRANSACTION:
+      await api.updateRecurringTransaction(payload.id, payload);
+      break;
+    case ACTION_TYPES.DELETE_RECURRING_TRANSACTION:
+      await api.deleteRecurringTransaction(payload);
+      break;
+    case ACTION_TYPES.ADD_BILL_REMINDER:
+      await api.addBillReminder(payload);
+      break;
+    case ACTION_TYPES.UPDATE_BILL_REMINDER:
+      await api.updateBillReminder(payload.id, payload);
+      break;
+    case ACTION_TYPES.DELETE_BILL_REMINDER:
+      await api.deleteBillReminder(payload);
+      break;
+    case ACTION_TYPES.MARK_BILL_PAID:
+      await api.updateBillReminder(payload, {
+        isPaid: true,
+        paidDate: new Date().toISOString(),
+      });
+      break;
+    default:
+      break;
   }
 };
 
-// Save state to localStorage
-const saveState = (state) => {
-  try {
-    const serializedState = JSON.stringify(state);
-    localStorage.setItem("budgetyState", serializedState);
-  } catch {
-    // Silently fail - localStorage errors are non-critical
-    // In production, you might want to log to an error tracking service
-  }
-};
+const PERSIST_TYPES = new Set([
+  ACTION_TYPES.ADD_TRANSACTION,
+  ACTION_TYPES.DELETE_TRANSACTION,
+  ACTION_TYPES.DELETE_ALL_IMPORTED_TRANSACTIONS,
+  ACTION_TYPES.UPDATE_TRANSACTION,
+  ACTION_TYPES.ADD_SAVINGS_GOAL,
+  ACTION_TYPES.UPDATE_SAVINGS_GOAL,
+  ACTION_TYPES.DELETE_SAVINGS_GOAL,
+  ACTION_TYPES.ADD_BUDGET,
+  ACTION_TYPES.UPDATE_BUDGET,
+  ACTION_TYPES.DELETE_BUDGET,
+  ACTION_TYPES.ADD_RECURRING_TRANSACTION,
+  ACTION_TYPES.UPDATE_RECURRING_TRANSACTION,
+  ACTION_TYPES.DELETE_RECURRING_TRANSACTION,
+  ACTION_TYPES.ADD_BILL_REMINDER,
+  ACTION_TYPES.UPDATE_BILL_REMINDER,
+  ACTION_TYPES.DELETE_BILL_REMINDER,
+  ACTION_TYPES.MARK_BILL_PAID,
+]);
 
 export const BudgetProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(reducer, loadState());
+  const [state, dispatchReducer] = useReducer(reducer, DEFAULT_STATE);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
-  // Save to localStorage whenever state changes
   useEffect(() => {
-    saveState(state);
-  }, [state]);
+    let cancelled = false;
+    budgetyApi
+      .getState()
+      .then((data) => {
+        if (!cancelled && data) {
+          dispatchReducer({ type: ACTION_TYPES.RESTORE_STATE, payload: data });
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLoadError(err.message);
+          showError(ERROR_MESSAGES.LOAD_DATA_FAILED);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dispatch = useCallback(async (action) => {
+    if (PERSIST_TYPES.has(action.type)) {
+      try {
+        await persistAction(action.type, action.payload, budgetyApi);
+      } catch (err) {
+        showError(err.message || ERROR_MESSAGES.SAVE_FAILED);
+        throw err;
+      }
+    }
+    dispatchReducer(action);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -213,6 +319,8 @@ export const BudgetProvider = ({ children }) => {
       selectedCategory: state.selectedCategory,
       searchQuery: state.searchQuery,
       dispatch,
+      loading,
+      loadError,
     }),
     [
       state.transactions,
@@ -226,7 +334,10 @@ export const BudgetProvider = ({ children }) => {
       state.selectedYear,
       state.selectedCategory,
       state.searchQuery,
-    ]
+      dispatch,
+      loading,
+      loadError,
+    ],
   );
 
   return (

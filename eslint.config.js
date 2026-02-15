@@ -74,9 +74,10 @@ export default [
   {
     ignores: [
       "node_modules/**",
+      ".next/**",
+      "out/**",
       "dist/**",
       "build/**",
-      ".vite/**",
       "*.config.js",
       "*.config.cjs",
       "*.config.mjs",

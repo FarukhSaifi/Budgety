@@ -5,19 +5,9 @@ import * as pdfjsLib from "pdfjs-dist";
 // Extend dayjs with custom parse format plugin
 dayjs.extend(customParseFormat);
 
-// Set worker source for pdfjs
-// Use a CDN that supports CORS, or use the local worker file
+// Set worker source for pdfjs (CDN works in browser and Next.js)
 if (typeof window !== "undefined") {
-  // Try to use the worker from node_modules, fallback to CDN
-  try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      "pdfjs-dist/build/pdf.worker.min.js",
-      import.meta.url
-    ).toString();
-  } catch {
-    // Fallback to CDN if local worker not available
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 }
 
 /**
@@ -41,224 +31,127 @@ export const extractTextFromPDF = async (file) => {
 
     return fullText;
   } catch (error) {
-    throw new Error(`Failed to extract text from PDF: ${error.message}`);
+    throw new Error(`Failed to extract text from PDF: ${error.message}`, {
+      cause: error,
+    });
   }
 };
 
 /**
  * Parse PDF text and extract transaction data
- * This function attempts to identify table-like structures in the PDF text
- * and extract transaction information
+ * This function handles ICICI bank statement format where transactions
+ * span multiple lines
  */
 export const parsePDFText = (text) => {
   const lines = text.split("\n").filter((line) => line.trim());
   const transactions = [];
-  let headers = null;
-  let headerLineIndex = -1;
 
-  // Try to find header row (common patterns in bank statements)
-  const headerPatterns = [
-    /date|transaction.*date|value.*date/i,
-    /description|narration|particulars|details/i,
-    /amount|debit|credit|deposit|withdrawal/i,
-    /balance|closing.*balance/i,
-  ];
+  // ICICI bank statement pattern: S No. followed by date and transaction details
+  // Transaction can span multiple lines
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
 
-  for (let i = 0; i < Math.min(lines.length, 20); i++) {
-    const line = lines[i].toLowerCase();
-    const matches = headerPatterns.filter((pattern) => pattern.test(line));
-    if (matches.length >= 2) {
-      headers = lines[i].split(/\s{2,}|\t/).map((h) => h.trim());
-      headerLineIndex = i;
-      break;
-    }
-  }
+    // Look for line starting with serial number and date pattern
+    // Format: "1 08.02.2026 ..." or "1 08.02.2026"
+    const serialDateMatch = line.match(/^(\d+)\s+(\d{2}\.\d{2}\.\d{4})\s*(.*)/);
 
-  // If no headers found, try to detect column structure from first few data rows
-  if (!headers) {
-    // Look for lines with date-like patterns and amounts
-    for (let i = 0; i < Math.min(lines.length, 30); i++) {
-      const line = lines[i];
-      // Check if line contains date pattern and amount pattern
-      const datePattern =
-        /\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}\s+\w{3}\s+\d{2,4}/;
-      const hasDate = datePattern.test(line);
-      const hasAmount = /[\d,]+\.?\d{0,2}/.test(line);
-      if (hasDate && hasAmount) {
-        // Try to split by multiple spaces or tabs
-        const parts = line.split(/\s{2,}|\t/).filter((p) => p.trim());
-        if (parts.length >= 3) {
-          headerLineIndex = i - 1;
+    if (serialDateMatch) {
+      const dateStr = serialDateMatch[2]; // e.g., "08.02.2026"
+      const description = serialDateMatch[3] || ""; // Rest of the line
+
+      let nextLineIndex = i + 1;
+      let fullText = description;
+      let withdrawAmount = "";
+      let depositAmount = "";
+      let balance = "";
+
+      // Keep reading lines until we find the amounts (last line of transaction)
+      while (nextLineIndex < lines.length) {
+        const nextLine = lines[nextLineIndex].trim();
+
+        // Check if next line starts with a new serial number (new transaction)
+        if (/^\d+\s+\d{2}\.\d{2}\.\d{4}/.test(nextLine)) {
+          break;
+        }
+
+        // Check if this line contains amounts (numbers with decimals at the end)
+        // Format: "... 100.00 3634.62" or "... 50000.00 53634.62"
+        const amountMatch = nextLine.match(
+          /([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$/,
+        );
+        if (amountMatch) {
+          // This is the last line with amounts
+          const beforeAmounts = nextLine.substring(
+            0,
+            nextLine.lastIndexOf(amountMatch[0]),
+          );
+          fullText += " " + beforeAmounts;
+
+          // Determine which is withdrawal and which is deposit based on context
+          // In ICICI format: first amount is transaction, second is balance
+          const amount1 = amountMatch[1].replace(/,/g, "");
+          const amount2 = amountMatch[2].replace(/,/g, "");
+
+          // Check the description for keywords to determine transaction type
+          const descLower = fullText.toLowerCase();
+
+          if (descLower.includes("payment fr")) {
+            // Incoming payment (deposit) - "Payment fr" indicates money received
+            depositAmount = amount1;
+          } else if (
+            descLower.includes("paid via") ||
+            descLower.includes("payment on")
+          ) {
+            // Outgoing payment (withdrawal) - "Paid via" or "payment on" indicates money sent
+            withdrawAmount = amount1;
+          } else if (fullText.includes("BIL/INFT")) {
+            // Internal fund transfer - usually deposit
+            depositAmount = amount1;
+          } else {
+            // Default: assume withdrawal for UPI/NEFT/IMPS transactions
+            withdrawAmount = amount1;
+          }
+
+          balance = amount2;
+
+          nextLineIndex++;
+          break;
+        }
+
+        // Not amounts yet, add to description
+        fullText += " " + nextLine;
+        nextLineIndex++;
+
+        // Safety: don't read more than 10 lines for a single transaction
+        if (nextLineIndex - i > 10) {
           break;
         }
       }
-    }
-  }
 
-  // Extract transactions from data rows
-  const startIndex = headerLineIndex >= 0 ? headerLineIndex + 1 : 0;
-  for (let i = startIndex; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
+      // Create transaction object if we have valid data
+      if (fullText.trim() && (withdrawAmount || depositAmount)) {
+        const transaction = {
+          date: dateStr,
+          description: fullText.trim(),
+          amount: withdrawAmount || depositAmount || "",
+          type: withdrawAmount ? "debit" : "credit",
+          mode: "",
+          balance,
+          raw: [dateStr, fullText.trim(), withdrawAmount, depositAmount],
+        };
 
-    // Skip lines that look like headers or footers
-    if (/total|balance|opening|closing|page|\d+\s*of\s*\d+/i.test(line)) {
-      continue;
-    }
+        transactions.push(transaction);
+      }
 
-    // Try to extract transaction data
-    const transaction = extractTransactionFromLine(line);
-    if (transaction && transaction.date && transaction.amount) {
-      transactions.push(transaction);
+      // Move to the next transaction
+      i = nextLineIndex;
+    } else {
+      i++;
     }
   }
 
   return transactions;
-};
-
-/**
- * Parse date string using dayjs (same as bankStatementParser)
- */
-const parseDateFromText = (dateStr) => {
-  if (!dateStr || !dateStr.trim()) {
-    return null;
-  }
-
-  const cleanDateStr = dateStr.trim();
-
-  // Common date formats in bank statements (same as bankStatementParser)
-  // Prioritize DD-MM-YYYY format as it's the app's default format
-  const dateFormats = [
-    "DD-MM-YYYY", // App default format - prioritize this
-    "DD/MM/YYYY", // Alternative format
-    "DD.MM.YYYY",
-    "YYYY-MM-DD", // ISO format
-    "MM-DD-YYYY", // US format
-    "MM/DD/YYYY",
-    "MM.DD.YYYY",
-    "DD-MMM-YYYY", // e.g., 01-Jan-2024
-    "DD MMM YYYY", // e.g., 01 Jan 2024
-    "DD-MMM-YY", // e.g., 01-Jan-24
-    "DD/MMM/YYYY",
-    "YYYY/MM/DD",
-    "YYYY-MM-DD HH:mm:ss", // With time
-    "DD-MM-YYYY HH:mm:ss",
-    "DD/MM/YYYY HH:mm:ss",
-  ];
-
-  // Try parsing with each format
-  for (const format of dateFormats) {
-    const parsed = dayjs(cleanDateStr, format, true); // strict parsing
-    if (parsed.isValid()) {
-      return parsed.format("YYYY-MM-DD");
-    }
-  }
-
-  // Try parsing as-is (dayjs can handle many formats automatically)
-  const autoParsed = dayjs(cleanDateStr);
-  if (autoParsed.isValid()) {
-    return autoParsed.format("YYYY-MM-DD");
-  }
-
-  return null;
-};
-
-/**
- * Extract transaction data from a single line of text
- */
-const extractTransactionFromLine = (line) => {
-  // Common date patterns for matching in text
-  const datePatterns = [
-    /\d{1,2}[-/]\d{1,2}[-/]\d{2,4}/, // DD-MM-YYYY or DD/MM/YYYY
-    /\d{4}[-/]\d{1,2}[-/]\d{1,2}/, // YYYY-MM-DD
-    /\d{1,2}\s+\w{3}\s+\d{2,4}/, // DD MMM YYYY
-  ];
-
-  // Amount patterns (with currency symbols and commas)
-  const amountPattern = /[\d,]+\.?\d{0,2}/g;
-
-  // Find date string in line
-  let dateStr = null;
-  for (const pattern of datePatterns) {
-    const match = line.match(pattern);
-    if (match) {
-      dateStr = match[0];
-      break;
-    }
-  }
-
-  // Parse date using dayjs
-  const date = dateStr ? parseDateFromText(dateStr) : null;
-
-  // Find amounts
-  const amounts = line.match(amountPattern);
-  if (!amounts || amounts.length === 0) {
-    return null;
-  }
-
-  // Extract description (text between date and first amount)
-  let description = "";
-  if (date) {
-    const dateIndex = line.indexOf(date);
-    const firstAmountIndex = line.indexOf(amounts[0]);
-    if (firstAmountIndex > dateIndex) {
-      description = line
-        .substring(dateIndex + date.length, firstAmountIndex)
-        .trim();
-    } else {
-      description = line.substring(0, firstAmountIndex).trim();
-    }
-  } else {
-    const firstAmountIndex = line.indexOf(amounts[0]);
-    description = line.substring(0, firstAmountIndex).trim();
-  }
-
-  // Clean up description
-  description = description
-    .replace(/\s+/g, " ")
-    .replace(/[^\w\s-]/g, "")
-    .trim();
-
-  // Determine amount and type
-  // Usually the last amount is the balance, second last might be transaction amount
-  let amount = "";
-  let type = "";
-
-  if (amounts.length >= 2) {
-    // Assume second last is transaction amount, last is balance
-    amount = amounts[amounts.length - 2];
-    // Try to determine type from context
-    const lineLower = line.toLowerCase();
-    if (
-      lineLower.includes("credit") ||
-      lineLower.includes("cr") ||
-      lineLower.includes("deposit")
-    ) {
-      type = "credit";
-    } else if (
-      lineLower.includes("debit") ||
-      lineLower.includes("dr") ||
-      lineLower.includes("withdraw")
-    ) {
-      type = "debit";
-    }
-  } else if (amounts.length === 1) {
-    amount = amounts[0];
-  }
-
-  if (!date || !amount) {
-    return null;
-  }
-
-  return {
-    date,
-    description: description || "Transaction",
-    amount,
-    type: type || "",
-    mode: "",
-    balance: amounts[amounts.length - 1] || "",
-    raw: [dateStr || date, description, amount, type],
-  };
 };
 
 /**
@@ -272,6 +165,6 @@ export const parsePDF = async (file) => {
     const transactions = parsePDFText(text);
     return transactions;
   } catch (error) {
-    throw new Error(`Failed to parse PDF: ${error.message}`);
+    throw new Error(`Failed to parse PDF: ${error.message}`, { cause: error });
   }
 };
