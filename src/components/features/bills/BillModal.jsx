@@ -17,6 +17,7 @@ import {
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
+import { nowISO } from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
@@ -104,7 +105,7 @@ const BillModal = ({ open, onClose, bill = null }) => {
       // Clear error when user starts typing
       if (error) setError("");
     },
-    [error]
+    [error],
   );
 
   const handleSubmit = (e) => {
@@ -127,7 +128,7 @@ const BillModal = ({ open, onClose, bill = null }) => {
     }
 
     const amountValue = Number(
-      parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES)
+      parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES),
     );
 
     if (isNaN(amountValue) || amountValue <= 0) {
@@ -153,7 +154,7 @@ const BillModal = ({ open, onClose, bill = null }) => {
         payload: updatedBill,
       });
 
-      showSuccess("Bill reminder updated successfully!");
+      showSuccess(UI_TEXT.SUCCESS_BILL_UPDATED);
     } else {
       // Create new bill
       const newBill = {
@@ -166,11 +167,11 @@ const BillModal = ({ open, onClose, bill = null }) => {
         isRecurring,
         recurrence: isRecurring ? recurrence : null,
         isPaid: false,
-        createdAt: new Date().toISOString(),
+        createdAt: nowISO(),
       };
 
       dispatch({ type: ACTION_TYPES.ADD_BILL_REMINDER, payload: newBill });
-      showSuccess("Bill reminder added successfully!");
+      showSuccess(UI_TEXT.SUCCESS_BILL_ADDED);
     }
 
     onClose();

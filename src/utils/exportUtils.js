@@ -1,7 +1,10 @@
 /**
  * Utility functions for exporting data
  */
-import { showError, showSuccess } from "./toast";
+import { ERROR_MESSAGES, UI_TEXT } from "@constants";
+import { formatForDisplay } from "@hooks/useDateFormatter";
+import { todayStorage } from "@utils/dateUtils";
+import { showError, showSuccess } from "@utils/toast";
 
 /**
  * Export data to CSV format
@@ -11,7 +14,7 @@ import { showError, showSuccess } from "./toast";
  */
 export const exportToCSV = (data, filename = "export.csv", headers = null) => {
   if (!data || data.length === 0) {
-    showError("No data to export");
+    showError(ERROR_MESSAGES.NO_DATA_TO_EXPORT);
     return;
   }
 
@@ -35,7 +38,7 @@ export const exportToCSV = (data, filename = "export.csv", headers = null) => {
           }
           return stringValue;
         })
-        .join(",")
+        .join(","),
     ),
   ].join("\n");
 
@@ -50,8 +53,8 @@ export const exportToCSV = (data, filename = "export.csv", headers = null) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
-  showSuccess(`Data exported successfully as ${filename}`);
+
+  showSuccess(UI_TEXT.SUCCESS_EXPORT.replace("{filename}", filename));
 };
 
 /**
@@ -61,11 +64,11 @@ export const exportToCSV = (data, filename = "export.csv", headers = null) => {
  */
 export const exportChartData = (chartData, chartName = "chart") => {
   if (!chartData || chartData.length === 0) {
-    showError("No data to export");
+    showError(ERROR_MESSAGES.NO_DATA_TO_EXPORT);
     return;
   }
 
-  const timestamp = new Date().toISOString().split("T")[0];
+  const timestamp = todayStorage();
   const filename = `${chartName}_${timestamp}.csv`;
   exportToCSV(chartData, filename);
 };
@@ -76,12 +79,12 @@ export const exportChartData = (chartData, chartName = "chart") => {
  */
 export const exportTransactions = (transactions) => {
   if (!transactions || transactions.length === 0) {
-    showError("No transactions to export");
+    showError(ERROR_MESSAGES.NO_TRANSACTIONS_TO_EXPORT);
     return;
   }
 
   const data = transactions.map((t) => ({
-    Date: t.date,
+    Date: formatForDisplay(t.date, "short"),
     Type: t.type,
     Description: t.description,
     Category: t.category,
@@ -89,7 +92,6 @@ export const exportTransactions = (transactions) => {
     Amount: t.amount,
   }));
 
-  const timestamp = new Date().toISOString().split("T")[0];
+  const timestamp = todayStorage();
   exportToCSV(data, `transactions_${timestamp}.csv`);
 };
-

@@ -1,3 +1,4 @@
+import EditTransactionModal from "@components/features/transactions/EditTransactionModal";
 import {
   CURRENCY_SYMBOL,
   DEFAULT_VALUES,
@@ -11,9 +12,9 @@ import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
 import { ListItem, ListItemGroup } from "@ui/ListItem";
 import { Widget } from "@ui/Widget";
+import { compareByDateThenCreatedAt } from "@utils/dateUtils";
 import { filterTransactionsBySearch } from "@utils/searchUtils";
 import { useMemo, useState } from "react";
-import EditTransactionModal from "./EditTransactionModal";
 
 const RecentTransactions = ({
   transactions,
@@ -38,7 +39,7 @@ const RecentTransactions = ({
   // Truncate long text
   const truncateText = (
     text,
-    maxLength = DISPLAY_LIMITS.DESCRIPTION_LENGTH
+    maxLength = DISPLAY_LIMITS.DESCRIPTION_LENGTH,
   ) => {
     if (!text) return "No description";
     if (text.length <= maxLength) return text;
@@ -120,11 +121,7 @@ const RecentTransactions = ({
     }
 
     return [...filtered]
-      .sort((a, b) => {
-        const dateA = new Date(a.date || a.createdAt);
-        const dateB = new Date(b.date || b.createdAt);
-        return dateB - dateA;
-      })
+      .sort((a, b) => -compareByDateThenCreatedAt(a, b))
       .slice(0, limit);
   }, [transactions, limit, searchQuery]);
 
@@ -147,7 +144,7 @@ const RecentTransactions = ({
           const amountPrefix = isIncome ? "+" : "-";
           const truncatedDescription = truncateText(
             transaction.description,
-            DISPLAY_LIMITS.DESCRIPTION_LENGTH
+            DISPLAY_LIMITS.DESCRIPTION_LENGTH,
           );
           const paymentModeTag = getPaymentModeTag(transaction.mode);
           const chips = [];

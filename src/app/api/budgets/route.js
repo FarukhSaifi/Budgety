@@ -1,4 +1,5 @@
 import { getDb, query } from "@/lib/db";
+import { nowISO } from "@/utils/dateUtils";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -34,7 +35,7 @@ export async function POST(request) {
     const body = await request.json();
     const { id, category, amount, month, year, createdAt } = body;
     await sql`INSERT INTO budgety_budgets (id, category, amount, month, year, created_at)
-      VALUES (${id}, ${category}, ${Number(amount)}, ${month}, ${year}, ${createdAt || new Date().toISOString()})`;
+      VALUES (${id}, ${category}, ${Number(amount)}, ${month}, ${year}, ${createdAt || nowISO()})`;
     return NextResponse.json(body, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

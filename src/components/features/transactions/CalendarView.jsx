@@ -1,3 +1,4 @@
+import EditTransactionModal from "@components/features/transactions/EditTransactionModal";
 import {
   ACTION_TYPES,
   CURRENCY_SYMBOL,
@@ -14,10 +15,18 @@ import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
+import {
+  compareByDateThenCreatedAt,
+  dayOfMonth,
+  daysInMonth,
+  getCurrentMonthYear,
+  isInMonthYear,
+  startOfMonthDayOfWeek,
+} from "@utils/dateUtils";
 import { filterTransactionsBySearch } from "@utils/searchUtils";
 import { showSuccess } from "@utils/toast";
+import dayjs from "dayjs";
 import { useMemo, useState } from "react";
-import EditTransactionModal from "./EditTransactionModal";
 
 const CalendarView = () => {
   const { transactions, selectedMonth, selectedYear, searchQuery, dispatch } =
@@ -34,14 +43,11 @@ const CalendarView = () => {
 
   // Get transactions for the selected month/year and apply search filter
   const monthTransactions = useMemo(() => {
-    let filtered = transactions.filter((transaction) => {
-      if (!transaction.date) return false;
-      const date = new Date(transaction.date);
-      return (
-        date.getMonth() + 1 === selectedMonth &&
-        date.getFullYear() === selectedYear
-      );
-    });
+    let filtered = transactions.filter((transaction) =>
+      transaction.date
+        ? isInMonthYear(transaction.date, selectedMonth, selectedYear)
+        : false,
+    );
 
     // Apply search filter if search query exists
     if (searchQuery && searchQuery.trim() !== "") {
@@ -55,8 +61,7 @@ const CalendarView = () => {
   const transactionsByDate = useMemo(() => {
     const grouped = {};
     monthTransactions.forEach((transaction) => {
-      const date = new Date(transaction.date);
-      const dateKey = date.getDate();
+      const dateKey = dayOfMonth(transaction.date);
       if (!grouped[dateKey]) {
         grouped[dateKey] = {
           income: [],
@@ -67,10 +72,12 @@ const CalendarView = () => {
       }
       if (transaction.type === TRANSACTION_TYPES.INCOME) {
         grouped[dateKey].income.push(transaction);
-        grouped[dateKey].totalIncome += transaction.amount || DEFAULT_VALUES.AMOUNT;
+        grouped[dateKey].totalIncome +=
+          transaction.amount || DEFAULT_VALUES.AMOUNT;
       } else {
         grouped[dateKey].expense.push(transaction);
-        grouped[dateKey].totalExpense += transaction.amount || DEFAULT_VALUES.AMOUNT;
+        grouped[dateKey].totalExpense +=
+          transaction.amount || DEFAULT_VALUES.AMOUNT;
       }
     });
     return grouped;
@@ -78,25 +85,12 @@ const CalendarView = () => {
 
   // Get calendar days for the selected month
   const calendarDays = useMemo(() => {
-    const year = selectedYear;
-    const month = selectedMonth - 1; // JavaScript months are 0-indexed
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+    const numDays = daysInMonth(selectedYear, selectedMonth);
+    const startingDayOfWeek = startOfMonthDayOfWeek(selectedYear, selectedMonth);
 
     const days = [];
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Add all days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
-    }
-
+    for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
+    for (let day = 1; day <= numDays; day++) days.push(day);
     return days;
   }, [selectedMonth, selectedYear]);
 
@@ -105,10 +99,7 @@ const CalendarView = () => {
     return [
       ...transactionsByDate[day].income,
       ...transactionsByDate[day].expense,
-    ].sort((a, b) => {
-      // Sort by creation time, newest first
-      return new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date);
-    });
+    ].sort((a, b) => -compareByDateThenCreatedAt(a, b));
   };
 
   const getDayBalance = (day) => {
@@ -148,33 +139,39 @@ const CalendarView = () => {
   };
 
   const goToToday = () => {
-    const today = new Date();
+    const { month, year } = getCurrentMonthYear();
     dispatch({
       type: ACTION_TYPES.SET_VIEW_PERIOD,
       payload: {
         viewPeriod: "monthly",
-        selectedMonth: today.getMonth() + 1,
-        selectedYear: today.getFullYear(),
+        selectedMonth: month,
+        selectedYear: year,
       },
     });
-    setSelectedDate(today.getDate());
+    setSelectedDate(dayjs().date());
   };
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const today = new Date();
+  const { month: currentMonth, year: currentYear } = getCurrentMonthYear();
+  const currentDay = dayjs().date();
   const isCurrentMonth =
-    selectedMonth === today.getMonth() + 1 &&
-    selectedYear === today.getFullYear();
+    selectedMonth === currentMonth && selectedYear === currentYear;
 
   // Calculate monthly totals
   const monthlyTotals = useMemo(() => {
     const income = monthTransactions
       .filter((t) => t.type === TRANSACTION_TYPES.INCOME)
-      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
+      .reduce(
+        (sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT),
+        DEFAULT_VALUES.BALANCE,
+      );
     const expense = monthTransactions
       .filter((t) => t.type === TRANSACTION_TYPES.EXPENSE)
-      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
+      .reduce(
+        (sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT),
+        DEFAULT_VALUES.BALANCE,
+      );
     return {
       income,
       expense,
@@ -202,7 +199,7 @@ const CalendarView = () => {
         type: ACTION_TYPES.DELETE_TRANSACTION,
         payload: deleteDialog.transactionId,
       });
-      showSuccess("Transaction deleted successfully");
+      showSuccess(UI_TEXT.SUCCESS_TRANSACTION_DELETED);
       setDeleteDialog({ open: false, transactionId: null });
     }
   };
@@ -311,9 +308,9 @@ const CalendarView = () => {
                 const balance = getDayBalance(day);
                 const isToday =
                   isCurrentMonth &&
-                  day === today.getDate() &&
-                  selectedMonth === today.getMonth() + 1 &&
-                  selectedYear === today.getFullYear();
+                  day === currentDay &&
+                  selectedMonth === currentMonth &&
+                  selectedYear === currentYear;
                 const isSelected = selectedDate === day;
 
                 return (
@@ -340,8 +337,8 @@ const CalendarView = () => {
                             isToday
                               ? "text-green-600"
                               : isSelected
-                              ? "text-blue-600"
-                              : "text-gray-800"
+                                ? "text-blue-600"
+                                : "text-gray-800"
                           }`}
                         >
                           {day}

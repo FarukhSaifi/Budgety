@@ -1,3 +1,4 @@
+import RecurringTransactionModal from "@components/features/bills/RecurringTransactionModal";
 import {
   ACTION_TYPES,
   CURRENCY_SYMBOL,
@@ -15,9 +16,10 @@ import { ConfirmDialog } from "@ui/ConfirmDialog";
 import { EmptyState } from "@ui/EmptyState";
 import { PageContainer } from "@ui/PageContainer";
 import { SectionCard } from "@ui/SectionCard";
+import { parseDate } from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
+import dayjs from "dayjs";
 import { useState } from "react";
-import RecurringTransactionModal from "./RecurringTransactionModal";
 
 const RecurringTransactions = () => {
   const { recurringTransactions, dispatch } = useBudget();
@@ -55,7 +57,7 @@ const RecurringTransactions = () => {
         type: ACTION_TYPES.DELETE_RECURRING_TRANSACTION,
         payload: deleteDialog.transactionId,
       });
-      showSuccess("Recurring transaction deleted successfully");
+      showSuccess(UI_TEXT.SUCCESS_RECURRING_DELETED);
       setDeleteDialog({ open: false, transactionId: null });
     }
   };
@@ -66,43 +68,40 @@ const RecurringTransactions = () => {
       payload: { id, isActive: !isActive },
     });
     showSuccess(
-      `Recurring transaction ${
-        !isActive ? "activated" : "paused"
-      } successfully!`
+      !isActive
+        ? UI_TEXT.SUCCESS_RECURRING_ACTIVATED
+        : UI_TEXT.SUCCESS_RECURRING_PAUSED,
     );
   };
 
   const getNextOccurrence = (recurring) => {
-    const startDate = new Date(recurring.startDate);
-    const now = new Date();
-    let nextDate = new Date(startDate);
+    let next = parseDate(recurring.startDate);
+    if (!next) return null;
+    const now = dayjs();
 
-    while (nextDate <= now) {
-      const newDate = new Date(nextDate);
+    while (!next.isAfter(now)) {
       switch (recurring.recurrence) {
         case RECURRENCE_TYPES.DAILY:
-          newDate.setDate(newDate.getDate() + 1);
+          next = next.add(1, "day");
           break;
         case RECURRENCE_TYPES.WEEKLY:
-          newDate.setDate(newDate.getDate() + 7);
+          next = next.add(1, "week");
           break;
         case RECURRENCE_TYPES.MONTHLY:
-          newDate.setMonth(newDate.getMonth() + 1);
+          next = next.add(1, "month");
           break;
         case RECURRENCE_TYPES.YEARLY:
-          newDate.setFullYear(newDate.getFullYear() + 1);
+          next = next.add(1, "year");
           break;
         default:
           return null;
       }
-      nextDate = newDate;
     }
 
-    if (recurring.endDate && nextDate > new Date(recurring.endDate)) {
-      return null;
-    }
+    const end = recurring.endDate ? parseDate(recurring.endDate) : null;
+    if (end && next.isAfter(end)) return null;
 
-    return nextDate;
+    return next;
   };
 
   return (
@@ -172,8 +171,8 @@ const RecurringTransactions = () => {
                               Next Occurrence:
                             </span>{" "}
                             {formatDate(
-                              nextOccurrence.toISOString().split("T")[0],
-                              "short"
+                              nextOccurrence.format("YYYY-MM-DD"),
+                              "short",
                             )}
                           </div>
                         )}

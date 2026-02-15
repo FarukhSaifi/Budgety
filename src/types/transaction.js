@@ -5,6 +5,7 @@
  */
 
 import { TRANSACTION_TYPES, TRANSACTION_MODES } from "@constants";
+import { nowISO, todayStorage } from "@utils/dateUtils";
 
 /**
  * @typedef {Object} Transaction
@@ -53,12 +54,12 @@ export const TransactionMode = {
 export const DEFAULT_TRANSACTION = {
   id: "",
   type: TransactionType.EXPENSE,
-  date: new Date().toISOString().split("T")[0],
+  date: todayStorage(),
   mode: TransactionMode.CASH,
   description: "",
   category: "",
   amount: 0,
-  createdAt: new Date().toISOString(),
+  createdAt: nowISO(),
   imported: false,
 };
 
@@ -132,7 +133,7 @@ export const createTransaction = (overrides = {}) => {
     ...DEFAULT_TRANSACTION,
     ...overrides,
     id: overrides.id || generateId(),
-    createdAt: overrides.createdAt || new Date().toISOString(),
+    createdAt: overrides.createdAt || nowISO(),
   };
 };
 

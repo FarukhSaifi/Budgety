@@ -14,6 +14,7 @@ import {
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
+import { nowISO } from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
 import { useMemo, useState } from "react";
 import { v4 as uuid } from "uuid";
@@ -44,7 +45,7 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
   // Compute initial form data using useMemo - this will reset when budget or selectedMonth/Year changes
   const initialFormData = useMemo(
     () => getInitialFormData(selectedMonth, selectedYear, budget),
-    [selectedMonth, selectedYear, budget]
+    [selectedMonth, selectedYear, budget],
   );
 
   const [formData, setFormData] = useState(initialFormData);
@@ -82,7 +83,7 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
     }
 
     const amountValue = Number(
-      parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES)
+      parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES),
     );
     const monthValue = parseInt(month, 10);
     const yearValue = parseInt(year, 10);
@@ -98,7 +99,7 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
       monthValue > NUMBER_FORMAT.MAX_MONTH
     ) {
       setError(
-        `Month must be between ${NUMBER_FORMAT.MIN_MONTH} and ${NUMBER_FORMAT.MAX_MONTH}.`
+        `Month must be between ${NUMBER_FORMAT.MIN_MONTH} and ${NUMBER_FORMAT.MAX_MONTH}.`,
       );
       return;
     }
@@ -109,7 +110,7 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
       yearValue > NUMBER_FORMAT.MAX_YEAR
     ) {
       setError(
-        `Year must be between ${NUMBER_FORMAT.MIN_YEAR} and ${NUMBER_FORMAT.MAX_YEAR}.`
+        `Year must be between ${NUMBER_FORMAT.MIN_YEAR} and ${NUMBER_FORMAT.MAX_YEAR}.`,
       );
       return;
     }
@@ -129,7 +130,7 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
         payload: updatedBudget,
       });
 
-      showSuccess("Budget updated successfully!");
+      showSuccess(UI_TEXT.SUCCESS_BUDGET_UPDATED);
     } else {
       // Create new budget
       const newBudget = {
@@ -138,11 +139,11 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
         amount: amountValue,
         month: monthValue,
         year: yearValue,
-        createdAt: new Date().toISOString(),
+        createdAt: nowISO(),
       };
 
       dispatch({ type: ACTION_TYPES.ADD_BUDGET, payload: newBudget });
-      showSuccess("Budget added successfully!");
+      showSuccess(UI_TEXT.SUCCESS_BUDGET_ADDED);
     }
 
     onClose();

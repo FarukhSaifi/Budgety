@@ -13,7 +13,17 @@ import { useDateFormatter } from "@hooks/useDateFormatter";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
+import {
+  dayOfMonth,
+  daysInMonth,
+  getCurrentMonthYear,
+  getMonthYear,
+  isInMonthYear,
+  parseDate,
+  startOfMonthDayOfWeek,
+} from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
+import dayjs from "dayjs";
 import { useCallback, useMemo, useState } from "react";
 
 const PaymentsCalendarView = () => {
@@ -30,65 +40,45 @@ const PaymentsCalendarView = () => {
 
   // Helper function to calculate days until due
   const getDaysUntilDue = useCallback((dueDate) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    const diffTime = due - today;
-    return Math.ceil(diffTime / DATE_CONSTANTS.MILLISECONDS_PER_DAY);
+    const due = parseDate(dueDate);
+    if (!due) return 0;
+    return Math.ceil(due.startOf("day").diff(dayjs().startOf("day"), "day"));
   }, []);
 
   // Get bills for the selected month/year
   const monthBills = useMemo(() => {
-    return billReminders.filter((bill) => {
-      if (!bill.dueDate) return false;
-      const date = new Date(bill.dueDate);
-      return (
-        date.getMonth() + 1 === selectedMonth &&
-        date.getFullYear() === selectedYear
-      );
-    });
+    return billReminders.filter((bill) =>
+      bill.dueDate
+        ? isInMonthYear(bill.dueDate, selectedMonth, selectedYear)
+        : false,
+    );
   }, [billReminders, selectedMonth, selectedYear]);
 
   // Get recurring transactions that should appear in this month
   const monthRecurring = useMemo(() => {
     return recurringTransactions.filter((recurring) => {
-      if (!recurring.startDate) return false;
-      if (!recurring.isActive) return false;
+      if (!recurring.startDate || !recurring.isActive) return false;
 
-      const startDate = new Date(recurring.startDate);
-      const startMonth = startDate.getMonth() + 1;
-      const startYear = startDate.getFullYear();
-
-      // Check if recurring transaction has started
-      if (selectedYear < startYear) return false;
-      if (selectedYear === startYear && selectedMonth < startMonth)
+      const start = getMonthYear(recurring.startDate);
+      if (!start) return false;
+      if (selectedYear < start.year) return false;
+      if (selectedYear === start.year && selectedMonth < start.month)
         return false;
 
-      // Check if recurring transaction has ended
       if (recurring.endDate) {
-        const endDate = new Date(recurring.endDate);
-        const endMonth = endDate.getMonth() + 1;
-        const endYear = endDate.getFullYear();
-        if (selectedYear > endYear) return false;
-        if (selectedYear === endYear && selectedMonth > endMonth) return false;
+        const end = getMonthYear(recurring.endDate);
+        if (end) {
+          if (selectedYear > end.year) return false;
+          if (selectedYear === end.year && selectedMonth > end.month)
+            return false;
+        }
       }
 
-      // Check recurrence pattern
-      if (recurring.recurrence === RECURRENCE_TYPES.MONTHLY) {
-        return true; // Monthly appears every month
-      }
-      if (recurring.recurrence === RECURRENCE_TYPES.YEARLY) {
-        return startMonth === selectedMonth; // Yearly appears in same month
-      }
-      if (recurring.recurrence === RECURRENCE_TYPES.WEEKLY) {
-        // Weekly - check if any week falls in this month
-        return true; // Simplified - show all weekly
-      }
-      if (recurring.recurrence === RECURRENCE_TYPES.DAILY) {
-        return true; // Daily appears every day
-      }
-
+      if (recurring.recurrence === RECURRENCE_TYPES.MONTHLY) return true;
+      if (recurring.recurrence === RECURRENCE_TYPES.YEARLY)
+        return start.month === selectedMonth;
+      if (recurring.recurrence === RECURRENCE_TYPES.WEEKLY) return true;
+      if (recurring.recurrence === RECURRENCE_TYPES.DAILY) return true;
       return false;
     });
   }, [recurringTransactions, selectedMonth, selectedYear]);
@@ -99,8 +89,7 @@ const PaymentsCalendarView = () => {
 
     // Add bills
     monthBills.forEach((bill) => {
-      const date = new Date(bill.dueDate);
-      const dateKey = date.getDate();
+      const dateKey = dayOfMonth(bill.dueDate);
       if (!grouped[dateKey]) {
         grouped[dateKey] = {
           bills: [],
@@ -129,7 +118,7 @@ const PaymentsCalendarView = () => {
       const dateKey =
         recurring.recurrence === RECURRENCE_TYPES.MONTHLY
           ? 1
-          : new Date(recurring.startDate).getDate();
+          : dayOfMonth(recurring.startDate);
       if (!grouped[dateKey]) {
         grouped[dateKey] = {
           bills: [],
@@ -148,20 +137,11 @@ const PaymentsCalendarView = () => {
 
   // Get calendar days for the selected month
   const calendarDays = useMemo(() => {
-    const year = selectedYear;
-    const month = selectedMonth - 1;
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
+    const numDays = daysInMonth(selectedYear, selectedMonth);
+    const startingDayOfWeek = startOfMonthDayOfWeek(selectedYear, selectedMonth);
     const days = [];
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(day);
-    }
+    for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
+    for (let day = 1; day <= numDays; day++) days.push(day);
     return days;
   }, [selectedMonth, selectedYear]);
 
@@ -200,29 +180,29 @@ const PaymentsCalendarView = () => {
   };
 
   const goToToday = () => {
-    const today = new Date();
+    const { month, year } = getCurrentMonthYear();
     dispatch({
       type: ACTION_TYPES.SET_VIEW_PERIOD,
       payload: {
         viewPeriod: "monthly",
-        selectedMonth: today.getMonth() + 1,
-        selectedYear: today.getFullYear(),
+        selectedMonth: month,
+        selectedYear: year,
       },
     });
-    setSelectedDate(today.getDate());
+    setSelectedDate(dayjs().date());
   };
 
   const handleMarkPaid = (billId) => {
     dispatch({ type: ACTION_TYPES.MARK_BILL_PAID, payload: billId });
-    showSuccess("Bill marked as paid");
+    showSuccess(UI_TEXT.SUCCESS_BILL_MARKED_PAID);
   };
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const today = new Date();
+  const { month: currentMonth, year: currentYear } = getCurrentMonthYear();
+  const currentDay = dayjs().date();
   const isCurrentMonth =
-    selectedMonth === today.getMonth() + 1 &&
-    selectedYear === today.getFullYear();
+    selectedMonth === currentMonth && selectedYear === currentYear;
 
   // Calculate monthly totals
   const monthlyTotals = useMemo(() => {
@@ -231,7 +211,7 @@ const PaymentsCalendarView = () => {
       .reduce((sum, bill) => sum + (bill.amount || 0), 0);
     const recurringTotal = monthRecurring.reduce(
       (sum, rec) => sum + (rec.amount || 0),
-      0
+      0,
     );
     const overdueTotal = monthBills
       .filter((bill) => {
@@ -370,9 +350,9 @@ const PaymentsCalendarView = () => {
                 const hasPayments = !!dayPayments;
                 const isToday =
                   isCurrentMonth &&
-                  day === today.getDate() &&
-                  selectedMonth === today.getMonth() + 1 &&
-                  selectedYear === today.getFullYear();
+                  day === currentDay &&
+                  selectedMonth === currentMonth &&
+                  selectedYear === currentYear;
                 const isSelected = selectedDate === day;
 
                 // Determine cell color based on payment status
@@ -415,8 +395,8 @@ const PaymentsCalendarView = () => {
                             isToday
                               ? "text-green-600"
                               : isSelected
-                              ? "text-blue-600"
-                              : "text-gray-800"
+                                ? "text-blue-600"
+                                : "text-gray-800"
                           }`}
                         >
                           {day}
@@ -500,10 +480,10 @@ const PaymentsCalendarView = () => {
                           bill.isPaid
                             ? "bg-gray-50 border-gray-400 opacity-60"
                             : isOverdue
-                            ? "bg-red-50 border-red-500"
-                            : isDueSoon
-                            ? "bg-yellow-50 border-yellow-500"
-                            : "bg-orange-50 border-orange-500"
+                              ? "bg-red-50 border-red-500"
+                              : isDueSoon
+                                ? "bg-yellow-50 border-yellow-500"
+                                : "bg-orange-50 border-orange-500"
                         }
                       `}
                     >

@@ -85,7 +85,7 @@ const EditTransactionModal = ({ open, onClose, transaction }) => {
       payload: updatedTransaction,
     });
 
-    showSuccess("Transaction updated successfully!");
+    showSuccess(UI_TEXT.SUCCESS_TRANSACTION_UPDATED);
     onClose();
   };
 

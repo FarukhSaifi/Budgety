@@ -9,6 +9,7 @@ import { useBudget } from "@context/BudgetContext";
 import { useTab } from "@context/TabContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { getCurrentMonthYear } from "@utils/dateUtils";
 import { KeyboardArrowDown as ArrowDownIcon } from "@mui/icons-material";
 import { Popover } from "@mui/material";
 import { MetricCard } from "@ui/MetricCard";
@@ -22,16 +23,13 @@ const Header = () => {
     transactions,
     viewPeriod,
     selectedMonth,
-    selectedYear
+    selectedYear,
   );
   const { formatCurrency } = useCurrencyFormatter();
   const [datePickerAnchor, setDatePickerAnchor] = useState(null);
-  const [tempMonth, setTempMonth] = useState(
-    selectedMonth || new Date().getMonth() + 1
-  );
-  const [tempYear, setTempYear] = useState(
-    selectedYear || new Date().getFullYear()
-  );
+  const { month: defaultMonth, year: defaultYear } = getCurrentMonthYear();
+  const [tempMonth, setTempMonth] = useState(selectedMonth || defaultMonth);
+  const [tempYear, setTempYear] = useState(selectedYear || defaultYear);
 
   // Sync temp state with global state when it changes (only when picker is closed)
   useEffect(() => {
@@ -70,7 +68,7 @@ const Header = () => {
     return UI_TEXT.ALL_TIME || "All Time";
   };
 
-  const getCurrentYear = () => new Date().getFullYear();
+  const getCurrentYear = () => getCurrentMonthYear().year;
   const getYears = () => {
     const years = [];
     const currentYear = getCurrentYear();
@@ -82,10 +80,11 @@ const Header = () => {
 
   const handleDateClick = (event) => {
     // Always sync temp values with current global state when opening picker
-    const currentMonth = selectedMonth || new Date().getMonth() + 1;
-    const currentYear = selectedYear || new Date().getFullYear();
-    setTempMonth(currentMonth);
-    setTempYear(currentYear);
+    const { month: currentMonth, year: currentYear } = getCurrentMonthYear();
+    const month = selectedMonth || currentMonth;
+    const year = selectedYear || currentYear;
+    setTempMonth(month);
+    setTempYear(year);
     setDatePickerAnchor(event.currentTarget);
   };
 
@@ -97,7 +96,7 @@ const Header = () => {
     const newMonth = parseInt(e.target.value, 10);
     setTempMonth(newMonth);
     // Use current selectedYear or tempYear as fallback
-    const yearToUse = selectedYear || tempYear || new Date().getFullYear();
+    const yearToUse = selectedYear || tempYear || getCurrentMonthYear().year;
     dispatch({
       type: ACTION_TYPES.SET_VIEW_PERIOD,
       payload: {
@@ -114,7 +113,7 @@ const Header = () => {
     if (viewPeriod === VIEW_PERIODS.MONTHLY) {
       // Use current selectedMonth or tempMonth as fallback
       const monthToUse =
-        selectedMonth || tempMonth || new Date().getMonth() + 1;
+        selectedMonth || tempMonth || getCurrentMonthYear().month;
       dispatch({
         type: ACTION_TYPES.SET_VIEW_PERIOD,
         payload: {
@@ -137,8 +136,9 @@ const Header = () => {
   const handleViewPeriodChange = (e) => {
     const newViewPeriod = e.target.value;
     // Use current values or temp values as fallback
-    const monthToUse = selectedMonth || tempMonth || new Date().getMonth() + 1;
-    const yearToUse = selectedYear || tempYear || new Date().getFullYear();
+    const { month: m, year: y } = getCurrentMonthYear();
+    const monthToUse = selectedMonth || tempMonth || m;
+    const yearToUse = selectedYear || tempYear || y;
 
     dispatch({
       type: ACTION_TYPES.SET_VIEW_PERIOD,

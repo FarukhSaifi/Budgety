@@ -19,13 +19,14 @@ import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { hasDuplicate } from "@utils/duplicateDetection";
+import { todayStorage, nowISO } from "@utils/dateUtils";
 import { showError, showSuccess } from "@utils/toast";
 import { useState } from "react";
 import { v4 as uuid } from "uuid";
 
 const getInitialFormData = () => ({
   type: "",
-  date: new Date().toISOString().split("T")[0],
+  date: todayStorage(),
   mode: TRANSACTION_MODES.CASH,
   description: "",
   category: "",
@@ -59,7 +60,7 @@ const AddTransactionModal = ({ open, onClose }) => {
     const { type, date, mode, description, category, amount } = formData;
 
     if (!type || !date || !description || !category || !amount) {
-      setError("Please fill in all required fields.");
+      setError(UI_TEXT.PLEASE_FILL_ALL_FIELDS);
       return;
     }
 
@@ -71,15 +72,12 @@ const AddTransactionModal = ({ open, onClose }) => {
       description: description.trim(),
       category,
       amount: Number(parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES)),
-      createdAt: new Date().toISOString(),
+      createdAt: nowISO(),
     };
 
-    // Check for duplicates
     if (hasDuplicate(newTransaction, transactions)) {
-      const errorMsg =
-        "This transaction already exists. A duplicate transaction with the same date, description, amount, and type was found.";
-      setError(errorMsg);
-      showError(errorMsg);
+      setError(UI_TEXT.DUPLICATE_TRANSACTION);
+      showError(UI_TEXT.DUPLICATE_TRANSACTION);
       return;
     }
 
@@ -87,7 +85,7 @@ const AddTransactionModal = ({ open, onClose }) => {
 
     setFormData(getInitialFormData());
     setError("");
-    showSuccess("Transaction added successfully!");
+    showSuccess(UI_TEXT.SUCCESS_TRANSACTION_ADDED);
     handleClose();
   };
 

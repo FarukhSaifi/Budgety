@@ -1,4 +1,4 @@
-import { SectionHeader } from "./SectionHeader";
+import { SectionHeader } from "@ui/SectionHeader";
 
 /**
  * Reusable section card component combining Card with SectionHeader

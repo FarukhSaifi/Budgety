@@ -1,4 +1,5 @@
 import { getDb, query } from "@/lib/db";
+import { nowISO } from "@/utils/dateUtils";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -49,7 +50,7 @@ export async function POST(request) {
       createdAt,
     } = body;
     await sql`INSERT INTO budgety_bill_reminders (id, name, category, amount, due_date, reminder_days, is_recurring, recurrence, created_at)
-      VALUES (${id}, ${name}, ${category}, ${Number(amount)}, ${dueDate}, ${reminderDays ?? 3}, ${isRecurring ?? false}, ${recurrence ?? null}, ${createdAt || new Date().toISOString()})`;
+      VALUES (${id}, ${name}, ${category}, ${Number(amount)}, ${dueDate}, ${reminderDays ?? 3}, ${isRecurring ?? false}, ${recurrence ?? null}, ${createdAt || nowISO()})`;
     return NextResponse.json(body, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

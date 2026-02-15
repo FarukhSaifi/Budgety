@@ -1,4 +1,5 @@
 import { getDb, query } from "@/lib/db";
+import { nowISO } from "@/utils/dateUtils";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -47,7 +48,7 @@ export async function POST(request) {
       createdAt,
     } = body;
     await sql`INSERT INTO budgety_recurring_transactions (id, type, description, category, amount, recurrence, start_date, end_date, created_at)
-      VALUES (${id}, ${type}, ${description}, ${category}, ${Number(amount)}, ${recurrence}, ${startDate}, ${endDate || null}, ${createdAt || new Date().toISOString()})`;
+      VALUES (${id}, ${type}, ${description}, ${category}, ${Number(amount)}, ${recurrence}, ${startDate}, ${endDate || null}, ${createdAt || nowISO()})`;
     return NextResponse.json(body, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

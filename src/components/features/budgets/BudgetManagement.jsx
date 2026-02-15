@@ -1,3 +1,4 @@
+import BudgetModal from "@components/features/budgets/BudgetModal";
 import {
   ACTION_TYPES,
   CURRENCY_SYMBOL,
@@ -15,7 +16,6 @@ import { PageContainer } from "@ui/PageContainer";
 import { SectionCard } from "@ui/SectionCard";
 import { showSuccess } from "@utils/toast";
 import { useMemo, useState } from "react";
-import BudgetModal from "./BudgetModal";
 
 const BudgetManagement = () => {
   const { budgets, transactions, selectedMonth, selectedYear, dispatch } =
@@ -24,7 +24,7 @@ const BudgetManagement = () => {
     transactions,
     VIEW_PERIODS.MONTHLY,
     selectedMonth,
-    selectedYear
+    selectedYear,
   );
   const { formatCurrency } = useCurrencyFormatter();
 
@@ -60,7 +60,7 @@ const BudgetManagement = () => {
         type: ACTION_TYPES.DELETE_BUDGET,
         payload: deleteDialog.budgetId,
       });
-      showSuccess("Budget deleted successfully");
+      showSuccess(UI_TEXT.SUCCESS_BUDGET_DELETED);
       setDeleteDialog({ open: false, budgetId: null });
     }
   };
@@ -68,7 +68,8 @@ const BudgetManagement = () => {
   // Get current month budgets
   const currentBudgets = useMemo(() => {
     return budgets.filter(
-      (budget) => budget.month === selectedMonth && budget.year === selectedYear
+      (budget) =>
+        budget.month === selectedMonth && budget.year === selectedYear,
     );
   }, [budgets, selectedMonth, selectedYear]);
 
@@ -175,13 +176,13 @@ const BudgetManagement = () => {
                           status.isOverBudget
                             ? "bg-red-500"
                             : status.percentage >= PERCENTAGE_THRESHOLDS.WARNING
-                            ? "bg-yellow-500"
-                            : "bg-green-500"
+                              ? "bg-yellow-500"
+                              : "bg-green-500"
                         }`}
                         style={{
                           width: `${Math.min(
                             status.percentage,
-                            PERCENTAGE_THRESHOLDS.MAX
+                            PERCENTAGE_THRESHOLDS.MAX,
                           )}%`,
                         }}
                       >

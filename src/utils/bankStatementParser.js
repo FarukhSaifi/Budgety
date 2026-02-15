@@ -67,14 +67,14 @@ export const detectColumnMapping = (headers) => {
   const normalizedHeaders = headers.map((h) =>
     String(h || "")
       .trim()
-      .toLowerCase()
+      .toLowerCase(),
   );
 
   const findColumnIndex = (patterns) => {
     return normalizedHeaders.findIndex((header) => {
       // Check for exact match first (case-insensitive)
       const exactMatch = patterns.some(
-        (pattern) => header === pattern.toLowerCase()
+        (pattern) => header === pattern.toLowerCase(),
       );
       if (exactMatch) return true;
 
@@ -152,7 +152,7 @@ export const parseAmount = (amountStr) => {
 
   const cleanAmountStr = String(amountStr).trim();
   const numericAmount = parseFloat(
-    cleanAmountStr.replace(/[^0-9.-]/g, "") || "0"
+    cleanAmountStr.replace(/[^0-9.-]/g, "") || "0",
   );
 
   return isNaN(numericAmount) ? 0 : Math.abs(numericAmount);
@@ -182,7 +182,7 @@ export const detectTransactionType = (amountStr, typeField) => {
 
   // If amount is negative, it's likely an expense
   const originalAmount = parseFloat(
-    String(amountStr || "").replace(/[^0-9.-]/g, "") || "0"
+    String(amountStr || "").replace(/[^0-9.-]/g, "") || "0",
   );
   return originalAmount < 0
     ? TRANSACTION_TYPES.EXPENSE
@@ -217,10 +217,13 @@ export const detectTransactionMode = (description) => {
   if (TRANSACTION_CODE_PATTERNS.VPS.test(desc) || desc.includes("CARD")) {
     return TRANSACTION_MODES.CARD;
   }
-  // Check for Net Banking
+  // Check for Net Banking (including ACH/BD auto-debit and housing finance loans)
   if (
     TRANSACTION_CODE_PATTERNS.INF.test(desc) ||
-    desc.includes("NET BANKING")
+    desc.includes("NET BANKING") ||
+    desc.includes("ACH/BD") ||
+    (desc.includes("ACH") && desc.includes("BD")) ||
+    desc.includes("TATACAPITALHOUSINGFI")
   ) {
     return TRANSACTION_MODES.NET_BANKING;
   }
@@ -235,6 +238,15 @@ export const detectTransactionMode = (description) => {
   // Check for Cash
   if (TRANSACTION_CODE_PATTERNS.VAT.test(desc) || desc.includes("CASH")) {
     return TRANSACTION_MODES.CASH;
+  }
+  // Check for Bank Transfer (e.g. Trf frm SB, transfer from savings)
+  if (
+    desc.includes("TRF FRM SB") ||
+    desc.includes("TRF FROM SB") ||
+    desc.includes("TRANSFER FROM SB") ||
+    desc.includes("TRANSFER FROM SAVINGS")
+  ) {
+    return TRANSACTION_MODES.BANK_TRANSFER;
   }
 
   return TRANSACTION_MODES.OTHER;
@@ -261,6 +273,13 @@ export const normalizeMode = (modeValue) => {
   if (modeUpper.includes("CHEQUE") || modeUpper.includes("CHQ"))
     return TRANSACTION_MODES.CHEQUE;
   if (modeUpper.includes("CASH")) return TRANSACTION_MODES.CASH;
+  if (
+    modeUpper.includes("BANK TRANSFER") ||
+    modeUpper.includes("TRF") ||
+    (modeUpper.includes("TRANSFER") && modeUpper.includes("BANK"))
+  ) {
+    return TRANSACTION_MODES.BANK_TRANSFER;
+  }
 
   return null;
 };
@@ -310,7 +329,7 @@ export const extractTransactionData = (values, mapping) => {
       } else {
         // Try to infer from amount sign or description
         const numericAmount = parseFloat(
-          String(amountValue).replace(/[^0-9.-]/g, "") || "0"
+          String(amountValue).replace(/[^0-9.-]/g, "") || "0",
         );
         type = numericAmount < 0 ? "debit" : "credit";
       }

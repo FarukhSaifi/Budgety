@@ -25,6 +25,8 @@ import { useBudget } from "@context/BudgetContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
+import { isInMonthYear } from "@utils/dateUtils";
+import dayjs from "dayjs";
 
 const ReportsAnalysis = () => {
   const { transactions, budgets, selectedMonth, selectedYear } = useBudget();
@@ -76,19 +78,20 @@ const ReportsAnalysis = () => {
   // Spending Trends (last 6 months)
   const spendingTrends = useMemo(() => {
     const trends = [];
-    const currentDate = new Date(selectedYear, selectedMonth - 1, 1);
+    const base = dayjs()
+      .year(selectedYear)
+      .month(selectedMonth - 1)
+      .date(1);
 
     for (let i = DISPLAY_LIMITS.TREND_MONTHS - 1; i >= 0; i--) {
-      const date = new Date(currentDate);
-      date.setMonth(date.getMonth() - i);
-      const month = date.getMonth() + 1;
-      const year = date.getFullYear();
+      const d = base.subtract(i, "month");
+      const month = d.month() + 1;
+      const year = d.year();
+      const dateStr = d.format("YYYY-MM-DD");
 
-      const monthTransactions = transactions.filter((t) => {
-        if (!t.date) return false;
-        const tDate = new Date(t.date);
-        return tDate.getMonth() + 1 === month && tDate.getFullYear() === year;
-      });
+      const monthTransactions = transactions.filter((t) =>
+        t.date ? isInMonthYear(t.date, month, year) : false,
+      );
 
       const income = monthTransactions
         .filter((t) => t.type === TRANSACTION_TYPES.INCOME)
@@ -99,7 +102,7 @@ const ReportsAnalysis = () => {
         .reduce((sum, t) => sum + (t.amount || 0), 0);
 
       trends.push({
-        month: formatDate(date.toISOString().split("T")[0], "monthYear"),
+        month: formatDate(dateStr, "monthYear"),
         income,
         expense,
         savings: income - expense,

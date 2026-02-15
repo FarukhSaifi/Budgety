@@ -5,9 +5,9 @@ import * as pdfjsLib from "pdfjs-dist";
 // Extend dayjs with custom parse format plugin
 dayjs.extend(customParseFormat);
 
-// Set worker source for pdfjs (CDN works in browser and Next.js)
+// Set worker source for pdfjs (jsDelivr serves npm package; cdnjs path differs)
 if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 }
 
 /**

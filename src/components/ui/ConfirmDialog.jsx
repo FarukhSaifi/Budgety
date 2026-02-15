@@ -1,4 +1,4 @@
-import { DIALOG_COLORS, DIALOG_CONFIG, UI_TEXT } from "@constants";
+import { UI_TEXT } from "@constants";
 import {
   Error as ErrorIcon,
   Info as InfoIcon,
@@ -11,7 +11,13 @@ import {
   DialogContentText,
   DialogTitle,
 } from "@mui/material";
-import { Button } from "./Button";
+import { Button } from "@ui/Button";
+
+const iconClasses = {
+  error: "text-2xl mb-2 text-red-500",
+  info: "text-2xl mb-2 text-blue-500",
+  warning: "text-2xl mb-2 text-amber-500",
+};
 
 /**
  * Reusable Confirm Dialog Component
@@ -43,20 +49,14 @@ export const ConfirmDialog = ({
   };
 
   const getIcon = () => {
-    const iconStyle = {
-      fontSize: DIALOG_CONFIG.ICON_SIZE,
-      marginBottom: DIALOG_CONFIG.ICON_MARGIN_BOTTOM,
-    };
     switch (type) {
       case "error":
-        return <ErrorIcon sx={{ ...iconStyle, color: DIALOG_COLORS.ERROR }} />;
+        return <ErrorIcon className={iconClasses.error} />;
       case "info":
-        return <InfoIcon sx={{ ...iconStyle, color: DIALOG_COLORS.INFO }} />;
+        return <InfoIcon className={iconClasses.info} />;
       case "warning":
       default:
-        return (
-          <WarningIcon sx={{ ...iconStyle, color: DIALOG_COLORS.WARNING }} />
-        );
+        return <WarningIcon className={iconClasses.warning} />;
     }
   };
 

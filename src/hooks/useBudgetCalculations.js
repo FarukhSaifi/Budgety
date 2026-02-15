@@ -1,30 +1,14 @@
+import { DEFAULT_VALUES, TRANSACTION_TYPES, VIEW_PERIODS } from "@constants";
+import { getMonthYear } from "@utils/dateUtils";
+import { filterTransactionsBySearch } from "@utils/searchUtils";
 import { useMemo } from "react";
-import { DEFAULT_VALUES, TRANSACTION_TYPES, VIEW_PERIODS } from "../constants";
-import { filterTransactionsBySearch } from "../utils/searchUtils";
-
-// Helper function to parse date
-const parseDate = (dateString) => {
-  if (!dateString) return null;
-  const date = new Date(dateString);
-  return isNaN(date.getTime()) ? null : date;
-};
-
-// Helper function to get month and year from date
-const getMonthYear = (dateString) => {
-  const date = parseDate(dateString);
-  if (!date) return null;
-  return {
-    month: date.getMonth() + 1,
-    year: date.getFullYear(),
-  };
-};
 
 // Filter transactions based on view period
 const filterTransactionsByPeriod = (
   transactions,
   viewPeriod,
   selectedMonth,
-  selectedYear
+  selectedYear,
 ) => {
   if (viewPeriod === VIEW_PERIODS.ALL) {
     return transactions;
@@ -53,7 +37,7 @@ export const useBudgetCalculations = (
   viewPeriod,
   selectedMonth,
   selectedYear,
-  searchQuery = ""
+  searchQuery = "",
 ) => {
   return useMemo(() => {
     // First filter by period
@@ -61,14 +45,14 @@ export const useBudgetCalculations = (
       transactions,
       viewPeriod,
       selectedMonth,
-      selectedYear
+      selectedYear,
     );
 
     // Then filter by search query if provided
     if (searchQuery) {
       filteredTransactions = filterTransactionsBySearch(
         filteredTransactions,
-        searchQuery
+        searchQuery,
       );
     }
 
@@ -77,7 +61,7 @@ export const useBudgetCalculations = (
       .reduce(
         (sum, transaction) =>
           sum + (transaction.amount || DEFAULT_VALUES.AMOUNT),
-        DEFAULT_VALUES.BALANCE
+        DEFAULT_VALUES.BALANCE,
       );
 
     const totalExpense = filteredTransactions
@@ -85,7 +69,7 @@ export const useBudgetCalculations = (
       .reduce(
         (sum, transaction) =>
           sum + (transaction.amount || DEFAULT_VALUES.AMOUNT),
-        DEFAULT_VALUES.BALANCE
+        DEFAULT_VALUES.BALANCE,
       );
 
     const balance = totalIncome - totalExpense;
@@ -121,7 +105,7 @@ export const useBudgetCalculations = (
 
         const key = `${monthYear.year}-${String(monthYear.month).padStart(
           2,
-          "0"
+          "0",
         )}`;
         if (!monthlyBreakdown[key]) {
           monthlyBreakdown[key] = {

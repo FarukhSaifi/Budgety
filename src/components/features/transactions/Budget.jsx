@@ -1,3 +1,4 @@
+import EditTransactionModal from "@components/features/transactions/EditTransactionModal";
 import {
   ACTION_TYPES,
   CURRENCY_FORMAT_OPTIONS,
@@ -13,9 +14,12 @@ import { useDateFormatter } from "@hooks/useDateFormatter";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
+import {
+  compareByDateThenCreatedAt,
+  parseDate,
+} from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
 import { useMemo, useState } from "react";
-import EditTransactionModal from "./EditTransactionModal";
 
 const Budget = () => {
   const {
@@ -32,7 +36,7 @@ const Budget = () => {
     viewPeriod,
     selectedMonth,
     selectedYear,
-    searchQuery
+    searchQuery,
   );
   const { formatCurrency } = useCurrencyFormatter();
   const { formatDate } = useDateFormatter();
@@ -60,7 +64,7 @@ const Budget = () => {
         type: ACTION_TYPES.DELETE_TRANSACTION,
         payload: deleteDialog.transactionId,
       });
-      showSuccess("Transaction deleted successfully");
+      showSuccess(UI_TEXT.SUCCESS_TRANSACTION_DELETED);
       setDeleteDialog({ open: false, transactionId: null });
     }
   };
@@ -77,48 +81,28 @@ const Budget = () => {
 
   // Sort transactions by date (oldest first for bank statement format)
   const sortedTransactions = useMemo(() => {
-    return [...categoryFilteredTransactions].sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      if (dateA.getTime() === dateB.getTime()) {
-        // If same date, sort by creation time
-        return (
-          new Date(a.createdAt || DEFAULT_VALUES.DATE_TIMESTAMP) -
-          new Date(b.createdAt || DEFAULT_VALUES.DATE_TIMESTAMP)
-        );
-      }
-      return dateA - dateB;
-    });
+    return [...categoryFilteredTransactions].sort((a, b) =>
+      compareByDateThenCreatedAt(a, b),
+    );
   }, [categoryFilteredTransactions]);
 
   // Calculate starting balance from all transactions before the current view period
   const startingBalance = useMemo(() => {
     if (sortedTransactions.length === 0) return DEFAULT_VALUES.BALANCE;
 
-    // Get the earliest date in the filtered transactions
-    const earliestDate = new Date(sortedTransactions[0].date);
-    earliestDate.setHours(0, 0, 0, 0);
+    const earliest = parseDate(sortedTransactions[0].date);
+    if (!earliest) return DEFAULT_VALUES.BALANCE;
+    const earliestStart = earliest.startOf("day");
 
-    // Calculate balance from all transactions before the earliest date
     const previousTransactions = transactions.filter((transaction) => {
       if (!transaction.date) return false;
-      const transactionDate = new Date(transaction.date);
-      transactionDate.setHours(0, 0, 0, 0);
-      return transactionDate < earliestDate;
+      const d = parseDate(transaction.date);
+      return d ? d.startOf("day").isBefore(earliestStart) : false;
     });
 
-    // Sort previous transactions by date
-    const sortedPrevious = [...previousTransactions].sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      if (dateA.getTime() === dateB.getTime()) {
-        return (
-          new Date(a.createdAt || DEFAULT_VALUES.DATE_TIMESTAMP) -
-          new Date(b.createdAt || DEFAULT_VALUES.DATE_TIMESTAMP)
-        );
-      }
-      return dateA - dateB;
-    });
+    const sortedPrevious = [...previousTransactions].sort((a, b) =>
+      compareByDateThenCreatedAt(a, b),
+    );
 
     // Calculate running balance from previous transactions
     return sortedPrevious.reduce((balance, transaction) => {
@@ -243,7 +227,7 @@ const Budget = () => {
                           {CURRENCY_SYMBOL}
                           {formatCurrency(
                             startingBalance,
-                            CURRENCY_FORMAT_OPTIONS.STANDARD
+                            CURRENCY_FORMAT_OPTIONS.STANDARD,
                           )}
                         </td>
                         <td className="whitespace-nowrap text-center">-</td>
@@ -282,7 +266,7 @@ const Budget = () => {
                         {transaction.type === TRANSACTION_TYPES.INCOME
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
-                              CURRENCY_FORMAT_OPTIONS.STANDARD
+                              CURRENCY_FORMAT_OPTIONS.STANDARD,
                             )}`
                           : "-"}
                       </td>
@@ -290,7 +274,7 @@ const Budget = () => {
                         {transaction.type === TRANSACTION_TYPES.EXPENSE
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
-                              CURRENCY_FORMAT_OPTIONS.STANDARD
+                              CURRENCY_FORMAT_OPTIONS.STANDARD,
                             )}`
                           : "-"}
                       </td>
@@ -298,7 +282,7 @@ const Budget = () => {
                         {CURRENCY_SYMBOL}
                         {formatCurrency(
                           transaction.balance,
-                          CURRENCY_FORMAT_OPTIONS.STANDARD
+                          CURRENCY_FORMAT_OPTIONS.STANDARD,
                         )}
                       </td>
                       <td className="whitespace-nowrap text-center">
@@ -348,7 +332,7 @@ const Budget = () => {
                         {CURRENCY_SYMBOL}
                         {formatCurrency(
                           startingBalance,
-                          CURRENCY_FORMAT_OPTIONS.STANDARD
+                          CURRENCY_FORMAT_OPTIONS.STANDARD,
                         )}
                       </div>
                     </div>
@@ -410,7 +394,7 @@ const Budget = () => {
                         {transaction.type === TRANSACTION_TYPES.INCOME
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
-                              CURRENCY_FORMAT_OPTIONS.STANDARD
+                              CURRENCY_FORMAT_OPTIONS.STANDARD,
                             )}`
                           : "-"}
                       </div>
@@ -423,7 +407,7 @@ const Budget = () => {
                         {transaction.type === TRANSACTION_TYPES.EXPENSE
                           ? `${CURRENCY_SYMBOL}${formatCurrency(
                               transaction.amount,
-                              CURRENCY_FORMAT_OPTIONS.STANDARD
+                              CURRENCY_FORMAT_OPTIONS.STANDARD,
                             )}`
                           : "-"}
                       </div>
@@ -436,7 +420,7 @@ const Budget = () => {
                         {CURRENCY_SYMBOL}
                         {formatCurrency(
                           transaction.balance,
-                          CURRENCY_FORMAT_OPTIONS.STANDARD
+                          CURRENCY_FORMAT_OPTIONS.STANDARD,
                         )}
                       </div>
                     </div>

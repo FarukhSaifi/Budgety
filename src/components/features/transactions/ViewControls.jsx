@@ -14,6 +14,7 @@ import {
   List as ListIcon,
   Search as SearchIcon,
 } from "@mui/icons-material";
+import { getCurrentMonthYear } from "@utils/dateUtils";
 import { Button } from "@ui/Button";
 import { EnhancedCard } from "@ui/EnhancedCard";
 import { FormField, FormFieldGroup } from "@ui/FormField";
@@ -115,7 +116,7 @@ const ViewControls = () => {
     });
   };
 
-  const getCurrentYear = () => new Date().getFullYear();
+  const getCurrentYear = () => getCurrentMonthYear().year;
   const getYears = () => {
     const years = [];
     const currentYear = getCurrentYear();

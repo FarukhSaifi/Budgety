@@ -1,3 +1,4 @@
+import BillModal from "@components/features/bills/BillModal";
 import {
   ACTION_TYPES,
   CURRENCY_SYMBOL,
@@ -14,9 +15,10 @@ import { ConfirmDialog } from "@ui/ConfirmDialog";
 import { EmptyState } from "@ui/EmptyState";
 import { PageContainer } from "@ui/PageContainer";
 import { SectionCard } from "@ui/SectionCard";
+import { compareDates, parseDate } from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
+import dayjs from "dayjs";
 import { useCallback, useMemo, useState } from "react";
-import BillModal from "./BillModal";
 
 const BillReminders = () => {
   const { billReminders, dispatch } = useBudget();
@@ -54,30 +56,26 @@ const BillReminders = () => {
         type: ACTION_TYPES.DELETE_BILL_REMINDER,
         payload: deleteDialog.billId,
       });
-      showSuccess("Bill reminder deleted successfully");
+      showSuccess(UI_TEXT.SUCCESS_BILL_DELETED);
       setDeleteDialog({ open: false, billId: null });
     }
   };
 
   const handleMarkPaid = (id) => {
     dispatch({ type: ACTION_TYPES.MARK_BILL_PAID, payload: id });
-    showSuccess("Bill marked as paid!");
+    showSuccess(UI_TEXT.SUCCESS_BILL_MARKED_PAID_TOAST);
   };
 
   const getDaysUntilDue = useCallback((dueDate) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    due.setHours(0, 0, 0, 0);
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / DATE_CONSTANTS.MILLISECONDS_PER_DAY);
-    return diffDays;
+    const due = parseDate(dueDate);
+    if (!due) return 0;
+    return Math.ceil(due.startOf("day").diff(dayjs().startOf("day"), "day"));
   }, []);
 
   const getUpcomingBills = useMemo(() => {
     return billReminders
       .filter((bill) => !bill.isPaid)
-      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+      .sort((a, b) => compareDates(a.dueDate, b.dueDate))
       .slice(0, DISPLAY_LIMITS.UPCOMING_BILLS);
   }, [billReminders]);
 
@@ -163,7 +161,7 @@ const BillReminders = () => {
                 const isDueSoon =
                   daysUntilDue <=
                   parseInt(
-                    bill.reminderDays || DATE_CONSTANTS.DEFAULT_REMINDER_DAYS
+                    bill.reminderDays || DATE_CONSTANTS.DEFAULT_REMINDER_DAYS,
                   );
 
                 return (

@@ -1,5 +1,6 @@
 import { budgetyApi } from "@api/budgetyApi";
 import { ACTION_TYPES, DEFAULT_STATE, ERROR_MESSAGES } from "@constants";
+import { getCurrentMonthYear, nowISO } from "@utils/dateUtils";
 import { showError } from "@utils/toast";
 import {
   createContext,
@@ -19,6 +20,14 @@ const reducer = (state, action) => {
       return {
         ...state,
         transactions: [action.payload, ...state.transactions],
+      };
+    case ACTION_TYPES.ADD_TRANSACTIONS_BULK:
+      return {
+        ...state,
+        transactions: [
+          ...(Array.isArray(action.payload) ? action.payload : []),
+          ...state.transactions,
+        ],
       };
     case ACTION_TYPES.DELETE_TRANSACTION:
       return {
@@ -148,7 +157,7 @@ const reducer = (state, action) => {
         ...state,
         billReminders: state.billReminders.map((bill) =>
           bill.id === action.payload
-            ? { ...bill, isPaid: true, paidDate: new Date().toISOString() }
+            ? { ...bill, isPaid: true, paidDate: nowISO() }
             : bill,
         ),
       };
@@ -181,6 +190,23 @@ const persistAction = async (type, payload, api) => {
         createdAt: payload.createdAt,
         imported: payload.imported ?? false,
       });
+      break;
+    case ACTION_TYPES.ADD_TRANSACTIONS_BULK:
+      if (Array.isArray(payload) && payload.length > 0) {
+        await api.addTransactionsBulk(
+          payload.map((t) => ({
+            id: t.id,
+            type: t.type,
+            date: t.date,
+            mode: t.mode || "Cash",
+            description: t.description,
+            category: t.category,
+            amount: t.amount,
+            createdAt: t.createdAt,
+            imported: t.imported ?? true,
+          })),
+        );
+      }
       break;
     case ACTION_TYPES.DELETE_TRANSACTION:
       await api.deleteTransaction(payload);
@@ -237,7 +263,7 @@ const persistAction = async (type, payload, api) => {
     case ACTION_TYPES.MARK_BILL_PAID:
       await api.updateBillReminder(payload, {
         isPaid: true,
-        paidDate: new Date().toISOString(),
+        paidDate: nowISO(),
       });
       break;
     default:
@@ -247,6 +273,7 @@ const persistAction = async (type, payload, api) => {
 
 const PERSIST_TYPES = new Set([
   ACTION_TYPES.ADD_TRANSACTION,
+  ACTION_TYPES.ADD_TRANSACTIONS_BULK,
   ACTION_TYPES.DELETE_TRANSACTION,
   ACTION_TYPES.DELETE_ALL_IMPORTED_TRANSACTIONS,
   ACTION_TYPES.UPDATE_TRANSACTION,
@@ -266,7 +293,14 @@ const PERSIST_TYPES = new Set([
 ]);
 
 export const BudgetProvider = ({ children }) => {
-  const [state, dispatchReducer] = useReducer(reducer, DEFAULT_STATE);
+  const [state, dispatchReducer] = useReducer(reducer, DEFAULT_STATE, (s) => {
+    const { month, year } = getCurrentMonthYear();
+    return {
+      ...s,
+      selectedMonth: s.selectedMonth ?? month,
+      selectedYear: s.selectedYear ?? year,
+    };
+  });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 

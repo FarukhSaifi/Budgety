@@ -1,62 +1,51 @@
+import { DATE_FORMAT, DATE_FORMAT_LONG, DATE_FORMAT_STORAGE } from "@constants";
+import { parseDate } from "@utils/dateUtils";
 import { useMemo } from "react";
+
+/**
+ * Format date for display. Accepts ISO string (2018-04-04T16:00:00.000Z), YYYY-MM-DD, or DD-MM-YYYY.
+ * - short: DD-MM-YYYY
+ * - long: DD-MMM-YYYY HH:MM AM/PM
+ */
+function formatForDisplay(dateString, formatType = "short") {
+  const d = parseDate(dateString);
+  if (!d) return "";
+
+  if (formatType === "short" || !formatType) return d.format(DATE_FORMAT);
+  if (formatType === "long") return d.format(DATE_FORMAT_LONG);
+  if (formatType === "numeric") return d.format("DD/MM/YYYY");
+  if (formatType === "monthYear") return d.format("MMMM YYYY");
+  return d.format(DATE_FORMAT);
+}
+
+/**
+ * Normalize any date input to YYYY-MM-DD for API/DB storage.
+ * Accepts YYYY-MM-DD, DD-MM-YYYY, or parseable date string.
+ */
+function toStorageDate(dateString) {
+  const d = parseDate(dateString);
+  return d ? d.format(DATE_FORMAT_STORAGE) : "";
+}
 
 export const useDateFormatter = () => {
   const formatDate = useMemo(
     () =>
-      (dateString, format = "short") => {
-        if (!dateString) return "";
-
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return "";
-
-        // Default format: DD-MM-YYYY (e.g., 15-01-2025)
-        if (format === "short" || !format) {
-          const day = String(date.getDate()).padStart(2, "0");
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const year = date.getFullYear();
-          return `${day}-${month}-${year}`;
-        }
-
-        // Other format options
-        const formats = {
-          long: {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          },
-          numeric: {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          },
-          monthYear: {
-            year: "numeric",
-            month: "long",
-          },
-        };
-
-        if (formats[format]) {
-          return date.toLocaleDateString("en-IN", formats[format]);
-        }
-
-        // Fallback to default DD-MM-YYYY
-        const day = String(date.getDate()).padStart(2, "0");
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const year = date.getFullYear();
-        return `${day}-${month}-${year}`;
-      },
-    []
+      (dateString, format = "short") =>
+        formatForDisplay(dateString, format),
+    [],
   );
 
   const formatDateRange = useMemo(
     () => (startDate, endDate) => {
       if (!startDate || !endDate) return "";
-      const start = formatDate(startDate, "short");
-      const end = formatDate(endDate, "short");
-      return `${start} - ${end}`;
+      return `${formatForDisplay(startDate, "short")} - ${formatForDisplay(endDate, "short")}`;
     },
-    [formatDate]
+    [],
   );
 
-  return { formatDate, formatDateRange };
+  const toStorageDateSafe = useMemo(() => toStorageDate, []);
+
+  return { formatDate, formatDateRange, toStorageDate: toStorageDateSafe };
 };
+
+export { formatForDisplay, toStorageDate };

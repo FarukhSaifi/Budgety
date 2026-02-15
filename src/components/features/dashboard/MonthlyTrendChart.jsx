@@ -1,6 +1,7 @@
 import {
   CHART_CONFIG,
   CURRENCY_SYMBOL,
+  DATE_FORMAT_STORAGE,
   DISPLAY_LIMITS,
   TIMEOUTS,
   UI_TEXT,
@@ -10,6 +11,10 @@ import { useBudget } from "@context/BudgetContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
+import {
+  dateFromMonthYear,
+  daysInMonth,
+} from "@utils/dateUtils";
 import { ChartContainer } from "@ui/ChartContainer";
 import { Widget } from "@ui/Widget";
 import { exportChartData } from "@utils/exportUtils";
@@ -41,12 +46,15 @@ const MonthlyTrendChart = () => {
   const chartData = useMemo(() => {
     if (viewPeriod === VIEW_PERIODS.MONTHLY) {
       // For monthly view, show daily breakdown or just current month
-      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      const numDays = daysInMonth(selectedYear, selectedMonth);
 
       const dailyData = [];
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(selectedYear, selectedMonth - 1, day);
-        const dateStr = date.toISOString().split("T")[0];
+      for (let day = 1; day <= numDays; day++) {
+        const dateStr = dateFromMonthYear(
+          selectedYear,
+          selectedMonth,
+          day,
+        ).format(DATE_FORMAT_STORAGE);
 
         const dayTransactions = transactions.filter((t) => {
           if (!t.date) return false;

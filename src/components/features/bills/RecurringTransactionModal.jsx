@@ -19,6 +19,7 @@ import {
 import { Button } from "@ui/Button";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
+import { nowISO, todayStorage } from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
@@ -29,7 +30,7 @@ const getInitialFormData = () => ({
   category: "",
   amount: "",
   recurrence: RECURRENCE_TYPES.MONTHLY,
-  startDate: new Date().toISOString().split("T")[0],
+  startDate: todayStorage(),
   endDate: "",
 });
 
@@ -50,8 +51,7 @@ const RecurringTransactionModal = ({ open, onClose, recurring = null }) => {
             ? String(recurring.amount)
             : "",
         recurrence: recurring.recurrence || RECURRENCE_TYPES.MONTHLY,
-        startDate:
-          recurring.startDate || new Date().toISOString().split("T")[0],
+        startDate: recurring.startDate || todayStorage(),
         endDate: recurring.endDate || "",
       };
     }
@@ -80,8 +80,7 @@ const RecurringTransactionModal = ({ open, onClose, recurring = null }) => {
             : "";
         newFormData.recurrence =
           recurring.recurrence || RECURRENCE_TYPES.MONTHLY;
-        newFormData.startDate =
-          recurring.startDate || new Date().toISOString().split("T")[0];
+        newFormData.startDate = recurring.startDate || todayStorage();
         newFormData.endDate = recurring.endDate || "";
       }
       // Use setTimeout to avoid cascading renders
@@ -144,7 +143,7 @@ const RecurringTransactionModal = ({ open, onClose, recurring = null }) => {
     }
 
     const amountValue = Number(
-      parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES)
+      parseFloat(amount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES),
     );
 
     if (isNaN(amountValue) || amountValue <= 0) {
@@ -170,7 +169,7 @@ const RecurringTransactionModal = ({ open, onClose, recurring = null }) => {
         payload: updatedRecurring,
       });
 
-      showSuccess("Recurring transaction updated successfully!");
+      showSuccess(UI_TEXT.SUCCESS_RECURRING_UPDATED);
     } else {
       // Create new recurring transaction
       const newRecurring = {
@@ -183,14 +182,14 @@ const RecurringTransactionModal = ({ open, onClose, recurring = null }) => {
         startDate,
         endDate: endDate || null,
         isActive: true,
-        createdAt: new Date().toISOString(),
+        createdAt: nowISO(),
       };
 
       dispatch({
         type: ACTION_TYPES.ADD_RECURRING_TRANSACTION,
         payload: newRecurring,
       });
-      showSuccess("Recurring transaction added successfully!");
+      showSuccess(UI_TEXT.SUCCESS_RECURRING_ADDED);
     }
 
     onClose();

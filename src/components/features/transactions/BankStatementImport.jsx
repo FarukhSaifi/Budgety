@@ -1,45 +1,50 @@
+import ImportPreviewRow from "@components/features/transactions/ImportPreviewRow";
+import AddTransactionModal from "@components/features/transactions/TransactionForm";
 import {
   ACTION_TYPES,
-  CATEGORY_PATTERNS,
-  CURRENCY_SYMBOL,
   DISPLAY_LIMITS,
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
-  NUMBER_FORMAT,
-  SORTED_EXPENSE_CATEGORIES,
+  ERROR_MESSAGES,
   TIMEOUTS,
-  TRANSACTION_MODES,
-  TRANSACTION_TYPES,
   UI_TEXT,
 } from "@constants";
 import { useBudget } from "@context/BudgetContext";
-import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { useDuplicateIndices } from "@hooks/useDuplicateIndices";
 import { Add as AddIcon } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
-import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import {
   detectColumnMapping,
-  detectTransactionMode,
-  detectTransactionType,
   extractTransactionData,
-  normalizeMode,
-  parseAmount,
   parseCSVLine,
-  parseDate,
 } from "@utils/bankStatementParser";
 import { filterDuplicates } from "@utils/duplicateDetection";
+import {
+  prepareTransactionsForImport,
+  validateColumnMapping,
+} from "@utils/importHelpers";
 import { parsePDF } from "@utils/pdfParser";
 import { showError, showInfo, showSuccess, showWarning } from "@utils/toast";
-import { useEffect, useState } from "react";
-import { v4 as uuid } from "uuid";
+import { useCallback, useState } from "react";
 import * as XLSX from "xlsx";
-import AddTransactionModal from "./TransactionForm";
+
+function setPreviewFromParsed(parsedTransactions, mapping, setters) {
+  const {
+    setColumnMapping,
+    setAllParsedData,
+    setPreviewData,
+    setEditedCategories,
+    setShowPreview,
+  } = setters;
+  setColumnMapping(mapping);
+  setAllParsedData(parsedTransactions);
+  setPreviewData(parsedTransactions.slice(0, DISPLAY_LIMITS.PREVIEW_ROWS));
+  setEditedCategories({});
+  setShowPreview(true);
+}
 
 const BankStatementImport = () => {
   const { dispatch, transactions } = useBudget();
-  const { formatCurrency } = useCurrencyFormatter();
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
   const [allParsedData, setAllParsedData] = useState([]);
@@ -47,48 +52,23 @@ const BankStatementImport = () => {
   const [importedCount, setImportedCount] = useState(0);
   const [editedCategories, setEditedCategories] = useState({});
   const [columnMapping, setColumnMapping] = useState(null);
-  const [duplicateIndices, setDuplicateIndices] = useState(new Set());
   const [showCleanupDialog, setShowCleanupDialog] = useState(false);
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] =
     useState(false);
 
-  // Check for duplicates in parsed data whenever allParsedData or transactions change
-  useEffect(() => {
-    if (!allParsedData || allParsedData.length === 0) {
-      setDuplicateIndices(new Set());
-      return;
-    }
+  const duplicateIndices = useDuplicateIndices(allParsedData, transactions);
 
-    // Prepare transactions for duplicate check
-    const preparedTransactions = allParsedData
-      .map((row) => {
-        const dateStr = row.date || "";
-        const description = row.description || "";
-        const amountStr = row.amount || "";
-        const typeField = row.type || "";
-
-        const date = parseDate(dateStr);
-        if (!date || isNaN(date.getTime())) return null;
-
-        const numericAmount = parseAmount(amountStr);
-        if (numericAmount === 0) return null;
-
-        const type = detectTransactionType(amountStr, typeField);
-
-        return {
-          date: date.toISOString().split("T")[0],
-          description: description.trim(),
-          amount: Number(numericAmount.toFixed(2)),
-          type,
-        };
-      })
-      .filter(Boolean);
-
-    // Check for duplicates
-    const { duplicates } = filterDuplicates(preparedTransactions, transactions);
-    const duplicateSet = new Set(duplicates.map((d) => d.index));
-    setDuplicateIndices(duplicateSet);
-  }, [allParsedData, transactions]);
+  const setParsedState = useCallback(
+    (parsed, mapping) =>
+      setPreviewFromParsed(parsed, mapping, {
+        setColumnMapping,
+        setAllParsedData,
+        setPreviewData,
+        setEditedCategories,
+        setShowPreview,
+      }),
+    [],
+  );
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -115,7 +95,7 @@ const BankStatementImport = () => {
   const parseCSV = (file) => {
     const reader = new FileReader();
     reader.onerror = () => {
-      showError("Failed to read CSV file. Please try again.");
+      showError(ERROR_MESSAGES.CSV_READ_FAILED);
     };
     reader.onload = (e) => {
       try {
@@ -128,9 +108,7 @@ const BankStatementImport = () => {
         const lines = text.split("\n").filter((line) => line.trim());
 
         if (lines.length < 2) {
-          showError(
-            "CSV file appears to be empty or invalid. Please ensure the file contains at least a header row and one data row."
-          );
+          showError(ERROR_MESSAGES.CSV_EMPTY);
           return;
         }
 
@@ -139,76 +117,46 @@ const BankStatementImport = () => {
 
         // Check if headers are valid
         if (headers.length === 0 || headers.every((h) => !h || !h.trim())) {
-          showError(
-            "CSV file has no valid headers. Please ensure the first row contains column names."
-          );
+          showError(ERROR_MESSAGES.CSV_NO_HEADERS);
           return;
         }
 
         const mapping = detectColumnMapping(headers);
-
-        // Validate that essential columns are found
-        const hasDate = mapping.date >= 0;
-        const hasDescription = mapping.description >= 0;
-        const hasAmount =
-          mapping.amount >= 0 || mapping.deposits >= 0 || mapping.withdraw >= 0;
-
-        if (!hasDate || !hasDescription || !hasAmount) {
-          const missingColumns = [];
-          if (!hasDate) missingColumns.push("Date");
-          if (!hasDescription)
-            missingColumns.push("Description/Particulars/Narration");
-          if (!hasAmount) missingColumns.push("Amount/Deposits/Withdrawals");
-
+        const validation = validateColumnMapping(mapping);
+        if (!validation.valid) {
           showError(
-            `CSV file format doesn't match expected format. Missing required columns: ${missingColumns.join(
-              ", "
-            )}. ` +
-              `Found columns: ${headers.join(", ")}. ` +
-              `Please ensure your CSV file has columns for Date, Description/Particulars, and Amount/Deposits/Withdrawals.`
+            ERROR_MESSAGES.CSV_MISSING_COLUMNS.replace(
+              "{missing}",
+              validation.missingColumns.join(", "),
+            ).replace("{found}", headers.join(", ")),
           );
           return;
         }
 
-        // Parse data rows
         const parsedTransactions = [];
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
-
           const values = parseCSVLine(line);
-
-          // Skip empty rows
           if (
             values.length === 0 ||
             values.every(
-              (v) => !v || (typeof v === "string" && v.trim() === "")
+              (v) => !v || (typeof v === "string" && v.trim() === ""),
             )
-          ) {
+          )
             continue;
-          }
-
-          const transactionData = extractTransactionData(values, mapping);
-          parsedTransactions.push(transactionData);
+          parsedTransactions.push(extractTransactionData(values, mapping));
         }
 
         if (parsedTransactions.length === 0) {
-          showError(
-            "No valid transactions found in the CSV file. Please ensure the file contains transaction data with Date, Description, and Amount columns."
-          );
+          showError(ERROR_MESSAGES.CSV_NO_TRANSACTIONS);
           return;
         }
 
-        setColumnMapping(mapping);
-        setAllParsedData(parsedTransactions);
-        setPreviewData(
-          parsedTransactions.slice(0, DISPLAY_LIMITS.PREVIEW_ROWS)
-        );
-        setEditedCategories({});
-        setShowPreview(true);
+        setParsedState(parsedTransactions, mapping);
       } catch (error) {
         showError(
-          `Error parsing CSV file: ${error.message}. Please ensure it's a valid CSV file with proper column headers (Date, Mode, Particulars, Deposits, Withdrawals, Balance).`
+          ERROR_MESSAGES.CSV_PARSE_ERROR.replace("{message}", error.message),
         );
       }
     };
@@ -223,12 +171,10 @@ const BankStatementImport = () => {
       const parsedTransactions = await parsePDF(file);
 
       if (parsedTransactions.length === 0) {
-        showError("No valid transactions found in the PDF file");
+        showError(ERROR_MESSAGES.PDF_NO_VALID_TRANSACTIONS);
         return;
       }
 
-      // For PDF, we don't have a clear column mapping, so we'll use a default structure
-      // The parsePDF function returns transactions in a format similar to extractTransactionData
       const mapping = {
         date: 0,
         description: 1,
@@ -237,15 +183,10 @@ const BankStatementImport = () => {
         mode: 4,
         balance: 5,
       };
-
-      setColumnMapping(mapping);
-      setAllParsedData(parsedTransactions);
-      setPreviewData(parsedTransactions.slice(0, DISPLAY_LIMITS.PREVIEW_ROWS));
-      setEditedCategories({});
-      setShowPreview(true);
+      setParsedState(parsedTransactions, mapping);
     } catch (error) {
       showError(
-        `Error parsing PDF file: ${error.message}. Please ensure it's a valid PDF file with readable text.`
+        ERROR_MESSAGES.PDF_PARSE_ERROR.replace("{message}", error.message),
       );
     }
   };
@@ -253,7 +194,7 @@ const BankStatementImport = () => {
   const parseExcel = (file) => {
     const reader = new FileReader();
     reader.onerror = () => {
-      showError("Failed to read Excel file. Please try again.");
+      showError(ERROR_MESSAGES.EXCEL_READ_FAILED);
     };
     reader.onload = (e) => {
       try {
@@ -264,15 +205,16 @@ const BankStatementImport = () => {
           workbook = XLSX.read(data, { type: "array" });
         } catch (readError) {
           showError(
-            `Failed to parse Excel file: ${readError.message}. Please ensure the file is a valid Excel file (.xlsx or .xls format).`
+            ERROR_MESSAGES.EXCEL_PARSE_ERROR.replace(
+              "{message}",
+              readError.message,
+            ),
           );
           return;
         }
 
         if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-          showError(
-            "Excel file has no sheets. Please ensure the file contains data."
-          );
+          showError(ERROR_MESSAGES.EXCEL_NO_SHEETS);
           return;
         }
 
@@ -281,7 +223,7 @@ const BankStatementImport = () => {
         const worksheet = workbook.Sheets[firstSheetName];
 
         if (!worksheet) {
-          showError("Could not read the first sheet from Excel file.");
+          showError(ERROR_MESSAGES.EXCEL_FIRST_SHEET);
           return;
         }
 
@@ -296,15 +238,16 @@ const BankStatementImport = () => {
           });
         } catch (jsonError) {
           showError(
-            `Failed to convert Excel data: ${jsonError.message}. Please check the file format.`
+            ERROR_MESSAGES.EXCEL_CONVERT_ERROR.replace(
+              "{message}",
+              jsonError.message,
+            ),
           );
           return;
         }
 
         if (!jsonData || jsonData.length < 2) {
-          showError(
-            "Excel file appears to be empty or has no data rows. Please ensure the file contains at least a header row and one data row."
-          );
+          showError(ERROR_MESSAGES.EXCEL_EMPTY);
           return;
         }
 
@@ -313,221 +256,83 @@ const BankStatementImport = () => {
 
         // Check if headers are valid
         if (headers.length === 0 || headers.every((h) => !h)) {
-          showError(
-            "Excel file has no valid headers. Please ensure the first row contains column names."
-          );
+          showError(ERROR_MESSAGES.EXCEL_NO_HEADERS);
           return;
         }
 
         const mapping = detectColumnMapping(headers);
-
-        // Validate that essential columns are found
-        const hasDate = mapping.date >= 0;
-        const hasDescription = mapping.description >= 0;
-        const hasAmount =
-          mapping.amount >= 0 || mapping.deposits >= 0 || mapping.withdraw >= 0;
-
-        if (!hasDate || !hasDescription || !hasAmount) {
-          const missingColumns = [];
-          if (!hasDate) missingColumns.push("Date");
-          if (!hasDescription) missingColumns.push("Description/Narration");
-          if (!hasAmount) missingColumns.push("Amount/Deposit/Withdrawal");
-
+        const validation = validateColumnMapping(mapping);
+        if (!validation.valid) {
           showError(
-            `Excel file format doesn't match expected format. Missing required columns: ${missingColumns.join(
-              ", "
-            )}. ` +
-              `Found columns: ${headers.join(", ")}. ` +
-              `Please ensure your Excel file has columns for Date, Description, and Amount.`
+            ERROR_MESSAGES.EXCEL_MISSING_COLUMNS.replace(
+              "{missing}",
+              validation.missingColumns.join(", "),
+            ).replace("{found}", headers.join(", ")),
           );
           return;
         }
 
-        // Parse data rows
         const parsedTransactions = [];
         for (let i = 1; i < jsonData.length; i++) {
           const row = jsonData[i];
           if (!Array.isArray(row) || row.length === 0) continue;
-
           const values = row.map((cell) => {
-            // Handle different cell types
             if (cell === null || cell === undefined) return "";
-            if (typeof cell === "number") {
-              // Preserve numbers as strings for consistency
-              return String(cell);
-            }
+            if (typeof cell === "number") return String(cell);
             return String(cell || "").trim();
           });
-
-          // Skip empty rows
-          if (values.every((v) => !v || v === "")) {
-            continue;
-          }
-
-          const transactionData = extractTransactionData(values, mapping);
-          parsedTransactions.push(transactionData);
+          if (values.every((v) => !v || v === "")) continue;
+          parsedTransactions.push(extractTransactionData(values, mapping));
         }
 
         if (parsedTransactions.length === 0) {
-          showError(
-            "No valid transactions found in the Excel file. Please ensure the file contains transaction data with Date, Description, and Amount columns."
-          );
+          showError(ERROR_MESSAGES.EXCEL_NO_TRANSACTIONS);
           return;
         }
 
-        setColumnMapping(mapping);
-        setAllParsedData(parsedTransactions);
-        setPreviewData(
-          parsedTransactions.slice(0, DISPLAY_LIMITS.PREVIEW_ROWS)
-        );
-        setEditedCategories({});
-        setShowPreview(true);
+        setParsedState(parsedTransactions, mapping);
       } catch (error) {
         showError(
-          `Error parsing Excel file: ${error.message}. Please ensure it's a valid Excel file (.xlsx or .xls format) with proper column headers.`
+          ERROR_MESSAGES.EXCEL_PARSE_ERROR_FALLBACK.replace(
+            "{message}",
+            error.message,
+          ),
         );
       }
     };
     reader.readAsArrayBuffer(file);
   };
 
-  const categorizeTransaction = (description, transactionType) => {
-    if (!description) {
-      return transactionType === TRANSACTION_TYPES.INCOME
-        ? INCOME_CATEGORIES.OTHER
-        : EXPENSE_CATEGORIES.OTHER;
-    }
-
-    const desc = description.toLowerCase();
-    const patterns =
-      transactionType === TRANSACTION_TYPES.INCOME
-        ? CATEGORY_PATTERNS.INCOME
-        : CATEGORY_PATTERNS.EXPENSE;
-
-    // Check patterns for the transaction type
-    for (const [category, keywords] of Object.entries(patterns)) {
-      if (keywords.some((keyword) => desc.includes(keyword))) {
-        return category;
-      }
-    }
-
-    // Default based on transaction type
-    return transactionType === TRANSACTION_TYPES.INCOME
-      ? INCOME_CATEGORIES.OTHER
-      : EXPENSE_CATEGORIES.OTHER;
-  };
-
   const handleImport = () => {
-    let imported = 0;
-    let skipped = 0;
-    const skipReasons = {
-      missingFields: 0,
-      invalidDate: 0,
-      zeroAmount: 0,
-      duplicate: 0,
-      dispatchError: 0,
-    };
-
-    // First, prepare all valid transactions
-    const preparedTransactions = [];
-
-    allParsedData.forEach((row, index) => {
-      const dateStr = row.date || "";
-      const description = row.description || "";
-      const amountStr = row.amount || "";
-      const typeField = row.type || "";
-      const modeValue = row.mode || "";
-
-      // Skip if essential fields are missing
-      if (!dateStr || !description || !amountStr) {
-        skipReasons.missingFields++;
-        skipped++;
-        return;
-      }
-
-      // Parse date
-      const date = parseDate(dateStr);
-      if (!date || isNaN(date.getTime())) {
-        skipReasons.invalidDate++;
-        skipped++;
-        return;
-      }
-
-      // Parse amount
-      const numericAmount = parseAmount(amountStr);
-      if (numericAmount === 0) {
-        skipReasons.zeroAmount++;
-        skipped++;
-        return;
-      }
-
-      // Determine transaction type
-      const type = detectTransactionType(amountStr, typeField);
-
-      // Get mode
-      let mode = normalizeMode(modeValue) || detectTransactionMode(description);
-      if (!mode) {
-        mode = TRANSACTION_MODES.OTHER;
-      }
-
-      // Auto-categorize - use edited category if available, otherwise detect
-      const editedCategory = editedCategories[index];
-      const category = editedCategory
-        ? editedCategory
-        : categorizeTransaction(description, type);
-
-      // Validate category matches transaction type
-      const isValidCategory =
-        type === TRANSACTION_TYPES.INCOME
-          ? Object.values(INCOME_CATEGORIES).includes(category)
-          : Object.values(EXPENSE_CATEGORIES).includes(category);
-
-      const finalCategory = isValidCategory
-        ? category
-        : type === TRANSACTION_TYPES.INCOME
-        ? INCOME_CATEGORIES.OTHER
-        : EXPENSE_CATEGORIES.OTHER;
-
-      const transaction = {
-        id: uuid(),
-        type,
-        date: date.toISOString().split("T")[0],
-        mode,
-        description: description.trim(),
-        category: finalCategory,
-        amount: Number(numericAmount.toFixed(NUMBER_FORMAT.DECIMAL_PLACES)),
-        createdAt: new Date().toISOString(),
-        imported: true,
-      };
-
-      preparedTransactions.push(transaction);
-    });
-
-    // Filter out duplicates
-    const { filtered: uniqueTransactions, duplicateCount } = filterDuplicates(
-      preparedTransactions,
-      transactions
+    const { preparedTransactions, skipReasons } = prepareTransactionsForImport(
+      allParsedData,
+      editedCategories,
     );
 
-    skipReasons.duplicate = duplicateCount;
+    const { filtered: uniqueTransactions, duplicateCount } = filterDuplicates(
+      preparedTransactions,
+      transactions,
+    );
 
-    // Import unique transactions
-    // These transactions are added to the global state and will be automatically
-    // available throughout the entire app (Dashboard, Budget, Reports, Charts, etc.)
-    // via the BudgetContext. They are also persisted to localStorage.
-    uniqueTransactions.forEach((transaction) => {
+    let imported = 0;
+    let skipped =
+      skipReasons.missingFields +
+      skipReasons.invalidDate +
+      skipReasons.zeroAmount +
+      duplicateCount;
+
+    if (uniqueTransactions.length > 0) {
       try {
-        dispatch({ type: ACTION_TYPES.ADD_TRANSACTION, payload: transaction });
-        imported++;
+        dispatch({
+          type: ACTION_TYPES.ADD_TRANSACTIONS_BULK,
+          payload: uniqueTransactions,
+        });
+        imported = uniqueTransactions.length;
       } catch {
-        skipReasons.dispatchError++;
-        skipped++;
+        skipped += uniqueTransactions.length;
       }
-    });
+    }
 
-    skipped += duplicateCount;
-
-    // Show success message with import count
     if (imported > 0) {
       const message =
         duplicateCount > 0
@@ -542,26 +347,25 @@ const BankStatementImport = () => {
       setShowPreview(false);
       setFile(null);
 
-      // Show toast if duplicates were found
-      if (duplicateCount > 0) {
-        showWarning(message);
-      } else {
-        showSuccess(message);
-      }
-
-      setTimeout(() => {
-        setImportedCount(0);
-      }, TIMEOUTS.IMPORT_SUCCESS);
+      duplicateCount > 0 ? showWarning(message) : showSuccess(message);
+      setTimeout(() => setImportedCount(0), TIMEOUTS.IMPORT_SUCCESS);
     } else {
       const reasonMsg = Object.entries(skipReasons)
-        .filter(([_, count]) => count > 0)
+        .filter(([, count]) => count > 0)
         .map(([reason, count]) => `${reason}: ${count}`)
         .join(", ");
       showError(
-        `No transactions were imported. ${skipped} transaction(s) were skipped. Reasons: ${reasonMsg}. Please check the file format and ensure dates, amounts, and required fields are present.`
+        ERROR_MESSAGES.IMPORT_NONE_SKIPPED.replace(
+          "{skipped}",
+          String(skipped),
+        ).replace("{reasons}", reasonMsg),
       );
     }
   };
+
+  const handleCategoryChange = useCallback((index, value) => {
+    setEditedCategories((prev) => ({ ...prev, [index]: value }));
+  }, []);
 
   const resetImport = () => {
     setShowPreview(false);
@@ -570,12 +374,11 @@ const BankStatementImport = () => {
     setEditedCategories({});
     setColumnMapping(null);
     setFile(null);
-    setDuplicateIndices(new Set());
   };
 
   // Get count of imported transactions
   const importedTransactionsCount = transactions.filter(
-    (t) => t.imported === true
+    (t) => t.imported === true,
   ).length;
 
   // Handle cleanup of all imported transactions
@@ -744,135 +547,20 @@ const BankStatementImport = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {previewData.map((row, _previewIndex) => {
+                      {previewData.map((row) => {
                         const actualIndex = allParsedData.findIndex(
-                          (r) => r === row
+                          (r) => r === row,
                         );
-
-                        const dateStr = row.date || "";
-                        const description = row.description || "";
-                        const amountStr = row.amount || "";
-                        const typeField = row.type || "";
-                        const modeValue = row.mode || "";
-
-                        const serialNumber = actualIndex + 1;
-                        const amount = parseAmount(amountStr);
-                        const type = detectTransactionType(
-                          amountStr,
-                          typeField
-                        );
-
-                        let mode =
-                          normalizeMode(modeValue) ||
-                          detectTransactionMode(description);
-                        if (!mode) {
-                          mode = TRANSACTION_MODES.OTHER;
-                        }
-
-                        const editedCategory = editedCategories[actualIndex];
-                        const detectedCategory = categorizeTransaction(
-                          description,
-                          type
-                        );
-                        const category = editedCategory || detectedCategory;
-
-                        const categoryOptions =
-                          type === TRANSACTION_TYPES.INCOME
-                            ? Object.values(INCOME_CATEGORIES)
-                            : SORTED_EXPENSE_CATEGORIES;
-
-                        const handleCategoryChange = (e) => {
-                          const newCategory = e.target.value;
-                          setEditedCategories((prev) => ({
-                            ...prev,
-                            [actualIndex]: newCategory,
-                          }));
-                        };
-
-                        const isDuplicate = duplicateIndices.has(actualIndex);
-
                         return (
-                          <tr
+                          <ImportPreviewRow
                             key={actualIndex}
-                            className={`hover:bg-gray-50 ${
-                              isDuplicate ? "bg-orange-50 opacity-75" : ""
-                            }`}
-                          >
-                            <td className="px-4 py-2 text-center text-gray-600">
-                              {serialNumber}
-                              {isDuplicate && (
-                                <span
-                                  className="ml-1 text-orange-600"
-                                  title="Duplicate transaction - will be skipped"
-                                >
-                                  <i className="ion-alert-circled"></i>
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2">{dateStr}</td>
-                            <td
-                              className="px-4 py-2 max-w-xs truncate"
-                              title={description}
-                            >
-                              {description}
-                            </td>
-                            <td className="px-4 py-2">
-                              <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
-                                {mode}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 text-right font-medium">
-                              {CURRENCY_SYMBOL}{" "}
-                              {formatCurrency(amount, {
-                                minimumFractionDigits:
-                                  NUMBER_FORMAT.DECIMAL_PLACES,
-                                maximumFractionDigits:
-                                  NUMBER_FORMAT.DECIMAL_PLACES,
-                              })}
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                              <span
-                                className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                  type === TRANSACTION_TYPES.INCOME
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {type === TRANSACTION_TYPES.INCOME
-                                  ? "Cr"
-                                  : "Dr"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2">
-                              <div className="min-w-[150px]">
-                                <SearchableCategorySelect
-                                  name={`category-${actualIndex}`}
-                                  value={category}
-                                  onChange={handleCategoryChange}
-                                  options={categoryOptions.map((cat) => ({
-                                    value: cat,
-                                    label: cat,
-                                  }))}
-                                  className="text-xs"
-                                  sx={{
-                                    "& .MuiOutlinedInput-root": {
-                                      minHeight: "32px",
-                                      "& input": {
-                                        fontSize: "12px",
-                                        padding: "6px 10px",
-                                      },
-                                    },
-                                  }}
-                                />
-                              </div>
-                              {editedCategory && (
-                                <i
-                                  className="ion-edit ml-1 text-blue-600"
-                                  title="Category edited"
-                                ></i>
-                              )}
-                            </td>
-                          </tr>
+                            row={row}
+                            actualIndex={actualIndex}
+                            editedCategory={editedCategories[actualIndex]}
+                            onCategoryChange={handleCategoryChange}
+                            isDuplicate={duplicateIndices.has(actualIndex)}
+                            variant="table"
+                          />
                         );
                       })}
                     </tbody>
@@ -881,164 +569,20 @@ const BankStatementImport = () => {
 
                 {/* Mobile Card View */}
                 <div className="lg:hidden space-y-2 md:space-y-3 mb-4 w-full max-w-full overflow-x-hidden">
-                  {previewData.map((row, _previewIndex) => {
+                  {previewData.map((row) => {
                     const actualIndex = allParsedData.findIndex(
-                      (r) => r === row
+                      (r) => r === row,
                     );
-
-                    const dateStr = row.date || "";
-                    const description = row.description || "";
-                    const amountStr = row.amount || "";
-                    const typeField = row.type || "";
-                    const modeValue = row.mode || "";
-
-                    const serialNumber = actualIndex + 1;
-                    const amount = parseAmount(amountStr);
-                    const type = detectTransactionType(amountStr, typeField);
-
-                    let mode =
-                      normalizeMode(modeValue) ||
-                      detectTransactionMode(description);
-                    if (!mode) {
-                      mode = TRANSACTION_MODES.OTHER;
-                    }
-
-                    const editedCategory = editedCategories[actualIndex];
-                    const detectedCategory = categorizeTransaction(
-                      description,
-                      type
-                    );
-                    const category = editedCategory || detectedCategory;
-
-                    const categoryOptions =
-                      type === TRANSACTION_TYPES.INCOME
-                        ? Object.values(INCOME_CATEGORIES)
-                        : SORTED_EXPENSE_CATEGORIES;
-
-                    const handleCategoryChange = (e) => {
-                      const newCategory = e.target.value;
-                      setEditedCategories((prev) => ({
-                        ...prev,
-                        [actualIndex]: newCategory,
-                      }));
-                    };
-
-                    const isDuplicate = duplicateIndices.has(actualIndex);
-                    const isIncome = type === TRANSACTION_TYPES.INCOME;
-                    const amountColor = isIncome
-                      ? "text-green-600"
-                      : "text-red-600";
-
                     return (
-                      <div
+                      <ImportPreviewRow
                         key={actualIndex}
-                        className={`p-3 md:p-4 border rounded-lg ${
-                          isDuplicate
-                            ? "bg-orange-50 border-orange-200 opacity-75"
-                            : "bg-white border-gray-200"
-                        }`}
-                      >
-                        {/* Top Row: Serial Number, Badges, and Amount */}
-                        <div className="flex items-start justify-between mb-3 gap-2 w-full overflow-hidden">
-                          <div className="flex-1 min-w-0 overflow-hidden">
-                            {/* Serial Number and Badges Row */}
-                            <div className="flex items-center gap-1.5 md:gap-2 mb-2 flex-wrap">
-                              <span className="text-xs font-semibold text-gray-600 whitespace-nowrap flex-shrink-0">
-                                #{serialNumber}
-                              </span>
-                              {isDuplicate && (
-                                <span
-                                  className="text-orange-600 flex-shrink-0"
-                                  title="Duplicate transaction - will be skipped"
-                                >
-                                  <i className="ion-alert-circled text-sm"></i>
-                                </span>
-                              )}
-                              <span
-                                className={`px-2 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap flex-shrink-0 ${
-                                  isIncome
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {isIncome ? "Cr" : "Dr"}
-                              </span>
-                              {mode && (
-                                <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded whitespace-nowrap flex-shrink-0">
-                                  {mode}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Description */}
-                            <div className="mb-2 w-full overflow-hidden">
-                              <div
-                                className="text-sm md:text-base font-semibold text-gray-900 break-words line-clamp-2"
-                                title={description || "No description"}
-                              >
-                                {description || "No description"}
-                              </div>
-                            </div>
-
-                            {/* Date */}
-                            <div className="text-xs text-gray-500 truncate">
-                              {dateStr}
-                            </div>
-                          </div>
-
-                          {/* Amount - Right Aligned */}
-                          {Math.abs(amount) > 0 && (
-                            <div
-                              className={`text-sm md:text-base font-bold whitespace-nowrap flex-shrink-0 ml-2 ${amountColor}`}
-                            >
-                              {isIncome ? "+" : "-"}
-                              {CURRENCY_SYMBOL}
-                              {formatCurrency(Math.abs(amount), {
-                                minimumFractionDigits:
-                                  NUMBER_FORMAT.DECIMAL_PLACES,
-                                maximumFractionDigits:
-                                  NUMBER_FORMAT.DECIMAL_PLACES,
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Category Selector */}
-                        <div className="pt-3 border-t border-gray-200">
-                          <label className="block text-xs font-semibold text-gray-700 mb-2">
-                            Category
-                          </label>
-                          <SearchableCategorySelect
-                            name={`category-mobile-${actualIndex}`}
-                            value={category}
-                            onChange={handleCategoryChange}
-                            options={categoryOptions.map((cat) => ({
-                              value: cat,
-                              label: cat,
-                            }))}
-                            className="text-sm"
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                minHeight: "44px", // Mobile-friendly touch target
-                                backgroundColor: "#eff6ff",
-                                "& input": {
-                                  fontSize: "14px",
-                                  padding: "12px 14px",
-                                },
-                                "& fieldset": {
-                                  borderColor: "#93c5fd",
-                                },
-                              },
-                            }}
-                          />
-                          {editedCategory && (
-                            <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
-                              <i className="ion-edit text-xs"></i>
-                              <span>Category edited</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                        row={row}
+                        actualIndex={actualIndex}
+                        editedCategory={editedCategories[actualIndex]}
+                        onCategoryChange={handleCategoryChange}
+                        isDuplicate={duplicateIndices.has(actualIndex)}
+                        variant="card"
+                      />
                     );
                   })}
                 </div>

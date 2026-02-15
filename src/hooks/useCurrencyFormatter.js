@@ -15,12 +15,12 @@ export const useCurrencyFormatter = () => {
         if (compact) {
           if (amount >= CURRENCY_THRESHOLDS.MILLION) {
             return `${symbol}${(amount / CURRENCY_THRESHOLDS.MILLION).toFixed(
-              1
+              1,
             )}M`;
           }
           if (amount >= CURRENCY_THRESHOLDS.THOUSAND) {
             return `${symbol}${(amount / CURRENCY_THRESHOLDS.THOUSAND).toFixed(
-              1
+              1,
             )}K`;
           }
           return `${symbol}${amount.toFixed(0)}`;
@@ -31,7 +31,7 @@ export const useCurrencyFormatter = () => {
           maximumFractionDigits,
         }).format(amount);
       },
-    []
+    [],
   );
 
   const formatCompactCurrency = useMemo(
@@ -44,7 +44,7 @@ export const useCurrencyFormatter = () => {
       }
       return amount.toFixed(0);
     },
-    []
+    [],
   );
 
   return { formatCurrency, formatCompactCurrency };

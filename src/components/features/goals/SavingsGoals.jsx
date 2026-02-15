@@ -13,6 +13,7 @@ import { FormActions } from "@ui/FormActions";
 import { FormContainer } from "@ui/FormContainer";
 import { PageContainer } from "@ui/PageContainer";
 import { SectionCard } from "@ui/SectionCard";
+import { nowISO } from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
 import { useState } from "react";
 import { v4 as uuid } from "uuid";
@@ -51,12 +52,12 @@ const SavingsGoals = () => {
       id: uuid(),
       name,
       targetAmount: Number(
-        parseFloat(targetAmount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES)
+        parseFloat(targetAmount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES),
       ),
       currentAmount: Number(
-        parseFloat(currentAmount || 0).toFixed(NUMBER_FORMAT.DECIMAL_PLACES)
+        parseFloat(currentAmount || 0).toFixed(NUMBER_FORMAT.DECIMAL_PLACES),
       ),
-      createdAt: new Date().toISOString(),
+      createdAt: nowISO(),
     };
 
     dispatch({ type: ACTION_TYPES.ADD_SAVINGS_GOAL, payload: newGoal });
@@ -79,7 +80,7 @@ const SavingsGoals = () => {
         type: ACTION_TYPES.DELETE_SAVINGS_GOAL,
         payload: deleteDialog.goalId,
       });
-      showSuccess("Savings goal deleted successfully");
+      showSuccess(UI_TEXT.SUCCESS_GOAL_DELETED);
       setDeleteDialog({ open: false, goalId: null });
     }
   };
@@ -90,7 +91,7 @@ const SavingsGoals = () => {
       payload: {
         id,
         currentAmount: Number(
-          parseFloat(newAmount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES)
+          parseFloat(newAmount).toFixed(NUMBER_FORMAT.DECIMAL_PLACES),
         ),
       },
     });
@@ -100,7 +101,7 @@ const SavingsGoals = () => {
     if (target === 0) return PERCENTAGE_THRESHOLDS.MIN;
     return Math.min(
       (current / target) * PERCENTAGE_THRESHOLDS.MAX,
-      PERCENTAGE_THRESHOLDS.MAX
+      PERCENTAGE_THRESHOLDS.MAX,
     );
   };
 
@@ -175,7 +176,7 @@ const SavingsGoals = () => {
             {savingsGoals.map((goal) => {
               const progress = calculateProgress(
                 goal.currentAmount,
-                goal.targetAmount
+                goal.targetAmount,
               );
               const remaining = goal.targetAmount - goal.currentAmount;
 
@@ -283,12 +284,12 @@ const SavingsGoals = () => {
                   {formatCurrency(
                     savingsGoals.reduce(
                       (sum, goal) => sum + goal.targetAmount,
-                      0
+                      0,
                     ),
                     {
                       minimumFractionDigits: NUMBER_FORMAT.DECIMAL_PLACES,
                       maximumFractionDigits: NUMBER_FORMAT.DECIMAL_PLACES,
-                    }
+                    },
                   )}
                 </h4>
               </div>
@@ -301,12 +302,12 @@ const SavingsGoals = () => {
                   {formatCurrency(
                     savingsGoals.reduce(
                       (sum, goal) => sum + goal.currentAmount,
-                      0
+                      0,
                     ),
                     {
                       minimumFractionDigits: NUMBER_FORMAT.DECIMAL_PLACES,
                       maximumFractionDigits: NUMBER_FORMAT.DECIMAL_PLACES,
-                    }
+                    },
                   )}
                 </h4>
               </div>

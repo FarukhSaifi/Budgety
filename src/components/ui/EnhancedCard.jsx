@@ -1,3 +1,5 @@
+import CardMui from "@mui/material/Card";
+
 export const EnhancedCard = ({
   children,
   title,
@@ -10,11 +12,12 @@ export const EnhancedCard = ({
     ? {
         background: `linear-gradient(135deg, ${gradient.start} 0%, ${gradient.end} 100%)`,
       }
-    : {};
+    : undefined;
 
   return (
-    <div
-      className={`rounded-card border border-gray-100 bg-white shadow-card ${className}`}
+    <CardMui
+      elevation={0}
+      className={`rounded-xl border border-gray-100 bg-white shadow-sm ${className}`}
       style={gradientStyle}
     >
       {title && (
@@ -37,6 +40,6 @@ export const EnhancedCard = ({
       )}
       <div className="p-2 sm:p-3">{children}</div>
       {actions && <div className="px-6 pb-3">{actions}</div>}
-    </div>
+    </CardMui>
   );
 };

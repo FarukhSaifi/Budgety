@@ -1,6 +1,7 @@
 // Action Types
 export const ACTION_TYPES = {
   ADD_TRANSACTION: "ADD_TRANSACTION",
+  ADD_TRANSACTIONS_BULK: "ADD_TRANSACTIONS_BULK",
   DELETE_TRANSACTION: "DELETE_TRANSACTION",
   DELETE_ALL_IMPORTED_TRANSACTIONS: "DELETE_ALL_IMPORTED_TRANSACTIONS",
   UPDATE_TRANSACTION: "UPDATE_TRANSACTION",
@@ -173,6 +174,27 @@ export const EXPENSE_CATEGORIES = {
   TRANSPORTATION: "Transportation",
   TRAVEL: "Travel",
   UTILITIES: "Utilities",
+  CREDIT_CARD: "Credit Card",
+};
+
+export const CREDIT_CARD_CATEGORIES = {
+  DREAM_PURSE: "DreamPurse",
+  AMERICAN_EXPRESS: "American Express",
+  STANDARD_CHARTERED: "Standard Chartered",
+  BIL_ONL: "Bil/Onl",
+  OTHER: "Other",
+};
+
+export const INVESTMENT_CATEGORIES = {
+  STOCKS: "Stocks",
+  BONDS: "Bonds",
+  MUTUAL_FUNDS: "Mutual Funds",
+  ETF: "ETF",
+  REITS: "REITS",
+  P2P: "P2P",
+  CRYPTO: "Crypto",
+  PPF: "PPF",
+  OTHER: "Other",
 };
 
 // Sorted expense categories array for dropdowns (alphabetically sorted)
@@ -214,6 +236,7 @@ export const CATEGORY_COLORS = {
   [EXPENSE_CATEGORIES.TRANSPORTATION]: "#3498db",
   [EXPENSE_CATEGORIES.TRAVEL]: "#00bcd4",
   [EXPENSE_CATEGORIES.UTILITIES]: "#1abc9c",
+  [EXPENSE_CATEGORIES.CREDIT_CARD]: "#ff5767",
 };
 
 // View Periods
@@ -421,18 +444,74 @@ export const UI_TEXT = {
   REMIND_ME_DAYS_BEFORE: "Remind Me (days before)",
   PLEASE_FILL_ALL_FIELDS: "Please fill in all required fields.",
   AMOUNT_MUST_BE_GREATER_THAN_ZERO: "Amount must be greater than 0.",
+  DUPLICATE_TRANSACTION:
+    "This transaction already exists. A duplicate transaction with the same date, description, amount, and type was found.",
   BILL_AMOUNT_MUST_BE_GREATER_THAN_ZERO: "Bill amount must be greater than 0.",
   FILTERED: "Filtered",
   LOADING: "Loading...",
   TRY_AGAIN: "Try again",
+  SUCCESS_TRANSACTION_ADDED: "Transaction added successfully!",
+  SUCCESS_TRANSACTION_UPDATED: "Transaction updated successfully!",
+  SUCCESS_TRANSACTION_DELETED: "Transaction deleted successfully",
+  SUCCESS_BUDGET_ADDED: "Budget added successfully!",
+  SUCCESS_BUDGET_UPDATED: "Budget updated successfully!",
+  SUCCESS_BUDGET_DELETED: "Budget deleted successfully",
+  SUCCESS_BILL_ADDED: "Bill reminder added successfully!",
+  SUCCESS_BILL_UPDATED: "Bill reminder updated successfully!",
+  SUCCESS_BILL_DELETED: "Bill reminder deleted successfully",
+  SUCCESS_BILL_MARKED_PAID: "Bill marked as paid",
+  SUCCESS_BILL_MARKED_PAID_TOAST: "Bill marked as paid!",
+  SUCCESS_RECURRING_ADDED: "Recurring transaction added successfully!",
+  SUCCESS_RECURRING_UPDATED: "Recurring transaction updated successfully!",
+  SUCCESS_RECURRING_DELETED: "Recurring transaction deleted successfully",
+  SUCCESS_RECURRING_ACTIVATED: "Recurring transaction activated successfully!",
+  SUCCESS_RECURRING_PAUSED: "Recurring transaction paused successfully!",
+  SUCCESS_GOAL_DELETED: "Savings goal deleted successfully",
+  SUCCESS_EXPORT: "Data exported successfully as {filename}",
 };
 
-// User-facing error messages (for API and loading)
+// User-facing error messages (for API, loading, import/export)
 export const ERROR_MESSAGES = {
   REQUEST_FAILED: "Request failed",
   LOAD_DATA_FAILED: "Could not load data from server. Using empty state.",
   SAVE_FAILED: "Failed to save",
   BOUNDARY_FALLBACK: "Something went wrong. Please refresh the page.",
+  CSV_READ_FAILED: "Failed to read CSV file. Please try again.",
+  PDF_NO_VALID_TRANSACTIONS: "No valid transactions found in the PDF file",
+  EXCEL_READ_FAILED: "Failed to read Excel file. Please try again.",
+  EXCEL_FIRST_SHEET: "Could not read the first sheet from Excel file.",
+  NO_DATA_TO_EXPORT: "No data to export",
+  NO_TRANSACTIONS_TO_EXPORT: "No transactions to export",
+  CSV_EMPTY:
+    "CSV file appears to be empty or invalid. Please ensure the file contains at least a header row and one data row.",
+  CSV_NO_HEADERS:
+    "CSV file has no valid headers. Please ensure the first row contains column names.",
+  CSV_MISSING_COLUMNS:
+    "CSV file format doesn't match expected format. Missing required columns: {missing}. Found columns: {found}. Please ensure your CSV file has columns for Date, Description/Particulars, and Amount/Deposits/Withdrawals.",
+  CSV_NO_TRANSACTIONS:
+    "No valid transactions found in the CSV file. Please ensure the file contains transaction data with Date, Description, and Amount columns.",
+  CSV_PARSE_ERROR:
+    "Error parsing CSV file: {message}. Please ensure it's a valid CSV file with proper column headers (Date, Mode, Particulars, Deposits, Withdrawals, Balance).",
+  PDF_PARSE_ERROR:
+    "Error parsing PDF file: {message}. Please ensure it's a valid PDF file with readable text.",
+  EXCEL_PARSE_ERROR:
+    "Failed to parse Excel file: {message}. Please ensure the file is a valid Excel file (.xlsx or .xls format).",
+  EXCEL_NO_SHEETS:
+    "Excel file has no sheets. Please ensure the file contains data.",
+  EXCEL_CONVERT_ERROR:
+    "Failed to convert Excel data: {message}. Please check the file format.",
+  EXCEL_EMPTY:
+    "Excel file appears to be empty or has no data rows. Please ensure the file contains at least a header row and one data row.",
+  EXCEL_NO_HEADERS:
+    "Excel file has no valid headers. Please ensure the first row contains column names.",
+  EXCEL_MISSING_COLUMNS:
+    "Excel file format doesn't match expected format. Missing required columns: {missing}. Found columns: {found}. Please ensure your Excel file has columns for Date, Description, and Amount.",
+  EXCEL_NO_TRANSACTIONS:
+    "No valid transactions found in the Excel file. Please ensure the file contains transaction data with Date, Description, and Amount columns.",
+  EXCEL_PARSE_ERROR_FALLBACK:
+    "Error parsing Excel file: {message}. Please ensure it's a valid Excel file (.xlsx or .xls format) with proper column headers.",
+  IMPORT_NONE_SKIPPED:
+    "No transactions were imported. {skipped} transaction(s) were skipped. Reasons: {reasons}. Please check the file format and ensure dates, amounts, and required fields are present.",
 };
 
 // Recurrence Types
@@ -460,8 +539,8 @@ export const DEFAULT_STATE = {
   billReminders: [],
   viewPeriod: VIEW_PERIODS.MONTHLY,
   viewType: VIEW_TYPES.LIST,
-  selectedMonth: new Date().getMonth() + 1,
-  selectedYear: new Date().getFullYear(),
+  selectedMonth: undefined,
+  selectedYear: undefined,
   selectedCategory: "",
   searchQuery: "",
 };
@@ -469,8 +548,12 @@ export const DEFAULT_STATE = {
 // Currency Symbol
 export const CURRENCY_SYMBOL = "₹";
 
-// Date Format
+// Date formats: accept/store ISO string (e.g. 2018-04-04T16:00:00.000Z); display short/long
 export const DATE_FORMAT = "DD-MM-YYYY";
+/** Long display: DD-MMM-YYYY HH:MM AM/PM */
+export const DATE_FORMAT_LONG = "DD-MMM-YYYY hh:mm A";
+/** ISO 8601 date-only for DB DATE columns (YYYY-MM-DD) */
+export const DATE_FORMAT_STORAGE = "YYYY-MM-DD";
 
 // Months
 export const MONTHS = [
@@ -623,6 +706,13 @@ export const CATEGORY_PATTERNS = {
       "return",
       "profit",
       "capital gain",
+      "ppf",
+      "public provident fund",
+      "provident fund",
+      "trf frm sb",
+      "trf from sb",
+      "transfer from sb",
+      "transfer from savings",
     ],
     [INCOME_CATEGORIES.RENTAL]: ["rent", "rental", "lease", "property income"],
     [INCOME_CATEGORIES.BONUS]: ["bonus", "incentive", "reward", "commission"],
@@ -760,6 +850,13 @@ export const CATEGORY_PATTERNS = {
       "portfolio",
       "asset",
       "capital",
+      "ppf",
+      "public provident fund",
+      "provident fund",
+      "trf frm sb",
+      "trf from sb",
+      "transfer from sb",
+      "transfer from savings",
     ],
     [EXPENSE_CATEGORIES.LOAN_PAYMENTS]: [
       "loan",
@@ -770,6 +867,11 @@ export const CATEGORY_PATTERNS = {
       "personal loan",
       "car loan",
       "education loan",
+      "ach/bd",
+      "bankloan",
+      "bank loan",
+      "tatacapitalhousingfi",
+      "tata capital housing",
     ],
     [EXPENSE_CATEGORIES.MISC_EXPENSES]: [
       "misc",
@@ -790,6 +892,10 @@ export const CATEGORY_PATTERNS = {
       "ppf",
       "public provident fund",
       "provident fund",
+      "trf frm sb",
+      "trf from sb",
+      "transfer from sb",
+      "transfer from savings",
     ],
     [EXPENSE_CATEGORIES.REIT]: ["reit", "real estate investment trust"],
     [EXPENSE_CATEGORIES.SIP]: [
@@ -797,7 +903,66 @@ export const CATEGORY_PATTERNS = {
       "systematic investment plan",
       "mutual fund sip",
     ],
+    [EXPENSE_CATEGORIES.CREDIT_CARD]: [
+      "credit card",
+      "cred",
+      "paidviacred",
+      "dreampurse",
+      "mmt/imps",
+      "paid via cred",
+      "wallet to card",
+      "american e",
+      "amercian e",
+      "standardc",
+      "american express",
+      "standard chartered",
+      "amexcard",
+      "amex card pay",
+      "amex card",
+      "bil/onl",
+    ],
   },
+  INVESTMENTS: {
+    [INVESTMENT_CATEGORIES.STOCKS]: ["stock", "stocks", "equity", "equities"],
+  },
+  [INVESTMENT_CATEGORIES.BONDS]: [
+    "bond",
+    "bonds",
+    "government bond",
+    "corporate bond",
+  ],
+  [INVESTMENT_CATEGORIES.MUTUAL_FUNDS]: [
+    "mutual fund",
+    "mf",
+    "sip",
+    "equity fund",
+    "debt fund",
+    "hybrid fund",
+  ],
+  [INVESTMENT_CATEGORIES.ETF]: ["etf", "exchange traded fund", "index fund"],
+  [INVESTMENT_CATEGORIES.REITS]: ["reit", "real estate investment trust"],
+  [INVESTMENT_CATEGORIES.P2P]: ["p2p", "peer to peer lending", "peer to peer"],
+  [INVESTMENT_CATEGORIES.CRYPTO]: [
+    "crypto",
+    "bitcoin",
+    "ethereum",
+    "ripple",
+    "litecoin",
+    "bitcoin cash",
+    "ethereum classic",
+    "litecoin",
+    "bitcoin cash",
+    "ethereum classic",
+  ],
+  [INVESTMENT_CATEGORIES.PPF]: [
+    "ppf",
+    "public provident fund",
+    "provident fund",
+    "trf frm sb",
+    "trf from sb",
+    "transfer from sb",
+    "transfer from savings",
+  ],
 };
 
 // Bank Statement Column Mapping Patterns

@@ -1,5 +1,4 @@
 import { MenuItem, TextField } from "@mui/material";
-import React from "react";
 
 export const FormField = ({
   label,
@@ -30,6 +29,9 @@ export const FormField = ({
     placeholder,
     variant: "outlined",
     className: `rounded-lg ${className}`,
+    slotProps: {
+      htmlInput: { className: "rounded-lg" },
+    },
     sx: {
       "& .MuiOutlinedInput-root": {
         borderRadius: "8px",

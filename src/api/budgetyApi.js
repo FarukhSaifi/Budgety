@@ -25,6 +25,11 @@ export const budgetyApi = {
   getTransactions: () => api("/api/transactions"),
   addTransaction: (body) =>
     api("/api/transactions", { method: "POST", body: JSON.stringify(body) }),
+  addTransactionsBulk: (transactions) =>
+    api("/api/transactions/bulk", {
+      method: "POST",
+      body: JSON.stringify({ transactions }),
+    }),
   updateTransaction: (id, body) =>
     api(`/api/transactions/${id}`, {
       method: "PATCH",

@@ -1,11 +1,17 @@
+import CardMui from "@mui/material/Card";
+
+const rootClasses =
+  "bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full max-w-full";
+
 export const Card = ({ children, className = "", onClick }) => {
   return (
-    <div
-      className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden w-full max-w-full ${className}`}
+    <CardMui
+      className={`${rootClasses} ${className}`}
       onClick={onClick}
+      elevation={0}
     >
       {children}
-    </div>
+    </CardMui>
   );
 };
 
@@ -25,7 +31,9 @@ export const CardHeader = ({
 
 export const CardBody = ({ children, className = "" }) => {
   return (
-    <div className={`p-2 md:p-4 w-full max-w-full overflow-x-hidden ${className}`}>
+    <div
+      className={`p-2 md:p-4 w-full max-w-full overflow-x-hidden ${className}`}
+    >
       {children}
     </div>
   );

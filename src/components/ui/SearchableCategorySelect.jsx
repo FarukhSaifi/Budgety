@@ -22,8 +22,11 @@ export const SearchableCategorySelect = ({
   placeholder,
   fullWidth = true,
   className = "",
+  inputClassName = "",
   ...props
 }) => {
+  const baseInputClasses =
+    "[&_.MuiOutlinedInput-root]:min-h-11 [&_.MuiOutlinedInput-root]:rounded-lg [&_.MuiOutlinedInput-input]:text-base [&_.MuiOutlinedInput-input]:py-3 [&_.MuiOutlinedInput-input]:px-3.5 sm:[&_.MuiOutlinedInput-input]:py-3.5 sm:[&_.MuiOutlinedInput-input]:px-4 [&_.MuiInputLabel-root]:text-sm sm:[&_.MuiInputLabel-root]:text-base [&_.MuiAutocomplete-endAdornment]:right-3";
   const [inputValue, setInputValue] = useState("");
 
   // Filter options based on search input
@@ -95,39 +98,13 @@ export const SearchableCategorySelect = ({
           helperText={helperText}
           placeholder={placeholder || "Search or select category..."}
           variant="outlined"
-          className={className}
-          sx={{
-            "& .MuiOutlinedInput-root": {
-              borderRadius: "8px",
-              // Mobile-friendly touch targets
-              minHeight: "44px", // iOS recommended minimum
-              "& input": {
-                fontSize: "16px", // Prevents zoom on iOS
-                padding: "12px 14px",
-                "@media (max-width: 640px)": {
-                  padding: "14px 16px", // Larger touch target on mobile
-                },
-              },
-              "& .MuiAutocomplete-endAdornment": {
-                right: "12px",
-              },
-            },
-            "& .MuiInputLabel-root": {
-              fontSize: "14px",
-              "@media (max-width: 640px)": {
-                fontSize: "16px", // Prevents zoom on iOS
-              },
-            },
-          }}
+          className={`${baseInputClasses} ${inputClassName} ${className}`}
         />
       )}
-      // Mobile-friendly popup props
       ListboxProps={{
-        style: {
+        sx: {
           maxHeight: "300px",
-          "@media (max-width: 640px)": {
-            maxHeight: "50vh", // Better for mobile screens
-          },
+          "@media (max-width: 640px)": { maxHeight: "50vh" },
         },
       }}
       // Better mobile experience

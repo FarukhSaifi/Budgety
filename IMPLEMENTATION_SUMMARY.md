@@ -50,6 +50,7 @@ The parser integrates seamlessly with the existing import flow:
 
 1. `BankStatementImport.jsx` calls `parsePDF(file)`
 2. Parser extracts transactions with format:
+
    ```javascript
    {
      date: "08.02.2026",
@@ -60,6 +61,7 @@ The parser integrates seamlessly with the existing import flow:
      balance: "64377.62"
    }
    ```
+
 3. Import component processes transactions:
    - Converts date format (DD.MM.YYYY → YYYY-MM-DD)
    - Parses amounts (removes commas)
@@ -70,9 +72,9 @@ The parser integrates seamlessly with the existing import flow:
 
 ## How to Use
 
-### Step-by-Step Guide:
+### Step-by-Step Guide
 
-1. **Start the app** (already running at http://localhost:3001/Budgety/)
+1. **Start the app** (already running at <http://localhost:3001/Budgety/>)
 
 2. **Navigate to Transactions**
    - Click "Transactions" in the sidebar
@@ -98,7 +100,7 @@ The parser integrates seamlessly with the existing import flow:
 
 ## Expected Results
 
-### From Your PDF:
+### From Your PDF
 
 - **Total Transactions:** 22
 - **Date Range:** 08.02.2026 to 13.02.2026
@@ -106,7 +108,7 @@ The parser integrates seamlessly with the existing import flow:
   - Deposits: BIL/INFT transfers, incoming UPI payments
   - Withdrawals: UPI payments to merchants, CRED payments
 
-### Sample Transactions:
+### Sample Transactions
 
 1. BIL/INFT/FBC0279486/ AZAD ANSARI - ₹100.00 (Deposit)
 2. BIL/INFT/FBC0291285/ AZAD ANSARI - ₹50,000.00 (Deposit)
@@ -116,21 +118,22 @@ The parser integrates seamlessly with the existing import flow:
 
 ## Technical Details
 
-### Files Modified:
+### Files Modified
 
 1. `src/utils/pdfParser.js` - Updated PDF parsing logic
 2. `package-lock.json` - Dependencies (no changes needed)
 3. `src/components/layout/Header.jsx` - Unrelated changes
 
-### Files Created:
+### Files Created
 
 1. `PDF_IMPORT_GUIDE.md` - User guide for PDF import
 2. `IMPLEMENTATION_SUMMARY.md` - This file
 
-### Database Storage:
+### Database Storage
 
 - Transactions are stored in `localStorage` under key `budgetyState`
 - Each transaction has:
+
   ```javascript
   {
     id: "uuid",
@@ -145,7 +148,7 @@ The parser integrates seamlessly with the existing import flow:
   }
   ```
 
-### Auto-Categorization:
+### Auto-Categorization
 
 The system uses keyword matching to categorize transactions:
 
@@ -161,20 +164,20 @@ The system uses keyword matching to categorize transactions:
 
 ## Features
 
-### Duplicate Detection:
+### Duplicate Detection
 
 - Compares: date, description, amount
 - Automatically skips duplicates
 - Shows warning message with count
 
-### Data Validation:
+### Data Validation
 
 - Validates date format
 - Ensures amount > 0
 - Checks required fields
 - Skips invalid transactions
 
-### Error Handling:
+### Error Handling
 
 - Graceful error messages
 - Detailed skip reasons
@@ -182,11 +185,11 @@ The system uses keyword matching to categorize transactions:
 
 ## Testing
 
-### Verified Functionality:
+### Verified Functionality
 
 ✅ PDF text extraction ✅ Multi-line transaction parsing ✅ Date format conversion (DD.MM.YYYY → YYYY-MM-DD) ✅ Amount parsing (removes commas) ✅ Transaction type detection (debit/credit) ✅ Description extraction ✅ Balance tracking
 
-### Test Results:
+### Test Results
 
 ```
 Parsed Transactions:
@@ -232,14 +235,14 @@ Total transactions parsed: 5 (from sample)
 
 ## Next Steps
 
-### To Import Your PDF:
+### To Import Your PDF
 
-1. Open http://localhost:3001/Budgety/ (already running)
+1. Open <http://localhost:3001/Budgety/> (already running)
 2. Click "Transactions" → Scroll to "Import Bank Statement"
 3. Upload: `/Users/farukh.saifi/Downloads/OpTransactionHistory15-02-2026.pdf`
 4. Review and click "Import"
 
-### After Import:
+### After Import
 
 - View transactions in Transactions list
 - Check Dashboard for updated statistics
@@ -247,7 +250,7 @@ Total transactions parsed: 5 (from sample)
 - View Reports for analysis
 - Check Charts for visual insights
 
-### Cleanup (if needed):
+### Cleanup (if needed)
 
 - Click "Cleanup Imported Data" button
 - Removes only imported transactions
@@ -255,46 +258,15 @@ Total transactions parsed: 5 (from sample)
 
 ## Code Quality
 
-### Follows Project Standards:
+### Follows Project Standards
 
 ✅ Uses constants from `@constants` ✅ Proper error handling (no console.log) ✅ Path aliases for imports ✅ Reusable functions ✅ Clear comments and documentation ✅ Maintains existing code patterns
 
-### Best Practices:
+### Best Practices
 
 - Separation of concerns
 - DRY principle
 - Single responsibility
-- Defensive programming
-- Type safety (JSDoc comments)
-
-## Support
-
-### If Issues Occur:
-
-1. Check browser console (F12) for errors
-2. Verify PDF is text-based (not scanned image)
-3. Ensure PDF follows ICICI format
-4. Check `PDF_IMPORT_GUIDE.md` for troubleshooting
-
-### Known Limitations:
-
-- Only works with text-based PDFs
-- Requires ICICI bank statement format
-- Multi-line transactions must follow pattern
-- Amounts must be in format: XX,XXX.XX
-
-## Conclusion
-
-The PDF import functionality is now fully implemented and tested. The parser correctly:
-
-- Extracts all transactions from ICICI bank statements
-- Identifies transaction types (deposits/withdrawals)
-- Handles multi-line descriptions
-- Integrates with existing import workflow
-- Provides user-friendly preview and import process
-
-**Status:** ✅ Ready to use - Single responsibility
-
 - Defensive programming
 - Type safety (JSDoc comments)
 
@@ -324,4 +296,5 @@ The PDF import functionality is now fully implemented and tested. The parser cor
 - Integrates with existing import workflow
 - Provides user-friendly preview and import process
 
-**Status:** ✅ Ready to use **Next Action:** Upload the PDF file through the web interface
+**Status:** ✅ Ready to use  
+**Next Action:** Upload the PDF file through the web interface

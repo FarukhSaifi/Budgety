@@ -1,4 +1,4 @@
-import React from "react";
+import { TextField } from "@mui/material";
 
 export const Input = ({
   label,
@@ -14,33 +14,35 @@ export const Input = ({
   ...props
 }) => {
   return (
-    <div className="w-full">
-      {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-      )}
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-        disabled={disabled}
-        className={`
-          w-full px-4 py-2.5 border rounded-lg
-          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-          disabled:bg-gray-100 disabled:cursor-not-allowed
-          transition-all duration-200
-          ${error ? "border-red-500" : "border-gray-300"}
-          ${className}
-        `}
-        {...props}
-      />
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-    </div>
+    <TextField
+      fullWidth
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      required={required}
+      disabled={disabled}
+      error={!!error}
+      helperText={error}
+      label={label}
+      variant="outlined"
+      className={className}
+      slotProps={{
+        htmlInput: {
+          className: "rounded-lg",
+        },
+      }}
+      sx={{
+        "& .MuiOutlinedInput-root": {
+          borderRadius: "8px",
+          "&.Mui-error .MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgb(239 68 68)",
+          },
+        },
+      }}
+      {...props}
+    />
   );
 };
 
@@ -57,32 +59,35 @@ export const Select = ({
   ...props
 }) => {
   return (
-    <div className="w-full">
-      {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-      )}
-      <select
-        name={name}
-        value={value}
-        onChange={onChange}
-        required={required}
-        disabled={disabled}
-        className={`
-          w-full px-4 py-2.5 border rounded-lg
-          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-          disabled:bg-gray-100 disabled:cursor-not-allowed
-          transition-all duration-200
-          ${error ? "border-red-500" : "border-gray-300"}
-          ${className}
-        `}
-        {...props}
-      >
-        {children}
-      </select>
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-    </div>
+    <TextField
+      fullWidth
+      select
+      name={name}
+      value={value}
+      onChange={onChange}
+      required={required}
+      disabled={disabled}
+      error={!!error}
+      helperText={error}
+      label={label}
+      variant="outlined"
+      className={className}
+      slotProps={{
+        htmlInput: {
+          className: "rounded-lg",
+        },
+      }}
+      sx={{
+        "& .MuiOutlinedInput-root": {
+          borderRadius: "8px",
+          "&.Mui-error .MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgb(239 68 68)",
+          },
+        },
+      }}
+      {...props}
+    >
+      {children}
+    </TextField>
   );
 };

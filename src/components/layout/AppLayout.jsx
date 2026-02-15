@@ -1,9 +1,9 @@
+import BottomNavigation from "@components/layout/BottomNavigation";
+import Header from "@components/layout/Header";
+import Sidebar from "@components/layout/Sidebar";
 import MainContent from "@components/MainContent";
 import { UI_TEXT } from "@constants";
 import { useBudget } from "@context/BudgetContext";
-import BottomNavigation from "./BottomNavigation";
-import Header from "./Header";
-import Sidebar from "./Sidebar";
 
 const AppLayout = () => {
   const { loading } = useBudget();
