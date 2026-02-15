@@ -2,7 +2,7 @@ import { UI_TEXT } from "@constants";
 import { Autocomplete, TextField } from "@mui/material";
 import { Button } from "@ui/Button";
 import { Dialog } from "@ui/Dialog";
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 const ADD_NEW_OPTION_VALUE = "__ADD_NEW_CATEGORY__";
 
@@ -39,6 +39,8 @@ export const SearchableCategorySelect = ({
   const [addModalName, setAddModalName] = useState("");
   const [addModalError, setAddModalError] = useState("");
   const inputRef = useRef(null);
+  const autocompleteId = useId();
+  const addCategoryFieldId = useId();
 
   // Filter options based on search input
   const filteredOptions = useMemo(() => {
@@ -150,6 +152,7 @@ export const SearchableCategorySelect = ({
   return (
     <>
       <Autocomplete
+        id={autocompleteId}
         fullWidth={fullWidth}
         disabled={disabled}
         options={optionsWithAddNew}
@@ -217,6 +220,7 @@ export const SearchableCategorySelect = ({
       >
         <div className="pt-2 px-0">
           <TextField
+            id={addCategoryFieldId}
             autoFocus
             fullWidth
             label={UI_TEXT.ADD_NEW_CATEGORY_LABEL || "Category name"}

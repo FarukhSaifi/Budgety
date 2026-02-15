@@ -1,5 +1,6 @@
 import { DatePicker as MuiDatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
+import { useId } from "react";
 
 /**
  * Common DatePicker – single date input (YYYY-MM-DD).
@@ -36,6 +37,7 @@ export function DatePicker({
   sx,
   ...rest
 }) {
+  const id = useId();
   const dateValue = value && dayjs(value).isValid() ? dayjs(value) : null;
   const minDate = min && dayjs(min).isValid() ? dayjs(min) : undefined;
   const maxDate = max && dayjs(max).isValid() ? dayjs(max) : undefined;
@@ -60,6 +62,7 @@ export function DatePicker({
       disabled={disabled}
       slotProps={{
         textField: {
+          id,
           name,
           required,
           error,

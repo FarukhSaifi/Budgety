@@ -1,4 +1,5 @@
 import { MenuItem, TextField } from "@mui/material";
+import { useId } from "react";
 
 export const FormField = ({
   label,
@@ -16,7 +17,9 @@ export const FormField = ({
   className = "",
   ...props
 }) => {
+  const id = useId();
   const commonProps = {
+    id,
     fullWidth,
     label,
     name,
