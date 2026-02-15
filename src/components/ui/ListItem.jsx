@@ -1,3 +1,5 @@
+import { getContrastText } from "@utils/colorUtils";
+
 export const ListItem = ({
   primary,
   secondary,
@@ -54,6 +56,8 @@ export const ListItem = ({
                   typeof chip === "string"
                     ? "default"
                     : chip.color || "default";
+                const hexColor =
+                  typeof chip === "object" && chip ? chip.hexColor : null;
 
                 const variantClasses = {
                   outlined: "border border-gray-300 bg-transparent",
@@ -75,10 +79,23 @@ export const ListItem = ({
                     ? colorClasses[chipColor] || colorClasses.default
                     : colorClasses[chipColor] || colorClasses.default;
 
+                const style = hexColor
+                  ? {
+                      backgroundColor: hexColor,
+                      color: getContrastText(hexColor),
+                      borderColor: hexColor,
+                    }
+                  : undefined;
+
                 return (
                   <span
                     key={index}
-                    className={`${baseClasses} ${variantClass} ${colorClass}`}
+                    className={
+                      hexColor
+                        ? `${baseClasses} border ${variantClass}`
+                        : `${baseClasses} ${variantClass} ${colorClass}`
+                    }
+                    style={style}
                   >
                     {chipLabel}
                   </span>

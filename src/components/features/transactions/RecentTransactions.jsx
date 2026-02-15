@@ -1,6 +1,8 @@
 import EditTransactionModal from "@components/features/transactions/EditTransactionModal";
 import {
+  CATEGORY_COLORS,
   CURRENCY_SYMBOL,
+  DEFAULT_CATEGORY_TAG_COLOR,
   DEFAULT_VALUES,
   DISPLAY_LIMITS,
   TRANSACTION_MODES,
@@ -154,12 +156,14 @@ const RecentTransactions = ({
             chips.push(paymentModeTag);
           }
 
-          // Add category as a chip if available
+          // Add category as a chip if available (color from category)
           if (transaction.category) {
             chips.push({
               label: transaction.category,
               variant: "outlined",
-              color: "default",
+              hexColor:
+                CATEGORY_COLORS[transaction.category] ||
+                DEFAULT_CATEGORY_TAG_COLOR,
             });
           }
 

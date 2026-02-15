@@ -14,6 +14,7 @@ import { useDateFormatter } from "@hooks/useDateFormatter";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
+import { getCategoryTagStyle } from "@utils/colorUtils";
 import { compareByDateThenCreatedAt, parseDate } from "@utils/dateUtils";
 import { showSuccess } from "@utils/toast";
 import { useMemo, useState } from "react";
@@ -361,7 +362,10 @@ const Budget = () => {
                           </span>
                         )}
                         {transaction.category && (
-                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-xl">
+                          <span
+                            className="px-2 py-1 text-xs font-medium rounded-xl border border-current"
+                            style={getCategoryTagStyle(transaction.category)}
+                          >
                             {transaction.category}
                           </span>
                         )}

@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { Button } from "@ui/Button";
 import { Card, CardBody, CardHeader } from "@ui/Card";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
+import { getCategoryTagStyle } from "@utils/colorUtils";
 import {
   compareByDateThenCreatedAt,
   dayOfMonth,
@@ -430,7 +431,10 @@ const CalendarView = () => {
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-600">
                           {transaction.category && (
-                            <span className="px-2 py-1 bg-white rounded text-xs font-medium">
+                            <span
+                              className="px-2 py-1 rounded text-xs font-medium border border-current"
+                              style={getCategoryTagStyle(transaction.category)}
+                            >
                               {transaction.category}
                             </span>
                           )}
