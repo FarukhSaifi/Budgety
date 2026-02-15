@@ -4,17 +4,12 @@ import {
   NUMBER_FORMAT,
   RECURRENCE_LABELS,
   RECURRENCE_TYPES,
-  SORTED_EXPENSE_CATEGORIES,
   UI_TEXT,
 } from "@constants";
 import { useBudget } from "@context/BudgetContext";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
+import { useCategories } from "@hooks/useCategories";
 import { Button } from "@ui/Button";
+import { Dialog } from "@ui/Dialog";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { nowISO } from "@utils/dateUtils";
@@ -34,6 +29,7 @@ const getInitialFormData = () => ({
 
 const BillModal = ({ open, onClose, bill = null }) => {
   const { dispatch } = useBudget();
+  const { expense } = useCategories();
   const prevOpenRef = useRef(false);
   const prevBillIdRef = useRef(null);
 
@@ -183,120 +179,20 @@ const BillModal = ({ open, onClose, bill = null }) => {
     onClose();
   };
 
+  const formId = "bill-form";
+
   return (
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        className: "m-2 sm:m-4",
-      }}
-    >
-      <DialogTitle className="text-lg sm:text-xl font-semibold pb-3">
-        {isEditMode
+      title={
+        isEditMode
           ? `${UI_TEXT.EDIT} ${UI_TEXT.BILL_REMINDERS}`
-          : UI_TEXT.ADD_BILL_REMINDER_TITLE}
-      </DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent className="px-4 sm:px-6">
-          <FormFieldGroup columns={2} spacing={3} className="mb-4">
-            <FormField
-              label={UI_TEXT.BILL_NAME}
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              type="text"
-              required
-              placeholder="e.g., Electricity Bill"
-            />
-            <SearchableCategorySelect
-              label="Category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              required
-              options={SORTED_EXPENSE_CATEGORIES.map((category) => ({
-                value: category,
-                label: category,
-              }))}
-              placeholder="Search or select category..."
-            />
-            <FormField
-              label="Amount"
-              name="amount"
-              type="number"
-              value={formData.amount || ""}
-              onChange={handleChange}
-              required
-              inputProps={{
-                min: "0",
-                step: NUMBER_FORMAT.STEP_VALUE,
-              }}
-            />
-            <FormField
-              label={UI_TEXT.DUE_DATE}
-              name="dueDate"
-              type="date"
-              value={formData.dueDate}
-              onChange={handleChange}
-              required
-              InputLabelProps={{ shrink: true }}
-            />
-            <FormField
-              label={UI_TEXT.REMIND_ME_DAYS_BEFORE}
-              name="reminderDays"
-              type="number"
-              value={formData.reminderDays || ""}
-              onChange={handleChange}
-              inputProps={{
-                min: "0",
-                max: DATE_CONSTANTS.MAX_REMINDER_DAYS,
-              }}
-            />
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-                name="isRecurring"
-                checked={formData.isRecurring}
-                onChange={handleChange}
-              />
-              <label className="ml-2 block text-sm text-gray-700">
-                {UI_TEXT.RECURRING_BILL}
-              </label>
-            </div>
-            {formData.isRecurring && (
-              <FormField
-                label="Recurrence"
-                name="recurrence"
-                value={formData.recurrence}
-                onChange={handleChange}
-                type="select"
-                options={[
-                  {
-                    value: RECURRENCE_TYPES.MONTHLY,
-                    label: RECURRENCE_LABELS[RECURRENCE_TYPES.MONTHLY],
-                  },
-                  {
-                    value: RECURRENCE_TYPES.YEARLY,
-                    label: RECURRENCE_LABELS[RECURRENCE_TYPES.YEARLY],
-                  },
-                ]}
-              />
-            )}
-          </FormFieldGroup>
-
-          {error && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
-              <div className="flex items-center">
-                <i className="ion-alert-circled text-red-600 text-lg mr-2"></i>
-                <span className="text-sm text-red-800">{error}</span>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-        <DialogActions className="px-4 sm:px-6 pb-4 sm:pb-6 gap-2 sm:gap-3">
+          : UI_TEXT.ADD_BILL_REMINDER_TITLE
+      }
+      maxWidth="md"
+      actions={
+        <>
           <Button
             variant="outline"
             onClick={handleClose}
@@ -307,13 +203,120 @@ const BillModal = ({ open, onClose, bill = null }) => {
           </Button>
           <Button
             type="submit"
+            form={formId}
             variant="primary"
             size="md"
-            className="flex-1 sm:flex-initial py-2.5 sm:py-2 touch-manipulation bg-orange-600 hover:bg-orange-700"
+            className="flex-1 sm:flex-initial py-2.5 sm:py-2 touch-manipulation"
           >
             {UI_TEXT.SAVE || "Save"}
           </Button>
-        </DialogActions>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit}>
+        <FormFieldGroup columns={2} spacing={3} className="mb-4">
+          <FormField
+            label={UI_TEXT.BILL_NAME}
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            type="text"
+            required
+            placeholder={UI_TEXT.BILL_NAME_PLACEHOLDER}
+          />
+          <SearchableCategorySelect
+            label={UI_TEXT.CATEGORY_PLACEHOLDER}
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+            required
+            options={(expense || []).map((category) => ({
+              value: category,
+              label: category,
+            }))}
+            placeholder={UI_TEXT.SEARCH_OR_SELECT_CATEGORY}
+            allowAddNew
+            categoryType="expense"
+            onAddCategory={(name, type) =>
+              dispatch({
+                type: ACTION_TYPES.ADD_CATEGORY,
+                payload: { name, type },
+              })
+            }
+          />
+          <FormField
+            label="Amount"
+            name="amount"
+            type="number"
+            value={formData.amount || ""}
+            onChange={handleChange}
+            required
+            inputProps={{
+              min: "0",
+              step: NUMBER_FORMAT.STEP_VALUE,
+            }}
+          />
+          <FormField
+            label={UI_TEXT.DUE_DATE}
+            name="dueDate"
+            type="date"
+            value={formData.dueDate}
+            onChange={handleChange}
+            required
+            InputLabelProps={{ shrink: true }}
+          />
+          <FormField
+            label={UI_TEXT.REMIND_ME_DAYS_BEFORE}
+            name="reminderDays"
+            type="number"
+            value={formData.reminderDays || ""}
+            onChange={handleChange}
+            inputProps={{
+              min: "0",
+              max: DATE_CONSTANTS.MAX_REMINDER_DAYS,
+            }}
+          />
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
+              name="isRecurring"
+              checked={formData.isRecurring}
+              onChange={handleChange}
+            />
+            <label className="ml-2 block text-sm text-gray-700">
+              {UI_TEXT.RECURRING_BILL}
+            </label>
+          </div>
+          {formData.isRecurring && (
+            <FormField
+              label="Recurrence"
+              name="recurrence"
+              value={formData.recurrence}
+              onChange={handleChange}
+              type="select"
+              options={[
+                {
+                  value: RECURRENCE_TYPES.MONTHLY,
+                  label: RECURRENCE_LABELS[RECURRENCE_TYPES.MONTHLY],
+                },
+                {
+                  value: RECURRENCE_TYPES.YEARLY,
+                  label: RECURRENCE_LABELS[RECURRENCE_TYPES.YEARLY],
+                },
+              ]}
+            />
+          )}
+        </FormFieldGroup>
+
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+            <div className="flex items-center">
+              <i className="ion-alert-circled text-red-600 text-lg mr-2"></i>
+              <span className="text-sm text-red-800">{error}</span>
+            </div>
+          </div>
+        )}
       </form>
     </Dialog>
   );

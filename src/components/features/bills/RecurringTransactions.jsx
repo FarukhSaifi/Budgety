@@ -184,7 +184,7 @@ const RecurringTransactions = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 shrink-0">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -194,25 +194,25 @@ const RecurringTransactions = () => {
                       >
                         <i className="ion-edit text-xl"></i>
                       </Button>
-                      <button
-                        className={`px-2 md:px-3 py-1 text-xs md:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
-                          recurring.isActive
-                            ? "bg-yellow-500 hover:bg-yellow-600 text-white"
-                            : "bg-green-500 hover:bg-green-600 text-white"
-                        }`}
+                      <Button
+                        variant={recurring.isActive ? "warning" : "success"}
+                        size="sm"
+                        className="px-2 md:px-3 py-1 text-xs md:text-sm whitespace-nowrap"
                         onClick={() =>
                           toggleActive(recurring.id, recurring.isActive)
                         }
                       >
                         {recurring.isActive ? UI_TEXT.PAUSE : UI_TEXT.ACTIVATE}
-                      </button>
-                      <button
-                        className="text-red-500 hover:text-red-700 p-1 transition-colors"
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 p-1 min-h-0"
                         onClick={() => handleDelete(recurring.id)}
                         title={UI_TEXT.DELETE}
                       >
                         <i className="ion-close-round text-lg md:text-xl"></i>
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>

@@ -82,4 +82,14 @@ export const budgetyApi = {
     }),
   deleteBillReminder: (id) =>
     api(`/api/bill-reminders/${id}`, { method: "DELETE" }),
+
+  getCategories: () => api("/api/categories"),
+  addCategory: (name, type) =>
+    api("/api/categories", {
+      method: "POST",
+      body: JSON.stringify({
+        name: String(name).trim(),
+        type: type === "income" || type === "expense" ? type : "expense",
+      }),
+    }),
 };

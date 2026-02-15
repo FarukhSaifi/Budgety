@@ -1,6 +1,5 @@
 import {
   CHART_CONFIG,
-  CURRENCY_SYMBOL,
   DATE_FORMAT_STORAGE,
   DISPLAY_LIMITS,
   TIMEOUTS,
@@ -11,12 +10,9 @@ import { useBudget } from "@context/BudgetContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
-import {
-  dateFromMonthYear,
-  daysInMonth,
-} from "@utils/dateUtils";
 import { ChartContainer } from "@ui/ChartContainer";
 import { Widget } from "@ui/Widget";
+import { dateFromMonthYear, daysInMonth } from "@utils/dateUtils";
 import { exportChartData } from "@utils/exportUtils";
 import { showInfo } from "@utils/toast";
 import { useMemo } from "react";
@@ -37,9 +33,9 @@ const MonthlyTrendChart = () => {
     transactions,
     viewPeriod,
     selectedMonth,
-    selectedYear
+    selectedYear,
   );
-  const { formatCurrency } = useCurrencyFormatter();
+  const { formatCurrency, formatCurrencyForChart } = useCurrencyFormatter();
   const { formatDate } = useDateFormatter();
 
   // Prepare data for the chart
@@ -82,7 +78,7 @@ const MonthlyTrendChart = () => {
     return monthlyBreakdown.map((month) => {
       const dateStr = `${month.year}-${String(month.month).padStart(
         2,
-        "0"
+        "0",
       )}-01`;
       return {
         month: formatDate(dateStr, "monthYear"),
@@ -120,13 +116,7 @@ const MonthlyTrendChart = () => {
             viewPeriod === VIEW_PERIODS.MONTHLY
               ? `Day ${item.date}`
               : item.month
-          }: Income: ${CURRENCY_SYMBOL}${formatCurrency(item.Income, {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          })}, Expense: ${CURRENCY_SYMBOL}${formatCurrency(item.Expense, {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          })}`
+          }: Income: ${formatCurrencyForChart(item.Income)}, Expense: ${formatCurrencyForChart(item.Expense)}`,
       )
       .join("\n");
     showInfo(
@@ -137,15 +127,8 @@ const MonthlyTrendChart = () => {
           ? `\n... and ${chartData.length - DISPLAY_LIMITS.PREVIEW_ITEMS} more`
           : ""
       }`,
-      { autoClose: TIMEOUTS.TOAST_DETAILS }
+      { autoClose: TIMEOUTS.TOAST_DETAILS },
     );
-  };
-
-  const formatCurrencyForChart = (value) => {
-    return `${CURRENCY_SYMBOL}${formatCurrency(value, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })}`;
   };
 
   if (chartData.length === 0) {

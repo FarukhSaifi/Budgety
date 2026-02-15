@@ -1,3 +1,4 @@
+import { ERROR_MESSAGES } from "@/constants";
 import { getDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
@@ -5,7 +6,7 @@ export async function PATCH(request, { params }) {
   const sql = getDb();
   if (!sql)
     return NextResponse.json(
-      { error: "Database not configured" },
+      { error: ERROR_MESSAGES.DB_NOT_CONFIGURED },
       { status: 503 },
     );
   try {
@@ -15,7 +16,10 @@ export async function PATCH(request, { params }) {
     await sql`UPDATE budgety_transactions SET type=${type}, date=${date}, mode=${mode ?? "Cash"}, description=${description}, category=${category}, amount=${Number(amount)} WHERE id=${id}`;
     return NextResponse.json({ id, ...body });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || ERROR_MESSAGES.SERVER_ERROR },
+      { status: 500 },
+    );
   }
 }
 
@@ -23,7 +27,7 @@ export async function DELETE(request, { params }) {
   const sql = getDb();
   if (!sql)
     return NextResponse.json(
-      { error: "Database not configured" },
+      { error: ERROR_MESSAGES.DB_NOT_CONFIGURED },
       { status: 503 },
     );
   try {
@@ -31,6 +35,9 @@ export async function DELETE(request, { params }) {
     await sql`DELETE FROM budgety_transactions WHERE id=${id}`;
     return new NextResponse(null, { status: 204 });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || ERROR_MESSAGES.SERVER_ERROR },
+      { status: 500 },
+    );
   }
 }

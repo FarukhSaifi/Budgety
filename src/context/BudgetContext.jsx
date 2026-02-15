@@ -93,6 +93,25 @@ const reducer = (state, action) => {
         ...state,
         searchQuery: action.payload,
       };
+    case ACTION_TYPES.ADD_CATEGORY: {
+      const { name, type } =
+        typeof action.payload === "object" && action.payload
+          ? action.payload
+          : {};
+      const trimmed = typeof name === "string" ? name.trim().toUpperCase() : "";
+      const catType =
+        type === "income" || type === "expense" ? type : "expense";
+      if (!trimmed) return state;
+      const list = state.categories?.[catType] || [];
+      if (list.includes(trimmed)) return state;
+      return {
+        ...state,
+        categories: {
+          ...state.categories,
+          [catType]: [...list, trimmed],
+        },
+      };
+    }
     case ACTION_TYPES.ADD_BUDGET:
       return {
         ...state,
@@ -170,6 +189,11 @@ const reducer = (state, action) => {
         recurringTransactions:
           action.payload.recurringTransactions ?? state.recurringTransactions,
         billReminders: action.payload.billReminders ?? state.billReminders,
+        categories: action.payload.categories ??
+          state.categories ?? {
+            income: [],
+            expense: [],
+          },
       };
     default:
       return state;
@@ -266,6 +290,9 @@ const persistAction = async (type, payload, api) => {
         paidDate: nowISO(),
       });
       break;
+    case ACTION_TYPES.ADD_CATEGORY:
+      await api.addCategory(payload.name, payload.type);
+      break;
     default:
       break;
   }
@@ -290,6 +317,7 @@ const PERSIST_TYPES = new Set([
   ACTION_TYPES.UPDATE_BILL_REMINDER,
   ACTION_TYPES.DELETE_BILL_REMINDER,
   ACTION_TYPES.MARK_BILL_PAID,
+  ACTION_TYPES.ADD_CATEGORY,
 ]);
 
 export const BudgetProvider = ({ children }) => {
@@ -346,6 +374,7 @@ export const BudgetProvider = ({ children }) => {
       budgets: state.budgets,
       recurringTransactions: state.recurringTransactions,
       billReminders: state.billReminders,
+      categories: state.categories || { income: [], expense: [] },
       viewPeriod: state.viewPeriod,
       viewType: state.viewType,
       selectedMonth: state.selectedMonth,
@@ -362,6 +391,7 @@ export const BudgetProvider = ({ children }) => {
       state.budgets,
       state.recurringTransactions,
       state.billReminders,
+      state.categories,
       state.viewPeriod,
       state.viewType,
       state.selectedMonth,

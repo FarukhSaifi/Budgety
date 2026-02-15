@@ -86,7 +86,10 @@ const CalendarView = () => {
   // Get calendar days for the selected month
   const calendarDays = useMemo(() => {
     const numDays = daysInMonth(selectedYear, selectedMonth);
-    const startingDayOfWeek = startOfMonthDayOfWeek(selectedYear, selectedMonth);
+    const startingDayOfWeek = startOfMonthDayOfWeek(
+      selectedYear,
+      selectedMonth,
+    );
 
     const days = [];
     for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
@@ -422,8 +425,8 @@ const CalendarView = () => {
                       `}
                     >
                       <div className="flex-1 mb-2 sm:mb-0 min-w-0">
-                        <div className="font-semibold text-sm md:text-base text-gray-800 mb-1 break-words">
-                          {transaction.description || "No description"}
+                        <div className="font-semibold text-sm md:text-base text-gray-800 mb-1 wrap-break-word">
+                          {transaction.description || UI_TEXT.NO_DESCRIPTION}
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-600">
                           {transaction.category && (
@@ -441,7 +444,7 @@ const CalendarView = () => {
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <div
                           className={`
                             text-base md:text-lg font-bold whitespace-nowrap

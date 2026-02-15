@@ -1,5 +1,46 @@
+import {
+  ERROR_MESSAGES,
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+} from "@/constants";
 import { getDb, query } from "@/lib/db";
 import { NextResponse } from "next/server";
+
+const DEFAULT_INCOME = Object.values(INCOME_CATEGORIES);
+const DEFAULT_EXPENSE = Object.values(EXPENSE_CATEGORIES).sort();
+
+async function seedCategoriesIfEmpty(sql) {
+  const existing = await query(
+    () => sql`SELECT 1 FROM budgety_categories LIMIT 1`,
+  ).catch(() => []);
+  if (existing && existing.length > 0) return;
+  const now = new Date().toISOString();
+  for (const name of DEFAULT_INCOME) {
+    await sql`INSERT INTO budgety_categories (id, name, type, created_at)
+      VALUES (${crypto.randomUUID()}, ${name}, 'income', ${now})`;
+  }
+  for (const name of DEFAULT_EXPENSE) {
+    await sql`INSERT INTO budgety_categories (id, name, type, created_at)
+      VALUES (${crypto.randomUUID()}, ${name}, 'expense', ${now})`;
+  }
+}
+
+async function getCategoriesFromDb(sql) {
+  await seedCategoriesIfEmpty(sql);
+  const rows = await query(
+    () => sql`SELECT name, type FROM budgety_categories ORDER BY type, name`,
+  ).catch(() => []);
+  const income = (rows || [])
+    .filter((r) => r.type === "income")
+    .map((r) => r.name);
+  const expense = (rows || [])
+    .filter((r) => r.type === "expense")
+    .map((r) => r.name);
+  return {
+    income: income.length ? income : DEFAULT_INCOME,
+    expense: expense.length ? expense : DEFAULT_EXPENSE,
+  };
+}
 
 export async function GET() {
   const sql = getDb();
@@ -11,6 +52,7 @@ export async function GET() {
         budgets: [],
         recurringTransactions: [],
         billReminders: [],
+        categories: { income: DEFAULT_INCOME, expense: DEFAULT_EXPENSE },
       });
     }
     const [
@@ -19,6 +61,7 @@ export async function GET() {
       budgets,
       recurringTransactions,
       billReminders,
+      categories,
     ] = await Promise.all([
       query(
         () =>
@@ -40,6 +83,10 @@ export async function GET() {
         () =>
           sql`SELECT id, name, category, amount, due_date::text, reminder_days, is_recurring, recurrence, is_paid, paid_date::text, created_at::text FROM budgety_bill_reminders ORDER BY due_date ASC`,
       ),
+      getCategoriesFromDb(sql).catch(() => ({
+        income: DEFAULT_INCOME,
+        expense: DEFAULT_EXPENSE,
+      })),
     ]);
     return NextResponse.json({
       transactions: (transactions || []).map((r) => ({
@@ -92,8 +139,15 @@ export async function GET() {
         paidDate: r.paid_date || null,
         createdAt: r.created_at,
       })),
+      categories: categories || {
+        income: DEFAULT_INCOME,
+        expense: DEFAULT_EXPENSE,
+      },
     });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || ERROR_MESSAGES.SERVER_ERROR },
+      { status: 500 },
+    );
   }
 }

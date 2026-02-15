@@ -7,6 +7,7 @@ import {
 } from "@constants";
 import { useBudget } from "@context/BudgetContext";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { Button } from "@ui/Button";
 import { ConfirmDialog } from "@ui/ConfirmDialog";
 import { EmptyState } from "@ui/EmptyState";
 import { FormActions } from "@ui/FormActions";
@@ -160,7 +161,6 @@ const SavingsGoals = () => {
                     currentAmount: "",
                   });
                 }}
-                saveColor="green"
               />
             </form>
           </FormContainer>
@@ -189,13 +189,15 @@ const SavingsGoals = () => {
                     <h6 className="text-lg font-semibold text-gray-800">
                       {goal.name}
                     </h6>
-                    <button
-                      className="text-red-500 hover:text-red-700 p-1 transition-colors"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700 p-1 min-h-0"
                       onClick={() => handleDelete(goal.id)}
                       title={UI_TEXT.DELETE}
                     >
                       <i className="ion-close-round text-xl"></i>
-                    </button>
+                    </Button>
                   </div>
                   <div className="mb-3">
                     <div className="flex justify-between mb-2 text-sm text-gray-600">

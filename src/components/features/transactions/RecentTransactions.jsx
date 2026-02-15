@@ -41,7 +41,7 @@ const RecentTransactions = ({
     text,
     maxLength = DISPLAY_LIMITS.DESCRIPTION_LENGTH,
   ) => {
-    if (!text) return "No description";
+    if (!text) return UI_TEXT.NO_DESCRIPTION;
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + "...";
   };
@@ -175,7 +175,7 @@ const RecentTransactions = ({
               primary={
                 <span
                   className="block truncate"
-                  title={transaction.description || "No description"}
+                  title={transaction.description || UI_TEXT.NO_DESCRIPTION}
                 >
                   {truncatedDescription}
                 </span>
@@ -183,7 +183,7 @@ const RecentTransactions = ({
               secondary={formatDate(transaction.date, "short")}
               chips={chips}
               endIcon={
-                <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
+                <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
                   <span
                     className={`font-semibold text-sm whitespace-nowrap ${amountColor}`}
                   >

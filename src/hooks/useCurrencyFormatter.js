@@ -1,4 +1,8 @@
-import { CURRENCY_THRESHOLDS } from "@constants";
+import {
+  CURRENCY_SYMBOL,
+  CURRENCY_THRESHOLDS,
+  NUMBER_FORMAT,
+} from "@constants";
 import { useMemo } from "react";
 
 export const useCurrencyFormatter = () => {
@@ -6,10 +10,10 @@ export const useCurrencyFormatter = () => {
     () =>
       (amount, options = {}) => {
         const {
-          minimumFractionDigits = 2,
-          maximumFractionDigits = 2,
+          minimumFractionDigits = NUMBER_FORMAT.DECIMAL_PLACES,
+          maximumFractionDigits = NUMBER_FORMAT.DECIMAL_PLACES,
           compact = false,
-          symbol = "₹",
+          symbol = CURRENCY_SYMBOL,
         } = options;
 
         if (compact) {
@@ -47,5 +51,15 @@ export const useCurrencyFormatter = () => {
     [],
   );
 
-  return { formatCurrency, formatCompactCurrency };
+  /** For charts/tooltips: symbol + integer amount (no decimals). */
+  const formatCurrencyForChart = useMemo(
+    () => (value) =>
+      `${CURRENCY_SYMBOL}${formatCurrency(value, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      })}`,
+    [formatCurrency],
+  );
+
+  return { formatCurrency, formatCompactCurrency, formatCurrencyForChart };
 };

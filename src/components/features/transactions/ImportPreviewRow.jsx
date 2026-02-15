@@ -1,11 +1,13 @@
 import {
+  ACTION_TYPES,
   CURRENCY_SYMBOL,
-  INCOME_CATEGORIES,
   NUMBER_FORMAT,
-  SORTED_EXPENSE_CATEGORIES,
   TRANSACTION_MODES,
   TRANSACTION_TYPES,
+  UI_TEXT,
 } from "@constants";
+import { useBudget } from "@context/BudgetContext";
+import { useCategories } from "@hooks/useCategories";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import {
@@ -25,6 +27,8 @@ function ImportPreviewRowInner({
   isDuplicate,
   variant,
 }) {
+  const { dispatch } = useBudget();
+  const { getByType } = useCategories();
   const { formatCurrency } = useCurrencyFormatter();
   const dateStr = row.date || "";
   const description = row.description || "";
@@ -39,10 +43,7 @@ function ImportPreviewRowInner({
 
   const detectedCategory = categorizeTransaction(description, type);
   const category = editedCategory ?? detectedCategory;
-  const categoryOptions =
-    type === TRANSACTION_TYPES.INCOME
-      ? Object.values(INCOME_CATEGORIES)
-      : SORTED_EXPENSE_CATEGORIES;
+  const categoryOptions = getByType(type) || [];
 
   const isIncome = type === TRANSACTION_TYPES.INCOME;
 
@@ -87,10 +88,10 @@ function ImportPreviewRowInner({
             </div>
             <div className="mb-2 w-full overflow-hidden">
               <div
-                className="text-sm md:text-base font-semibold text-gray-900 break-words line-clamp-2"
-                title={description || "No description"}
+                className="text-sm md:text-base font-semibold text-gray-900 wrap-break-word line-clamp-2"
+                title={description || UI_TEXT.NO_DESCRIPTION}
               >
-                {description || "No description"}
+                {description || UI_TEXT.NO_DESCRIPTION}
               </div>
             </div>
             <div className="text-xs text-gray-500 truncate">{dateStr}</div>
@@ -110,7 +111,7 @@ function ImportPreviewRowInner({
         </div>
         <div className="pt-3 border-t border-gray-200">
           <label className="block text-xs font-semibold text-gray-700 mb-2">
-            Category
+            {UI_TEXT.CATEGORY_PLACEHOLDER}
           </label>
           <SearchableCategorySelect
             name={`category-mobile-${actualIndex}`}
@@ -118,6 +119,14 @@ function ImportPreviewRowInner({
             onChange={(e) => onCategoryChange(actualIndex, e.target.value)}
             options={categoryOptions.map((cat) => ({ value: cat, label: cat }))}
             inputClassName="[&_.MuiOutlinedInput-root]:min-h-11 [&_.MuiOutlinedInput-root]:bg-blue-50 [&_.MuiOutlinedInput-input]:text-sm [&_.MuiOutlinedInput-input]:py-3 [&_.MuiOutlinedInput-input]:px-3.5 [&_.MuiOutlinedInput-root]:[&_fieldset]:border-blue-300"
+            allowAddNew
+            categoryType={type}
+            onAddCategory={(name, catType) =>
+              dispatch({
+                type: ACTION_TYPES.ADD_CATEGORY,
+                payload: { name, type: catType },
+              })
+            }
           />
           {editedCategory && (
             <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
@@ -181,6 +190,14 @@ function ImportPreviewRowInner({
             onChange={(e) => onCategoryChange(actualIndex, e.target.value)}
             options={categoryOptions.map((cat) => ({ value: cat, label: cat }))}
             inputClassName="[&_.MuiOutlinedInput-root]:min-h-8 [&_.MuiOutlinedInput-input]:text-xs [&_.MuiOutlinedInput-input]:py-1.5 [&_.MuiOutlinedInput-input]:px-2.5"
+            allowAddNew
+            categoryType={type}
+            onAddCategory={(name, catType) =>
+              dispatch({
+                type: ACTION_TYPES.ADD_CATEGORY,
+                payload: { name, type: catType },
+              })
+            }
           />
         </div>
         {editedCategory && (

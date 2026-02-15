@@ -3,6 +3,7 @@ export { Button } from "./Button";
 export { Card, CardBody, CardHeader } from "./Card";
 export { ChartContainer } from "./ChartContainer";
 export { ConfirmDialog } from "./ConfirmDialog";
+export { Dialog } from "./Dialog";
 export { EmptyState } from "./EmptyState";
 export { EnhancedButton } from "./EnhancedButton";
 export { EnhancedCard } from "./EnhancedCard";

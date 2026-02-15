@@ -51,7 +51,7 @@ const MainContent = () => {
       case "transactions":
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <ViewControls />
+            <ViewControls variant="transactions" />
             <BankStatementImport />
             {viewType === VIEW_TYPES.CALENDAR ? <CalendarView /> : <Budget />}
           </Suspense>
@@ -59,14 +59,14 @@ const MainContent = () => {
       case "budgets":
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <ViewControls />
+            <ViewControls variant="budgets" />
             <BudgetManagement />
           </Suspense>
         );
       case "bills":
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <ViewControls />
+            <ViewControls variant="bills" />
             <PaymentsCalendarView />
             <RecurringTransactions />
             <BillReminders />
@@ -75,7 +75,7 @@ const MainContent = () => {
       case "reports":
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <ViewControls />
+            <ViewControls variant="reports" />
             <ReportsAnalysis />
           </Suspense>
         );

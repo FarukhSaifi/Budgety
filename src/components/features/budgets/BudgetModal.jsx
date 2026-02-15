@@ -1,17 +1,8 @@
-import {
-  ACTION_TYPES,
-  NUMBER_FORMAT,
-  SORTED_EXPENSE_CATEGORIES,
-  UI_TEXT,
-} from "@constants";
+import { ACTION_TYPES, NUMBER_FORMAT, UI_TEXT } from "@constants";
 import { useBudget } from "@context/BudgetContext";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
+import { useCategories } from "@hooks/useCategories";
 import { Button } from "@ui/Button";
+import { Dialog } from "@ui/Dialog";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { nowISO } from "@utils/dateUtils";
@@ -41,6 +32,7 @@ const getInitialFormData = (selectedMonth, selectedYear, budget = null) => {
 
 const BudgetModal = ({ open, onClose, budget = null }) => {
   const { dispatch, selectedMonth, selectedYear } = useBudget();
+  const { expense } = useCategories();
 
   // Compute initial form data using useMemo - this will reset when budget or selectedMonth/Year changes
   const initialFormData = useMemo(
@@ -160,85 +152,21 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
     return budget?.id ?? `new-${selectedMonth}-${selectedYear}`;
   }, [budget?.id, selectedMonth, selectedYear]);
 
+  const formId = "budget-form";
+
   return (
     <Dialog
       key={modalKey}
       open={open}
       onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        className: "m-2 sm:m-4",
-      }}
-    >
-      <DialogTitle className="text-lg sm:text-xl font-semibold pb-3">
-        {isEditMode
+      title={
+        isEditMode
           ? `${UI_TEXT.EDIT} ${UI_TEXT.BUDGETS}`
-          : UI_TEXT.ADD_NEW_BUDGET_TITLE}
-      </DialogTitle>
-      <form onSubmit={handleSubmit}>
-        <DialogContent className="px-4 sm:px-6">
-          <FormFieldGroup columns={2} spacing={3} className="mb-4">
-            <SearchableCategorySelect
-              label="Category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              required
-              options={SORTED_EXPENSE_CATEGORIES.map((category) => ({
-                value: category,
-                label: category,
-              }))}
-              placeholder="Search or select category..."
-            />
-            <FormField
-              label={UI_TEXT.BUDGET_LIMIT}
-              name="amount"
-              type="number"
-              value={formData.amount || ""}
-              onChange={handleChange}
-              required
-              inputProps={{
-                min: "0",
-                step: NUMBER_FORMAT.STEP_VALUE,
-              }}
-            />
-            <FormField
-              label="Month"
-              name="month"
-              type="number"
-              value={formData.month || ""}
-              onChange={handleChange}
-              required
-              inputProps={{
-                min: NUMBER_FORMAT.MIN_MONTH,
-                max: NUMBER_FORMAT.MAX_MONTH,
-              }}
-            />
-            <FormField
-              label="Year"
-              name="year"
-              type="number"
-              value={formData.year || ""}
-              onChange={handleChange}
-              required
-              inputProps={{
-                min: NUMBER_FORMAT.MIN_YEAR,
-                max: NUMBER_FORMAT.MAX_YEAR,
-              }}
-            />
-          </FormFieldGroup>
-
-          {error && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
-              <div className="flex items-center">
-                <i className="ion-alert-circled text-red-600 text-lg mr-2"></i>
-                <span className="text-sm text-red-800">{error}</span>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-        <DialogActions className="px-4 sm:px-6 pb-4 sm:pb-6 gap-2 sm:gap-3">
+          : UI_TEXT.ADD_NEW_BUDGET_TITLE
+      }
+      maxWidth="md"
+      actions={
+        <>
           <Button
             variant="outline"
             onClick={handleClose}
@@ -249,13 +177,84 @@ const BudgetModal = ({ open, onClose, budget = null }) => {
           </Button>
           <Button
             type="submit"
+            form={formId}
             variant="primary"
             size="md"
-            className="flex-1 sm:flex-initial py-2.5 sm:py-2 touch-manipulation bg-purple-600 hover:bg-purple-700"
+            className="flex-1 sm:flex-initial py-2.5 sm:py-2 touch-manipulation"
           >
             {UI_TEXT.SAVE || "Save"}
           </Button>
-        </DialogActions>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit}>
+        <FormFieldGroup columns={2} spacing={3} className="mb-4">
+          <SearchableCategorySelect
+            label={UI_TEXT.CATEGORY_PLACEHOLDER}
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+            required
+            options={(expense || []).map((category) => ({
+              value: category,
+              label: category,
+            }))}
+            placeholder={UI_TEXT.SEARCH_OR_SELECT_CATEGORY}
+            allowAddNew
+            categoryType="expense"
+            onAddCategory={(name, type) =>
+              dispatch({
+                type: ACTION_TYPES.ADD_CATEGORY,
+                payload: { name, type },
+              })
+            }
+          />
+          <FormField
+            label={UI_TEXT.BUDGET_LIMIT}
+            name="amount"
+            type="number"
+            value={formData.amount || ""}
+            onChange={handleChange}
+            required
+            inputProps={{
+              min: "0",
+              step: NUMBER_FORMAT.STEP_VALUE,
+            }}
+          />
+          <FormField
+            label="Month"
+            name="month"
+            type="number"
+            value={formData.month || ""}
+            onChange={handleChange}
+            required
+            inputProps={{
+              min: NUMBER_FORMAT.MIN_MONTH,
+              max: NUMBER_FORMAT.MAX_MONTH,
+            }}
+          />
+          <FormField
+            label="Year"
+            name="year"
+            type="number"
+            value={formData.year || ""}
+            onChange={handleChange}
+            required
+            inputProps={{
+              min: NUMBER_FORMAT.MIN_YEAR,
+              max: NUMBER_FORMAT.MAX_YEAR,
+            }}
+          />
+        </FormFieldGroup>
+
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+            <div className="flex items-center">
+              <i className="ion-alert-circled text-red-600 text-lg mr-2"></i>
+              <span className="text-sm text-red-800">{error}</span>
+            </div>
+          </div>
+        )}
       </form>
     </Dialog>
   );

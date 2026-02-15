@@ -22,6 +22,7 @@ export const ACTION_TYPES = {
   SET_VIEW_TYPE: "SET_VIEW_TYPE",
   SET_SELECTED_CATEGORY: "SET_SELECTED_CATEGORY",
   SET_SEARCH_QUERY: "SET_SEARCH_QUERY",
+  ADD_CATEGORY: "ADD_CATEGORY",
   RESTORE_STATE: "RESTORE_STATE",
 };
 
@@ -265,6 +266,42 @@ export const VIEW_TYPE_LABELS = {
   [VIEW_TYPES.CALENDAR]: "Calendar View",
 };
 
+// View control variants (which section is using the controls)
+export const VIEW_CONTROL_VARIANTS = {
+  TRANSACTIONS: "transactions",
+  BUDGETS: "budgets",
+  BILLS: "bills",
+  REPORTS: "reports",
+};
+
+// View control config per variant: which search/filters to show
+export const VIEW_CONTROL_CONFIG = {
+  [VIEW_CONTROL_VARIANTS.TRANSACTIONS]: {
+    showSearch: true,
+    showViewType: true,
+    showCategoryFilter: true,
+    showPeriodFilter: true,
+  },
+  [VIEW_CONTROL_VARIANTS.BUDGETS]: {
+    showSearch: false,
+    showViewType: false,
+    showCategoryFilter: false,
+    showPeriodFilter: true,
+  },
+  [VIEW_CONTROL_VARIANTS.BILLS]: {
+    showSearch: true,
+    showViewType: false,
+    showCategoryFilter: false,
+    showPeriodFilter: true,
+  },
+  [VIEW_CONTROL_VARIANTS.REPORTS]: {
+    showSearch: true,
+    showViewType: false,
+    showCategoryFilter: false,
+    showPeriodFilter: true,
+  },
+};
+
 // CSS Classes
 export const CSS_CLASSES = {
   INCOME_TOTAL: "income-total",
@@ -295,6 +332,13 @@ export const UI_TEXT = {
   AMOUNT_PLACEHOLDER: "Amount",
   DATE_PLACEHOLDER: "Date",
   CATEGORY_PLACEHOLDER: "Category",
+  SEARCH_OR_SELECT_CATEGORY: "Search or select category...",
+  ADD_AS_NEW_CATEGORY: 'Add "%s" as new category',
+  ADD_NEW_CATEGORY_TITLE: "Add new category",
+  ADD_NEW_CATEGORY_LABEL: "Category name",
+  ADD_NEW_CATEGORY_PLACEHOLDER: "Enter category name",
+  BILL_NAME_PLACEHOLDER: "e.g., Electricity Bill",
+  ADD_NEW_CATEGORY_REQUIRED: "Please enter a category name",
   MODE_PLACEHOLDER: "Mode",
   TYPE_LABEL: "Type",
   MODE_LABEL: "Mode",
@@ -435,7 +479,15 @@ export const UI_TEXT = {
   OPENING_BALANCE: "Opening Balance",
   BALANCE_BROUGHT_FORWARD: "Balance brought forward",
   VIEW_AND_MANAGE_TRANSACTIONS: "View and manage your income and expenses",
+  VIEW_CONTROLS_TITLE: "View Controls",
+  VIEW_CONTROLS_SUBTITLE_TRANSACTIONS: "Filter transactions by period",
+  VIEW_CONTROLS_SUBTITLE_BUDGETS: "Filter budgets by period",
+  VIEW_CONTROLS_SUBTITLE_BILLS: "Filter bills by period",
+  VIEW_CONTROLS_SUBTITLE_REPORTS: "Filter reports by period",
+  VIEW_TYPE_LABEL: "View Type",
+  VIEW_PERIOD_LABEL: "View Period",
   NOT_AVAILABLE: "N/A",
+  NO_DESCRIPTION: "No description",
   BILL_NAME: "Bill Name",
   DUE_DATE: "Due Date",
   START_DATE: "Start Date",
@@ -475,6 +527,8 @@ export const ERROR_MESSAGES = {
   REQUEST_FAILED: "Request failed",
   LOAD_DATA_FAILED: "Could not load data from server. Using empty state.",
   SAVE_FAILED: "Failed to save",
+  SERVER_ERROR: "An error occurred. Please try again.",
+  DB_NOT_CONFIGURED: "Database not configured",
   BOUNDARY_FALLBACK: "Something went wrong. Please refresh the page.",
   CSV_READ_FAILED: "Failed to read CSV file. Please try again.",
   PDF_NO_VALID_TRANSACTIONS: "No valid transactions found in the PDF file",
@@ -537,6 +591,7 @@ export const DEFAULT_STATE = {
   budgets: [],
   recurringTransactions: [],
   billReminders: [],
+  categories: { income: [], expense: [] },
   viewPeriod: VIEW_PERIODS.MONTHLY,
   viewType: VIEW_TYPES.LIST,
   selectedMonth: undefined,

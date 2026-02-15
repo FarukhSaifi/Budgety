@@ -119,7 +119,7 @@ const BillReminders = () => {
                         days overdue)
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className="font-bold text-sm md:text-base text-red-600 whitespace-nowrap">
                         {CURRENCY_SYMBOL}
                         {formatCurrency(bill.amount, {
@@ -136,12 +136,14 @@ const BillReminders = () => {
                       >
                         <i className="ion-edit text-xl"></i>
                       </Button>
-                      <button
+                      <Button
+                        variant="success"
+                        size="sm"
                         onClick={() => handleMarkPaid(bill.id)}
-                        className="bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm font-medium py-1.5 md:py-2 px-2 md:px-3 rounded transition-colors whitespace-nowrap"
+                        className="text-xs md:text-sm py-1.5 md:py-2 px-2 md:px-3 whitespace-nowrap"
                       >
                         {UI_TEXT.MARK_AS_PAID}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 );
@@ -197,7 +199,7 @@ const BillReminders = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className="font-bold text-sm md:text-base text-gray-800 whitespace-nowrap">
                         {CURRENCY_SYMBOL}
                         {formatCurrency(bill.amount, {
@@ -214,19 +216,23 @@ const BillReminders = () => {
                       >
                         <i className="ion-edit text-xl"></i>
                       </Button>
-                      <button
+                      <Button
+                        variant="success"
+                        size="sm"
                         onClick={() => handleMarkPaid(bill.id)}
-                        className="bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm font-medium py-1.5 md:py-2 px-2 md:px-4 rounded transition-colors whitespace-nowrap"
+                        className="text-xs md:text-sm py-1.5 md:py-2 px-2 md:px-4 whitespace-nowrap"
                       >
                         {UI_TEXT.MARK_AS_PAID}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 p-1 min-h-0"
                         onClick={() => handleDelete(bill.id)}
-                        className="text-red-500 hover:text-red-700 p-1 transition-colors"
                         title={UI_TEXT.DELETE}
                       >
                         <i className="ion-close-round text-lg md:text-xl"></i>
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 );

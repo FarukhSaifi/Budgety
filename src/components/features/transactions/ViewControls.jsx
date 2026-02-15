@@ -2,26 +2,49 @@ import {
   ACTION_TYPES,
   MONTHS,
   UI_TEXT,
+  VIEW_CONTROL_CONFIG,
+  VIEW_CONTROL_VARIANTS,
   VIEW_PERIODS,
   VIEW_PERIOD_LABELS,
   VIEW_TYPES,
   VIEW_TYPE_LABELS,
 } from "@constants";
 import { useBudget } from "@context/BudgetContext";
+import { useTab } from "@context/TabContext";
 import {
   CalendarMonth,
   Close as CloseIcon,
   List as ListIcon,
   Search as SearchIcon,
 } from "@mui/icons-material";
-import { getCurrentMonthYear } from "@utils/dateUtils";
 import { Button } from "@ui/Button";
 import { EnhancedCard } from "@ui/EnhancedCard";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
+import { getCurrentMonthYear } from "@utils/dateUtils";
 import { useMemo } from "react";
 
-const ViewControls = () => {
+const VIEW_CONTROL_SUBTITLES = {
+  [VIEW_CONTROL_VARIANTS.TRANSACTIONS]:
+    UI_TEXT.VIEW_CONTROLS_SUBTITLE_TRANSACTIONS,
+  [VIEW_CONTROL_VARIANTS.BUDGETS]: UI_TEXT.VIEW_CONTROLS_SUBTITLE_BUDGETS,
+  [VIEW_CONTROL_VARIANTS.BILLS]: UI_TEXT.VIEW_CONTROLS_SUBTITLE_BILLS,
+  [VIEW_CONTROL_VARIANTS.REPORTS]: UI_TEXT.VIEW_CONTROLS_SUBTITLE_REPORTS,
+};
+
+const DEFAULT_CONFIG = {
+  showSearch: false,
+  showViewType: false,
+  showCategoryFilter: false,
+  showPeriodFilter: true,
+};
+
+const ViewControls = ({ variant: variantProp }) => {
+  const { activeTab } = useTab();
+  const variant =
+    variantProp ?? activeTab ?? VIEW_CONTROL_VARIANTS.TRANSACTIONS;
+  const config = VIEW_CONTROL_CONFIG[variant] ?? DEFAULT_CONFIG;
+
   const {
     viewPeriod,
     selectedMonth,
@@ -33,14 +56,14 @@ const ViewControls = () => {
     dispatch,
   } = useBudget();
 
-  // Get all unique categories from transactions
   const allCategories = useMemo(() => {
+    if (!config.showCategoryFilter) return [];
     const categories = new Set();
     transactions.forEach((t) => {
       if (t.category) categories.add(t.category);
     });
     return Array.from(categories).sort();
-  }, [transactions]);
+  }, [transactions, config.showCategoryFilter]);
 
   const handleViewPeriodChange = (e) => {
     const newViewPeriod = e.target.value;
@@ -126,156 +149,182 @@ const ViewControls = () => {
     return years;
   };
 
+  const subtitle =
+    VIEW_CONTROL_SUBTITLES[variant] ??
+    UI_TEXT.VIEW_CONTROLS_SUBTITLE_TRANSACTIONS;
+  const hasAnyFilter =
+    config.showSearch ||
+    config.showViewType ||
+    config.showCategoryFilter ||
+    config.showPeriodFilter;
+
+  if (!hasAnyFilter) return null;
+
   return (
     <div className="mb-2 md:mb-4">
-      <EnhancedCard
-        title="View Controls"
-        subtitle="Filter transactions by period"
-      >
-        {/* Search Bar */}
-        <div className="mb-2 md:mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {UI_TEXT.SEARCH_LABEL}
-          </label>
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <SearchIcon className="h-5 w-5 text-gray-400" />
+      <EnhancedCard title={UI_TEXT.VIEW_CONTROLS_TITLE} subtitle={subtitle}>
+        {config.showSearch && (
+          <div className="mb-2 md:mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {UI_TEXT.SEARCH_LABEL}
+            </label>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <SearchIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder={UI_TEXT.SEARCH_PLACEHOLDER}
+                  className="block w-full pl-10 pr-10 py-2.5 sm:py-2 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                {searchQuery && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearSearch}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 min-h-0 py-0"
+                    title={UI_TEXT.CLEAR_SEARCH}
+                  >
+                    <CloseIcon className="h-5 w-5" />
+                  </Button>
+                )}
               </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                placeholder={UI_TEXT.SEARCH_PLACEHOLDER}
-                className="block w-full pl-10 pr-10 py-2.5 sm:py-2 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
               {searchQuery && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleClearSearch}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  title={UI_TEXT.CLEAR_SEARCH}
+                  className="shrink-0 touch-manipulation whitespace-nowrap"
                 >
-                  <CloseIcon className="h-5 w-5" />
-                </button>
+                  {UI_TEXT.CLEAR_SEARCH}
+                </Button>
               )}
             </div>
-            {searchQuery && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClearSearch}
-                className="flex-shrink-0 touch-manipulation whitespace-nowrap"
-              >
-                {UI_TEXT.CLEAR_SEARCH}
-              </Button>
-            )}
           </div>
-        </div>
+        )}
 
-        {/* View Type Toggle and Category Filter - Side by Side */}
-        <div className="mb-2 md:mb-4">
-          <div className="flex flex-col lg:flex-row gap-2 md:gap-4 lg:items-start">
-            {/* View Type Toggle */}
-            <div className="flex-1 lg:flex-initial">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                View Type
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleViewTypeChange(VIEW_TYPES.LIST)}
-                  className={`flex-1 sm:flex-initial flex justify-center items-center gap-2 py-2.5 sm:py-2 px-4 rounded-lg font-medium text-sm sm:text-base transition-all duration-200 touch-manipulation ${
-                    viewType === VIEW_TYPES.LIST
-                      ? "bg-blue-600 text-white border-2 border-blue-600 shadow-sm"
-                      : "bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100"
-                  }`}
-                >
-                  <ListIcon className="text-base sm:text-lg" />
-                  <span>{VIEW_TYPE_LABELS[VIEW_TYPES.LIST]}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleViewTypeChange(VIEW_TYPES.CALENDAR)}
-                  className={`flex-1 sm:flex-initial flex justify-center items-center gap-2 py-2.5 sm:py-2 px-4 rounded-lg font-medium text-sm sm:text-base transition-all duration-200 touch-manipulation ${
-                    viewType === VIEW_TYPES.CALENDAR
-                      ? "bg-blue-600 text-white border-2 border-blue-600 shadow-sm"
-                      : "bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100"
-                  }`}
-                >
-                  <CalendarMonth className="text-base sm:text-lg" />
-                  <span>{VIEW_TYPE_LABELS[VIEW_TYPES.CALENDAR]}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Category Filter */}
-            {allCategories.length > 0 && (
-              <div className="flex-1 lg:flex-initial lg:min-w-[280px]">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {UI_TEXT.FILTER_BY_CATEGORY}
-                </label>
-                <div className="flex gap-2">
-                  <div className="flex-1 min-w-0">
-                    <SearchableCategorySelect
-                      label=""
-                      name="category"
-                      value={selectedCategory}
-                      onChange={handleCategoryChange}
-                      options={[
-                        { value: "", label: UI_TEXT.ALL_CATEGORIES },
-                        ...allCategories.map((cat) => ({
-                          value: cat,
-                          label: cat,
-                        })),
-                      ]}
-                      placeholder="Search or select category..."
-                    />
-                  </div>
-                  {selectedCategory && (
+        {(config.showViewType || config.showCategoryFilter) && (
+          <div className="mb-2 md:mb-4">
+            <div className="flex flex-col lg:flex-row gap-2 md:gap-4 lg:items-start">
+              {config.showViewType && (
+                <div className="flex-1 lg:flex-initial">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {UI_TEXT.VIEW_TYPE_LABEL}
+                  </label>
+                  <div className="flex gap-2">
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClearCategory}
-                      className="flex-shrink-0 touch-manipulation whitespace-nowrap"
+                      type="button"
+                      variant={
+                        viewType === VIEW_TYPES.LIST ? "primary" : "outline"
+                      }
+                      size="md"
+                      onClick={() => handleViewTypeChange(VIEW_TYPES.LIST)}
+                      className="flex-1 sm:flex-initial gap-2 py-2.5 sm:py-2 touch-manipulation"
                     >
-                      {UI_TEXT.CLEAR_FILTER}
+                      <ListIcon className="text-base sm:text-lg" />
+                      <span>{VIEW_TYPE_LABELS[VIEW_TYPES.LIST]}</span>
                     </Button>
-                  )}
+                    <Button
+                      type="button"
+                      variant={
+                        viewType === VIEW_TYPES.CALENDAR ? "primary" : "outline"
+                      }
+                      size="md"
+                      onClick={() => handleViewTypeChange(VIEW_TYPES.CALENDAR)}
+                      className="flex-1 sm:flex-initial gap-2 py-2.5 sm:py-2 touch-manipulation"
+                    >
+                      <CalendarMonth className="text-base sm:text-lg" />
+                      <span>{VIEW_TYPE_LABELS[VIEW_TYPES.CALENDAR]}</span>
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
 
-        <FormFieldGroup
-          columns={viewPeriod === VIEW_PERIODS.MONTHLY ? 3 : 2}
-          spacing={3}
-        >
-          <FormField
-            label="View Period"
-            value={viewPeriod}
-            onChange={handleViewPeriodChange}
-            type="select"
-            options={Object.values(VIEW_PERIODS).map((period) => ({
-              value: period,
-              label: VIEW_PERIOD_LABELS[period],
-            }))}
-          />
-          {viewPeriod === VIEW_PERIODS.MONTHLY && (
-            <>
+              {config.showCategoryFilter && allCategories.length > 0 && (
+                <div className="flex-1 lg:flex-initial lg:min-w-[280px]">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {UI_TEXT.FILTER_BY_CATEGORY}
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 min-w-0">
+                      <SearchableCategorySelect
+                        label=""
+                        name="category"
+                        value={selectedCategory}
+                        onChange={handleCategoryChange}
+                        options={[
+                          { value: "", label: UI_TEXT.ALL_CATEGORIES },
+                          ...allCategories.map((cat) => ({
+                            value: cat,
+                            label: cat,
+                          })),
+                        ]}
+                        placeholder={UI_TEXT.SEARCH_OR_SELECT_CATEGORY}
+                      />
+                    </div>
+                    {selectedCategory && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearCategory}
+                        className="shrink-0 touch-manipulation whitespace-nowrap"
+                      >
+                        {UI_TEXT.CLEAR_FILTER}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {config.showPeriodFilter && (
+          <FormFieldGroup
+            columns={viewPeriod === VIEW_PERIODS.MONTHLY ? 3 : 2}
+            spacing={3}
+          >
+            <FormField
+              label={UI_TEXT.VIEW_PERIOD_LABEL}
+              value={viewPeriod}
+              onChange={handleViewPeriodChange}
+              type="select"
+              options={Object.values(VIEW_PERIODS).map((period) => ({
+                value: period,
+                label: VIEW_PERIOD_LABELS[period],
+              }))}
+            />
+            {viewPeriod === VIEW_PERIODS.MONTHLY && (
+              <>
+                <FormField
+                  label={UI_TEXT.SELECT_MONTH}
+                  value={selectedMonth}
+                  onChange={handleMonthChange}
+                  type="select"
+                  options={MONTHS.map((month, index) => ({
+                    value: index + 1,
+                    label: month,
+                  }))}
+                />
+                <FormField
+                  label={UI_TEXT.SELECT_YEAR}
+                  value={selectedYear}
+                  onChange={handleYearChange}
+                  type="select"
+                  options={getYears().map((year) => ({
+                    value: year,
+                    label: year.toString(),
+                  }))}
+                />
+              </>
+            )}
+            {viewPeriod === VIEW_PERIODS.YEARLY && (
               <FormField
-                label="Month"
-                value={selectedMonth}
-                onChange={handleMonthChange}
-                type="select"
-                options={MONTHS.map((month, index) => ({
-                  value: index + 1,
-                  label: month,
-                }))}
-              />
-              <FormField
-                label="Year"
+                label={UI_TEXT.SELECT_YEAR}
                 value={selectedYear}
                 onChange={handleYearChange}
                 type="select"
@@ -284,21 +333,9 @@ const ViewControls = () => {
                   label: year.toString(),
                 }))}
               />
-            </>
-          )}
-          {viewPeriod === VIEW_PERIODS.YEARLY && (
-            <FormField
-              label="Year"
-              value={selectedYear}
-              onChange={handleYearChange}
-              type="select"
-              options={getYears().map((year) => ({
-                value: year,
-                label: year.toString(),
-              }))}
-            />
-          )}
-        </FormFieldGroup>
+            )}
+          </FormFieldGroup>
+        )}
       </EnhancedCard>
     </div>
   );

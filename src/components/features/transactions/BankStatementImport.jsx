@@ -1,12 +1,6 @@
 import ImportPreviewRow from "@components/features/transactions/ImportPreviewRow";
 import AddTransactionModal from "@components/features/transactions/TransactionForm";
-import {
-  ACTION_TYPES,
-  DISPLAY_LIMITS,
-  ERROR_MESSAGES,
-  TIMEOUTS,
-  UI_TEXT,
-} from "@constants";
+import { ACTION_TYPES, ERROR_MESSAGES, TIMEOUTS, UI_TEXT } from "@constants";
 import { useBudget } from "@context/BudgetContext";
 import { useDuplicateIndices } from "@hooks/useDuplicateIndices";
 import { Add as AddIcon } from "@mui/icons-material";
@@ -38,7 +32,7 @@ function setPreviewFromParsed(parsedTransactions, mapping, setters) {
   } = setters;
   setColumnMapping(mapping);
   setAllParsedData(parsedTransactions);
-  setPreviewData(parsedTransactions.slice(0, DISPLAY_LIMITS.PREVIEW_ROWS));
+  setPreviewData(parsedTransactions);
   setEditedCategories({});
   setShowPreview(true);
 }
@@ -401,10 +395,10 @@ const BankStatementImport = () => {
         <CardHeader bgColor="bg-blue-500">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 md:gap-4">
             <div className="flex-1 min-w-0 overflow-hidden">
-              <h5 className="text-base sm:text-lg md:text-xl font-semibold text-white break-words">
+              <h5 className="text-base sm:text-lg md:text-xl font-semibold text-white wrap-break-word">
                 {UI_TEXT.IMPORT_BANK_STATEMENT}
               </h5>
-              <p className="text-xs sm:text-sm mt-1 opacity-90 text-blue-100 break-words">
+              <p className="text-xs sm:text-sm mt-1 opacity-90 text-blue-100 wrap-break-word">
                 {UI_TEXT.UPLOAD_CSV_EXCEL}
               </p>
             </div>
@@ -415,7 +409,7 @@ const BankStatementImport = () => {
                 size="sm"
                 className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-center py-2.5 sm:py-2 touch-manipulation text-xs sm:text-sm"
               >
-                <i className="ion-trash-a text-sm sm:text-base flex-shrink-0"></i>
+                <i className="ion-trash-a text-sm sm:text-base shrink-0"></i>
                 <span className="truncate">
                   <span className="hidden sm:inline">
                     {UI_TEXT.CLEANUP_IMPORTED_DATA}
@@ -431,8 +425,8 @@ const BankStatementImport = () => {
           {importedCount > 0 && (
             <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
               <div className="flex items-center gap-2">
-                <i className="ion-checkmark-circled text-green-600 text-lg sm:text-xl flex-shrink-0"></i>
-                <span className="text-green-800 font-medium text-sm sm:text-base break-words">
+                <i className="ion-checkmark-circled text-green-600 text-lg sm:text-xl shrink-0"></i>
+                <span className="text-green-800 font-medium text-sm sm:text-base wrap-break-word">
                   Successfully imported {importedCount} transaction(s)!
                 </span>
               </div>
@@ -448,18 +442,18 @@ const BankStatementImport = () => {
                 <label className="flex-1 cursor-pointer">
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center hover:border-blue-500 active:border-blue-600 transition-colors touch-manipulation">
                     <i className="ion-upload text-2xl sm:text-3xl text-gray-400 mb-2"></i>
-                    <p className="text-xs sm:text-sm text-gray-600 break-words px-2">
+                    <p className="text-xs sm:text-sm text-gray-600 wrap-break-word px-2">
                       {file ? (
                         <span className="font-medium break-all">
                           {file.name}
                         </span>
                       ) : (
-                        <span className="break-words">
+                        <span className="wrap-break-word">
                           Click to upload or drag and drop
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1 break-words px-2">
+                    <p className="text-xs text-gray-500 mt-1 wrap-break-word px-2">
                       CSV, XLS, XLSX, or PDF files
                     </p>
                   </div>
@@ -498,10 +492,10 @@ const BankStatementImport = () => {
 
             {showPreview && previewData.length > 0 && (
               <div className="mt-2 md:mt-4 w-full max-w-full overflow-x-hidden">
-                <h6 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 md:mb-4 break-words">
+                <h6 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 md:mb-4 wrap-break-word">
                   <span className="block sm:inline">
-                    Preview Transactions ({previewData.length} of{" "}
-                    {allParsedData.length} shown)
+                    Preview Transactions ({previewData.length} record
+                    {previewData.length !== 1 ? "s" : ""})
                   </span>
                   {duplicateIndices.size > 0 && (
                     <span className="block sm:inline sm:ml-2 mt-1 sm:mt-0 text-sm font-normal text-orange-600">
@@ -512,11 +506,11 @@ const BankStatementImport = () => {
 
                 {columnMapping && (
                   <div className="mb-2 md:mb-4 p-2 md:p-4 bg-blue-50 border border-blue-200 rounded-lg w-full max-w-full overflow-x-hidden">
-                    <p className="text-xs sm:text-sm text-blue-800 mb-2 break-words">
+                    <p className="text-xs sm:text-sm text-blue-800 mb-2 wrap-break-word">
                       <strong>Detected Columns:</strong> Check the browser
                       console (F12) to see which columns were auto-detected.
                     </p>
-                    <p className="text-xs text-blue-700 mt-1 break-words">
+                    <p className="text-xs text-blue-700 mt-1 wrap-break-word">
                       Tip: Ensure your file has headers like &quot;Date&quot;,
                       &quot;Description&quot;, &quot;Deposits&quot;,
                       &quot;Withdraw&quot;, &quot;Amount&quot;, etc.
@@ -525,17 +519,17 @@ const BankStatementImport = () => {
                 )}
 
                 <div className="mb-2 md:mb-4 p-2 md:p-4 bg-yellow-50 border border-yellow-200 rounded-lg w-full max-w-full overflow-x-hidden">
-                  <p className="text-xs sm:text-sm text-yellow-800 mb-2 break-words">
+                  <p className="text-xs sm:text-sm text-yellow-800 mb-2 wrap-break-word">
                     <strong>Note:</strong> The system will auto-detect
                     transaction types and categories. You can review and edit
                     categories before importing.
                   </p>
                 </div>
 
-                {/* Desktop Table View */}
-                <div className="hidden lg:block overflow-x-auto mb-4">
+                {/* Desktop Table View - scrollable */}
+                <div className="hidden lg:block mb-4 max-h-[50vh] overflow-auto border border-gray-200 rounded-lg">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
                       <tr>
                         <th className="px-4 py-2 text-center">S.No</th>
                         <th className="px-4 py-2 text-left">Date</th>
@@ -567,8 +561,8 @@ const BankStatementImport = () => {
                   </table>
                 </div>
 
-                {/* Mobile Card View */}
-                <div className="lg:hidden space-y-2 md:space-y-3 mb-4 w-full max-w-full overflow-x-hidden">
+                {/* Mobile Card View - scrollable */}
+                <div className="lg:hidden mb-4 max-h-[50vh] overflow-y-auto overflow-x-hidden space-y-2 md:space-y-3 w-full max-w-full border border-gray-200 rounded-lg p-2">
                   {previewData.map((row) => {
                     const actualIndex = allParsedData.findIndex(
                       (r) => r === row,

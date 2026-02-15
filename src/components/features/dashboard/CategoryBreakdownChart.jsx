@@ -1,7 +1,6 @@
 import {
   CATEGORY_COLORS,
   CHART_CONFIG,
-  CURRENCY_SYMBOL,
   DISPLAY_LIMITS,
   TIMEOUTS,
   UI_TEXT,
@@ -24,7 +23,7 @@ import {
 } from "recharts";
 
 const CustomTooltip = ({ active, payload }) => {
-  const { formatCurrency } = useCurrencyFormatter();
+  const { formatCurrencyForChart } = useCurrencyFormatter();
 
   if (active && payload && payload.length) {
     return (
@@ -33,10 +32,7 @@ const CustomTooltip = ({ active, payload }) => {
           {payload[0].name}
         </div>
         <div className="font-medium text-indigo-600">
-          {`${CURRENCY_SYMBOL}${formatCurrency(payload[0].value, {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          })}`}
+          {formatCurrencyForChart(payload[0].value)}
         </div>
       </div>
     );
@@ -50,9 +46,9 @@ const CategoryBreakdownChart = () => {
     transactions,
     viewPeriod,
     selectedMonth,
-    selectedYear
+    selectedYear,
   );
-  const { formatCurrency } = useCurrencyFormatter();
+  const { formatCurrencyForChart } = useCurrencyFormatter();
 
   // Prepare data for pie chart
   const chartData = useMemo(() => {
@@ -89,16 +85,13 @@ const CategoryBreakdownChart = () => {
     const total = Object.values(spendingByCategory).reduce((a, b) => a + b, 0);
     const previewLimit = Math.min(
       DISPLAY_LIMITS.PREVIEW_ITEMS,
-      chartData.length
+      chartData.length,
     );
     const details = chartData
       .slice(0, DISPLAY_LIMITS.PREVIEW_ITEMS)
       .map(
         (item) =>
-          `${item.name}: ${CURRENCY_SYMBOL}${formatCurrency(item.value, {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          })} (${((item.value / total) * 100).toFixed(1)}%)`
+          `${item.name}: ${formatCurrencyForChart(item.value)} (${((item.value / total) * 100).toFixed(1)}%)`,
       )
       .join("\n");
     showInfo(
@@ -109,7 +102,7 @@ const CategoryBreakdownChart = () => {
             } more categories`
           : ""
       }`,
-      { autoClose: TIMEOUTS.TOAST_DETAILS }
+      { autoClose: TIMEOUTS.TOAST_DETAILS },
     );
   };
 

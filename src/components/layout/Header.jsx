@@ -9,10 +9,11 @@ import { useBudget } from "@context/BudgetContext";
 import { useTab } from "@context/TabContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
-import { getCurrentMonthYear } from "@utils/dateUtils";
 import { KeyboardArrowDown as ArrowDownIcon } from "@mui/icons-material";
 import { Popover } from "@mui/material";
+import { Button } from "@ui/Button";
 import { MetricCard } from "@ui/MetricCard";
+import { getCurrentMonthYear } from "@utils/dateUtils";
 import React, { useEffect, useState } from "react";
 
 const Header = () => {
@@ -177,15 +178,17 @@ const Header = () => {
           <h1 className="mb-1 md:mb-2 text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">
             {getTabTitle()}
           </h1>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleDateClick}
-            className="flex items-center gap-1 md:gap-2 hover:bg-gray-50 rounded-md px-2 py-1 transition-colors cursor-pointer"
+            className="flex items-center gap-1 md:gap-2 rounded-md px-2 py-1 min-h-0"
           >
             <span className="text-xs md:text-sm text-gray-600 font-medium">
               {getDateRange()}
             </span>
             <ArrowDownIcon className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />
-          </button>
+          </Button>
         </div>
 
         <div className="flex w-full items-center justify-between gap-2 md:w-auto md:gap-4 lg:gap-8">
@@ -289,12 +292,14 @@ const Header = () => {
 
             {/* Close Button */}
             <div className="pt-2 border-t border-gray-200">
-              <button
+              <Button
+                variant="primary"
+                fullWidth
                 onClick={handleDatePickerClose}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+                size="md"
               >
                 Done
-              </button>
+              </Button>
             </div>
           </div>
         </div>

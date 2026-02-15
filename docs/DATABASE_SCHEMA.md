@@ -70,6 +70,20 @@ All user data is stored in Neon (PostgreSQL). Local storage is not used.
 | paid_date     | TIMESTAMPTZ   | When marked paid     |
 | created_at    | TIMESTAMPTZ   | Created at           |
 
+### budgety_categories
+
+All category options (income and expense) are stored in the DB and separated by type.
+
+| Column     | Type         | Description                     |
+| ---------- | ------------ | ------------------------------- |
+| id         | TEXT (PK)    | UUID                            |
+| name       | TEXT         | Category name                   |
+| type       | TEXT         | `income` \| `expense`           |
+| created_at | TIMESTAMPTZ  | Created at                      |
+| UNIQUE     | (name, type) | Same name allowed for each type |
+
+Create the table with `scripts/create-categories-table.sql`. On first load, the app seeds it with default income and expense categories from constants if the table is empty.
+
 ## Running the app (Next.js)
 
 1. Copy `.env.example` to `.env.local`.

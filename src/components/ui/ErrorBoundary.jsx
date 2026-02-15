@@ -1,6 +1,7 @@
 "use client";
 
 import { ERROR_MESSAGES, UI_TEXT } from "@constants";
+import { Button } from "@ui/Button";
 import { Component } from "react";
 
 /**
@@ -21,13 +22,14 @@ export class ErrorBoundary extends Component {
             <p className="text-gray-700 mb-4" role="alert">
               {this.props.fallbackMessage ?? ERROR_MESSAGES.BOUNDARY_FALLBACK}
             </p>
-            <button
+            <Button
               type="button"
+              variant="primary"
               onClick={() => this.setState({ hasError: false })}
-              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+              className="bg-gray-900 hover:bg-gray-800"
             >
               {UI_TEXT.TRY_AGAIN}
-            </button>
+            </Button>
           </div>
         </div>
       );

@@ -1,16 +1,3 @@
-import { useMemo } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import {
   CHART_CONFIG,
   CURRENCY_SYMBOL,
@@ -27,6 +14,19 @@ import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
 import { isInMonthYear } from "@utils/dateUtils";
 import dayjs from "dayjs";
+import { useMemo } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const ReportsAnalysis = () => {
   const { transactions, budgets, selectedMonth, selectedYear } = useBudget();
@@ -40,22 +40,15 @@ const ReportsAnalysis = () => {
     transactions,
     VIEW_PERIODS.YEARLY,
     selectedMonth,
-    selectedYear
+    selectedYear,
   );
-  const { formatCurrency } = useCurrencyFormatter();
+  const { formatCurrencyForChart } = useCurrencyFormatter();
   const { formatDate } = useDateFormatter();
-
-  const formatCurrencyForChart = (value) => {
-    return `${CURRENCY_SYMBOL}${formatCurrency(value, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })}`;
-  };
 
   // Budget vs Actual Analysis
   const budgetVsActual = useMemo(() => {
     const currentBudgets = budgets.filter(
-      (b) => b.month === selectedMonth && b.year === selectedYear
+      (b) => b.month === selectedMonth && b.year === selectedYear,
     );
 
     return currentBudgets.map((budget) => {
@@ -147,7 +140,9 @@ const ReportsAnalysis = () => {
   return (
     <div className="mx-auto mb-2 md:mb-4">
       <div className="mb-2 md:mb-4">
-        <h3 className="text-xl md:text-2xl font-bold text-gray-800">{UI_TEXT.REPORTS}</h3>
+        <h3 className="text-xl md:text-2xl font-bold text-gray-800">
+          {UI_TEXT.REPORTS}
+        </h3>
         <p className="text-sm md:text-base text-gray-600 mt-1">
           {UI_TEXT.COMPREHENSIVE_FINANCIAL_ANALYSIS}
         </p>
@@ -166,17 +161,29 @@ const ReportsAnalysis = () => {
               <table className="w-full text-xs md:text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 md:px-4 py-2 md:py-3 text-left">Category</th>
-                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">Budget</th>
-                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">Actual</th>
-                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">Variance</th>
-                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">Status</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-left">
+                      Category
+                    </th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">
+                      Budget
+                    </th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">
+                      Actual
+                    </th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">
+                      Variance
+                    </th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-right">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {budgetVsActual.map((item) => (
                     <tr key={item.category} className="hover:bg-gray-50">
-                      <td className="px-2 md:px-4 py-2 md:py-3 font-medium">{item.category}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 font-medium">
+                        {item.category}
+                      </td>
                       <td className="px-2 md:px-4 py-2 md:py-3 text-right">
                         {CURRENCY_SYMBOL}
                         {formatCurrencyForChart(item.budget)}
@@ -221,7 +228,9 @@ const ReportsAnalysis = () => {
       {spendingTrends.length > 0 && (
         <div className="bg-white rounded-lg shadow-md mb-2 md:mb-4">
           <div className="bg-blue-500 text-white px-2 md:px-4 py-2 md:py-4 rounded-t-lg">
-            <h5 className="text-base md:text-lg font-semibold">{UI_TEXT.SPENDING_TRENDS}</h5>
+            <h5 className="text-base md:text-lg font-semibold">
+              {UI_TEXT.SPENDING_TRENDS}
+            </h5>
           </div>
           <div className="p-2 md:p-4">
             <ResponsiveContainer

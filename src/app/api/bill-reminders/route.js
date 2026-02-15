@@ -1,3 +1,4 @@
+import { ERROR_MESSAGES } from "@/constants";
 import { getDb, query } from "@/lib/db";
 import { nowISO } from "@/utils/dateUtils";
 import { NextResponse } from "next/server";
@@ -25,7 +26,10 @@ export async function GET() {
       })),
     );
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || ERROR_MESSAGES.SERVER_ERROR },
+      { status: 500 },
+    );
   }
 }
 
@@ -33,7 +37,7 @@ export async function POST(request) {
   const sql = getDb();
   if (!sql)
     return NextResponse.json(
-      { error: "Database not configured" },
+      { error: ERROR_MESSAGES.DB_NOT_CONFIGURED },
       { status: 503 },
     );
   try {
@@ -53,6 +57,9 @@ export async function POST(request) {
       VALUES (${id}, ${name}, ${category}, ${Number(amount)}, ${dueDate}, ${reminderDays ?? 3}, ${isRecurring ?? false}, ${recurrence ?? null}, ${createdAt || nowISO()})`;
     return NextResponse.json(body, { status: 201 });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || ERROR_MESSAGES.SERVER_ERROR },
+      { status: 500 },
+    );
   }
 }
