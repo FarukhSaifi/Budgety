@@ -246,15 +246,18 @@ const Budget = () => {
                           {transaction.mode || UI_TEXT.NOT_AVAILABLE}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs">
+                      <td className="px-4 py-3 text-sm text-gray-900 min-w-0 max-w-[180px] sm:max-w-[220px] md:max-w-xs">
                         <div
-                          className="font-medium truncate"
+                          className="font-medium break-all"
                           title={transaction.description}
                         >
                           {transaction.description}
                         </div>
                         {transaction.category && (
-                          <div className="text-xs text-gray-500 mt-0.5 truncate">
+                          <div
+                            className="text-xs text-gray-500 mt-0.5 break-all"
+                            title={transaction.category}
+                          >
                             {transaction.category}
                           </div>
                         )}
@@ -341,8 +344,11 @@ const Budget = () => {
                   className="p-2 md:p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
                 >
                   <div className="flex justify-between items-start mb-2 gap-2">
-                    <div className="flex-1">
-                      <div className="font-medium text-sm sm:text-base text-gray-900 mb-1 wrap-break-word line-clamp-2">
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="font-medium text-sm sm:text-base text-gray-900 mb-1 break-all"
+                        title={transaction.description}
+                      >
                         {transaction.description}
                       </div>
                       <div className="text-xs text-gray-600 mb-2">
@@ -350,12 +356,12 @@ const Budget = () => {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {transaction.mode && (
-                          <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
+                          <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-xl">
                             {transaction.mode}
                           </span>
                         )}
                         {transaction.category && (
-                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-xl">
                             {transaction.category}
                           </span>
                         )}
