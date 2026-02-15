@@ -161,24 +161,25 @@ const ViewControls = ({ variant: variantProp }) => {
   if (!hasAnyFilter) return null;
 
   return (
-    <div className="mb-2 md:mb-4">
+    <div className="mb-2 sm:mb-4">
       <EnhancedCard title={UI_TEXT.VIEW_CONTROLS_TITLE} subtitle={subtitle}>
         {config.showSearch && (
-          <div className="mb-2 md:mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="mb-3 sm:mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
               {UI_TEXT.SEARCH_LABEL}
             </label>
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <SearchIcon className="h-5 w-5 text-gray-400" />
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+              <div className="relative min-w-0 flex-1">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <SearchIcon className="h-5 w-5" />
                 </div>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={handleSearchChange}
                   placeholder={UI_TEXT.SEARCH_PLACEHOLDER}
-                  className="block w-full pl-10 pr-10 py-2.5 sm:py-2 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full min-h-11 pl-10 pr-10 py-2.5 sm:py-2 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  aria-label={UI_TEXT.SEARCH_LABEL}
                 />
                 {searchQuery && (
                   <Button
@@ -186,8 +187,9 @@ const ViewControls = ({ variant: variantProp }) => {
                     variant="ghost"
                     size="sm"
                     onClick={handleClearSearch}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 min-h-0 py-0"
+                    className="absolute inset-y-0 right-0 pr-2 sm:pr-3 flex items-center text-gray-400 hover:text-gray-600 min-h-0 py-0 min-w-9"
                     title={UI_TEXT.CLEAR_SEARCH}
+                    aria-label={UI_TEXT.CLEAR_SEARCH}
                   >
                     <CloseIcon className="h-5 w-5" />
                   </Button>
@@ -198,7 +200,7 @@ const ViewControls = ({ variant: variantProp }) => {
                   variant="outline"
                   size="sm"
                   onClick={handleClearSearch}
-                  className="shrink-0 touch-manipulation whitespace-nowrap"
+                  className="shrink-0 touch-manipulation whitespace-nowrap min-h-11 sm:min-h-0 w-full sm:w-auto"
                 >
                   {UI_TEXT.CLEAR_SEARCH}
                 </Button>
@@ -208,11 +210,11 @@ const ViewControls = ({ variant: variantProp }) => {
         )}
 
         {(config.showViewType || config.showCategoryFilter) && (
-          <div className="mb-2 md:mb-4">
-            <div className="flex flex-col lg:flex-row gap-2 md:gap-4 lg:items-start">
+          <div className="mb-3 sm:mb-4">
+            <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start">
               {config.showViewType && (
-                <div className="flex-1 lg:flex-initial">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="w-full min-w-0 lg:flex-initial">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                     {UI_TEXT.VIEW_TYPE_LABEL}
                   </label>
                   <div className="flex gap-2">
@@ -223,10 +225,12 @@ const ViewControls = ({ variant: variantProp }) => {
                       }
                       size="md"
                       onClick={() => handleViewTypeChange(VIEW_TYPES.LIST)}
-                      className="flex-1 sm:flex-initial gap-2 py-2.5 sm:py-2 touch-manipulation"
+                      className="flex-1 sm:flex-initial min-h-11 gap-1.5 sm:gap-2 py-2.5 sm:py-2 touch-manipulation"
                     >
-                      <ListIcon className="text-base sm:text-lg" />
-                      <span>{VIEW_TYPE_LABELS[VIEW_TYPES.LIST]}</span>
+                      <ListIcon className="shrink-0 size-5 sm:size-6" />
+                      <span className="truncate">
+                        {VIEW_TYPE_LABELS[VIEW_TYPES.LIST]}
+                      </span>
                     </Button>
                     <Button
                       type="button"
@@ -235,21 +239,23 @@ const ViewControls = ({ variant: variantProp }) => {
                       }
                       size="md"
                       onClick={() => handleViewTypeChange(VIEW_TYPES.CALENDAR)}
-                      className="flex-1 sm:flex-initial gap-2 py-2.5 sm:py-2 touch-manipulation"
+                      className="flex-1 sm:flex-initial min-h-11 gap-1.5 sm:gap-2 py-2.5 sm:py-2 touch-manipulation"
                     >
-                      <CalendarMonth className="text-base sm:text-lg" />
-                      <span>{VIEW_TYPE_LABELS[VIEW_TYPES.CALENDAR]}</span>
+                      <CalendarMonth className="shrink-0 size-5 sm:size-6" />
+                      <span className="truncate">
+                        {VIEW_TYPE_LABELS[VIEW_TYPES.CALENDAR]}
+                      </span>
                     </Button>
                   </div>
                 </div>
               )}
 
               {config.showCategoryFilter && allCategories.length > 0 && (
-                <div className="flex-1 lg:flex-initial lg:min-w-[280px]">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="w-full min-w-0 lg:flex-initial lg:min-w-[280px]">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                     {UI_TEXT.FILTER_BY_CATEGORY}
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                     <div className="flex-1 min-w-0">
                       <SearchableCategorySelect
                         label=""
@@ -271,7 +277,7 @@ const ViewControls = ({ variant: variantProp }) => {
                         variant="outline"
                         size="sm"
                         onClick={handleClearCategory}
-                        className="shrink-0 touch-manipulation whitespace-nowrap"
+                        className="shrink-0 touch-manipulation whitespace-nowrap min-h-11 sm:min-h-0 w-full sm:w-auto"
                       >
                         {UI_TEXT.CLEAR_FILTER}
                       </Button>
@@ -287,6 +293,7 @@ const ViewControls = ({ variant: variantProp }) => {
           <FormFieldGroup
             columns={viewPeriod === VIEW_PERIODS.MONTHLY ? 3 : 2}
             spacing={3}
+            className="gap-2 sm:gap-3"
           >
             <FormField
               label={UI_TEXT.VIEW_PERIOD_LABEL}

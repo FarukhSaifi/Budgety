@@ -193,8 +193,7 @@ export const SearchableCategorySelect = ({
             "@media (max-width: 640px)": { maxHeight: "50vh" },
           },
         }}
-        disablePortal={true}
-        openOnFocus
+        // openOnFocus
         clearOnBlur={false}
         selectOnFocus
         handleHomeEndKeys
@@ -216,29 +215,31 @@ export const SearchableCategorySelect = ({
           </>
         }
       >
-        <TextField
-          autoFocus
-          fullWidth
-          label={UI_TEXT.ADD_NEW_CATEGORY_LABEL || "Category name"}
-          placeholder={
-            UI_TEXT.ADD_NEW_CATEGORY_PLACEHOLDER || "Enter category name"
-          }
-          value={addModalName}
-          onChange={(e) => {
-            setAddModalName(e.target.value);
-            if (addModalError) setAddModalError("");
-          }}
-          error={!!addModalError}
-          helperText={addModalError}
-          variant="outlined"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSaveNewCategory();
+        <div className="pt-2 px-0">
+          <TextField
+            autoFocus
+            fullWidth
+            label={UI_TEXT.ADD_NEW_CATEGORY_LABEL || "Category name"}
+            placeholder={
+              UI_TEXT.ADD_NEW_CATEGORY_PLACEHOLDER || "Enter category name"
             }
-          }}
-          className="[&_.MuiOutlinedInput-root]:rounded-lg"
-        />
+            value={addModalName}
+            onChange={(e) => {
+              setAddModalName(e.target.value);
+              if (addModalError) setAddModalError("");
+            }}
+            error={!!addModalError}
+            helperText={addModalError}
+            variant="outlined"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSaveNewCategory();
+              }
+            }}
+            className="[&_.MuiOutlinedInput-root]:rounded-lg"
+          />
+        </div>
       </Dialog>
     </>
   );

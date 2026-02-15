@@ -22,14 +22,14 @@ export const EnhancedCard = ({
     >
       {title && (
         <div
-          className={`px-6 py-3 ${
+          className={`px-3 py-2.5 sm:px-4 sm:py-3 md:px-6 ${
             gradient ? "text-white" : "border-b border-gray-200"
           }`}
         >
-          <h6 className="text-base font-semibold">{title}</h6>
+          <h6 className="text-sm font-semibold sm:text-base">{title}</h6>
           {subtitle && (
             <p
-              className={`mt-1 text-sm ${
+              className={`mt-0.5 sm:mt-1 text-xs sm:text-sm ${
                 gradient ? "opacity-90" : "text-gray-600"
               }`}
             >
@@ -38,7 +38,7 @@ export const EnhancedCard = ({
           )}
         </div>
       )}
-      <div className="p-2 sm:p-3">{children}</div>
+      <div className="p-3 sm:p-4 md:p-4">{children}</div>
       {actions && <div className="px-6 pb-3">{actions}</div>}
     </CardMui>
   );
