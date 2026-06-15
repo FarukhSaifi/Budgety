@@ -185,12 +185,17 @@ The project uses path aliases for cleaner imports:
 
 ### Environment Variables
 
-See `.env.example`. Required for production:
+See `.env.example` and [docs/VERCEL_ENV.md](docs/VERCEL_ENV.md). Required for production:
 
 - `DATABASE_URL` — Neon PostgreSQL connection string (use pooled URL for serverless)
 - `BETTER_AUTH_SECRET` — at least 32 characters (`openssl rand -base64 32`)
 
-Optional: `BETTER_AUTH_URL` for auth callbacks in production.
+Recommended on Vercel:
+
+- `BETTER_AUTH_URL` — `https://budgety-woad.vercel.app`
+- `NEXT_PUBLIC_BETTER_AUTH_URL` — same as `BETTER_AUTH_URL` (public, not a secret)
+
+Local secrets belong in `.env.local` only — never commit them.
 
 ## 📱 Browser Support
 

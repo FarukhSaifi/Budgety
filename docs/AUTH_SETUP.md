@@ -19,17 +19,23 @@ psql "$DATABASE_URL" -f scripts/init-auth-tables.sql
 
 ## 2. Environment variables
 
-In `.env.local` (or `.env`), set:
+**Local:** copy `.env.example` to `.env.local` and fill in values (`.env.local` is gitignored).
+
+**Vercel production:** secrets are set in the Vercel project — see [VERCEL_ENV.md](./VERCEL_ENV.md). Do not commit real credentials to git.
 
 ```env
-# Existing
+# Required
 DATABASE_URL=postgresql://...?sslmode=require
-
-# Auth (required)
 BETTER_AUTH_SECRET=<at-least-32-characters>
+BETTER_AUTH_API_KEY=<from-better-auth-dash-dashboard>
 
-# Optional – defaults to http://localhost:3000 or https://$VERCEL_URL
+# Recommended for production (Vercel) — no trailing slash
+BETTER_AUTH_URL=https://budgety-woad.vercel.app
+NEXT_PUBLIC_BETTER_AUTH_URL=https://budgety-woad.vercel.app
+
+# Local only
 # BETTER_AUTH_URL=http://localhost:3000
+# NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
 ```
 
 Generate a secret:
@@ -45,7 +51,22 @@ For serverless (e.g. Vercel), use Neon’s **pooled** connection string so the `
 - In Neon Console: **Connection details** → enable **Connection pooling**.
 - Use the URL with `-pooler` in the host (e.g. `ep-xxx-pooler.us-east-2.aws.neon.tech`).
 
-## 4. Run the app
+## 4. Better Auth Dash (optional dashboard)
+
+To connect the [Better Auth Dash](https://better-auth.com) for user management:
+
+1. Install is already in the project (`@better-auth/infra`).
+2. Copy your **API key** from the Dash setup screen.
+3. Add to Vercel (Production) and `.env.local`:
+
+```env
+BETTER_AUTH_API_KEY=<paste-from-dash-dashboard>
+```
+
+4. Ensure `BETTER_AUTH_URL` has **no trailing slash** (e.g. `https://budgety-woad.vercel.app`).
+5. Redeploy: `npx vercel --prod`, then click **Retry connection** in Dash.
+
+## 5. Run the app
 
 ```bash
 npm run dev

@@ -18,6 +18,7 @@ env:
   DATABASE_URL: postgresql://ci:ci@localhost:5432/budgety?sslmode=disable
   BETTER_AUTH_SECRET: ci-build-placeholder-secret-min-32-chars
   BETTER_AUTH_URL: http://localhost:3000
+  NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000
 
 jobs:
   lint:
