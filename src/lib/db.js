@@ -8,9 +8,5 @@ export function getDb() {
 
 export async function query(fn) {
   if (!sql) return [];
-  try {
-    return await fn();
-  } catch (err) {
-    throw err;
-  }
+  return fn();
 }

@@ -68,7 +68,13 @@ const MainContent = () => {
               }}
               contentClassName="overflow-y-auto min-h-0 flex-1"
             >
-              <BankStatementImport onClose={() => setShowImportPanel(false)} />
+              {showImportPanel && (
+                <Suspense fallback={<LoadingFallback />}>
+                  <BankStatementImport
+                    onClose={() => setShowImportPanel(false)}
+                  />
+                </Suspense>
+              )}
             </Dialog>
             {viewType === VIEW_TYPES.CALENDAR ? <CalendarView /> : <Budget />}
           </Suspense>

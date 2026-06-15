@@ -41,9 +41,6 @@
       "@utils": [
         "./src/utils"
       ],
-      "@styles/*": [
-        "./src/styles/*"
-      ],
       "@theme/*": [
         "./src/theme/*"
       ],

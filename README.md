@@ -181,12 +181,16 @@ The project uses path aliases for cleaner imports:
 - `@constants` → `src/constants`
 - `@hooks` → `src/hooks`
 - `@context` → `src/context`
-- `@styles` → `src/styles`
 - `@theme` → `src/theme`
 
 ### Environment Variables
 
-Currently, the application uses local storage for data persistence. No environment variables are required for basic functionality.
+See `.env.example`. Required for production:
+
+- `DATABASE_URL` — Neon PostgreSQL connection string (use pooled URL for serverless)
+- `BETTER_AUTH_SECRET` — at least 32 characters (`openssl rand -base64 32`)
+
+Optional: `BETTER_AUTH_URL` for auth callbacks in production.
 
 ## 📱 Browser Support
 

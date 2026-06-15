@@ -40,9 +40,11 @@ next-env.d.ts
 # IDE
 .vscode/
 .idea/
+/.cursor/
 
 # Lock files
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
 *.lock
+.env*

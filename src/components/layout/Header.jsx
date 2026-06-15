@@ -1,10 +1,5 @@
-import {
-  ACTION_TYPES,
-  CURRENCY_SYMBOL,
-  MONTHS,
-  UI_TEXT,
-  VIEW_PERIODS,
-} from "@constants";
+import { ACTION_TYPES, CURRENCY_SYMBOL, MONTHS, UI_TEXT, VIEW_PERIOD_LABELS, VIEW_PERIODS } from "@constants";
+import { useAuth } from "@context/AuthContext";
 import { useBudget } from "@context/BudgetContext";
 import { useTab } from "@context/TabContext";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
@@ -17,15 +12,11 @@ import { getCurrentMonthYear } from "@utils/dateUtils";
 import React, { useEffect, useState } from "react";
 
 const Header = () => {
+  const { useSession, signOut } = useAuth();
+  const { data: session } = useSession();
   const { activeTab } = useTab();
-  const { transactions, viewPeriod, selectedMonth, selectedYear, dispatch } =
-    useBudget();
-  const { totalIncome, totalExpense } = useBudgetCalculations(
-    transactions,
-    viewPeriod,
-    selectedMonth,
-    selectedYear,
-  );
+  const { transactions, viewPeriod, selectedMonth, selectedYear, dispatch } = useBudget();
+  const { totalIncome, totalExpense } = useBudgetCalculations(transactions, viewPeriod, selectedMonth, selectedYear);
   const { formatCurrency } = useCurrencyFormatter();
   const [datePickerAnchor, setDatePickerAnchor] = useState(null);
   const { month: defaultMonth, year: defaultYear } = getCurrentMonthYear();
@@ -113,8 +104,7 @@ const Header = () => {
     setTempYear(newYear);
     if (viewPeriod === VIEW_PERIODS.MONTHLY) {
       // Use current selectedMonth or tempMonth as fallback
-      const monthToUse =
-        selectedMonth || tempMonth || getCurrentMonthYear().month;
+      const monthToUse = selectedMonth || tempMonth || getCurrentMonthYear().month;
       dispatch({
         type: ACTION_TYPES.SET_VIEW_PERIOD,
         payload: {
@@ -145,13 +135,9 @@ const Header = () => {
       type: ACTION_TYPES.SET_VIEW_PERIOD,
       payload: {
         viewPeriod: newViewPeriod,
-        selectedMonth:
-          newViewPeriod === VIEW_PERIODS.MONTHLY ? monthToUse : undefined,
+        selectedMonth: newViewPeriod === VIEW_PERIODS.MONTHLY ? monthToUse : undefined,
         selectedYear:
-          newViewPeriod === VIEW_PERIODS.YEARLY ||
-          newViewPeriod === VIEW_PERIODS.MONTHLY
-            ? yearToUse
-            : undefined,
+          newViewPeriod === VIEW_PERIODS.YEARLY || newViewPeriod === VIEW_PERIODS.MONTHLY ? yearToUse : undefined,
       },
     });
   };
@@ -175,20 +161,29 @@ const Header = () => {
     <div className="border-b border-gray-200 bg-white px-2 py-2 md:px-4 md:py-4">
       <div className="flex flex-col items-start justify-between gap-2 md:flex-row md:gap-0 md:items-center">
         <div className="w-full md:w-auto">
-          <h1 className="mb-1 md:mb-2 text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">
-            {getTabTitle()}
-          </h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDateClick}
-            className="flex items-center gap-1 md:gap-2 rounded-md px-2 py-1 min-h-0"
-          >
-            <span className="text-xs md:text-sm text-gray-600 font-medium">
-              {getDateRange()}
-            </span>
-            <ArrowDownIcon className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />
-          </Button>
+          <h1 className="mb-1 md:mb-2 text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">{getTabTitle()}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDateClick}
+              className="flex items-center gap-1 md:gap-2 rounded-md px-2 py-1 min-h-0"
+            >
+              <span className="text-xs md:text-sm text-gray-600 font-medium">{getDateRange()}</span>
+              <ArrowDownIcon className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />
+            </Button>
+            {session?.user && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => signOut()}
+                className="text-xs text-gray-600 hover:text-gray-900"
+                title={UI_TEXT.SIGN_OUT}
+              >
+                {UI_TEXT.SIGN_OUT}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex w-full items-center justify-between gap-2 md:w-auto md:gap-4 lg:gap-8">
@@ -203,9 +198,7 @@ const Header = () => {
                   align="right"
                 />
               </div>
-              {index < metrics.length - 1 && (
-                <div className="hidden h-[70px] w-px self-stretch bg-gray-200 md:block" />
-              )}
+              {index < metrics.length - 1 && <div className="hidden h-[70px] w-px self-stretch bg-gray-200 md:block" />}
             </React.Fragment>
           ))}
         </div>
@@ -229,32 +222,24 @@ const Header = () => {
         }}
       >
         <div className="p-4 min-w-[280px]">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">
-            Select Period
-          </h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">{UI_TEXT.SELECT_PERIOD}</h3>
           <div className="space-y-4">
-            {/* View Period Selector */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                View Period
-              </label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{UI_TEXT.VIEW_PERIOD_LABEL_SHORT}</label>
               <select
                 value={viewPeriod}
                 onChange={handleViewPeriodChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               >
-                <option value={VIEW_PERIODS.ALL}>All Time</option>
-                <option value={VIEW_PERIODS.YEARLY}>Yearly</option>
-                <option value={VIEW_PERIODS.MONTHLY}>Monthly</option>
+                <option value={VIEW_PERIODS.ALL}>{VIEW_PERIOD_LABELS[VIEW_PERIODS.ALL]}</option>
+                <option value={VIEW_PERIODS.YEARLY}>{VIEW_PERIOD_LABELS[VIEW_PERIODS.YEARLY]}</option>
+                <option value={VIEW_PERIODS.MONTHLY}>{VIEW_PERIOD_LABELS[VIEW_PERIODS.MONTHLY]}</option>
               </select>
             </div>
 
-            {/* Month Selector (only for monthly view) */}
             {viewPeriod === VIEW_PERIODS.MONTHLY && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Month
-                </label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{UI_TEXT.MONTH_LABEL}</label>
                 <select
                   value={tempMonth}
                   onChange={handleMonthChange}
@@ -269,13 +254,9 @@ const Header = () => {
               </div>
             )}
 
-            {/* Year Selector (for monthly and yearly views) */}
-            {(viewPeriod === VIEW_PERIODS.MONTHLY ||
-              viewPeriod === VIEW_PERIODS.YEARLY) && (
+            {(viewPeriod === VIEW_PERIODS.MONTHLY || viewPeriod === VIEW_PERIODS.YEARLY) && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Year
-                </label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{UI_TEXT.YEAR_LABEL}</label>
                 <select
                   value={tempYear}
                   onChange={handleYearChange}
@@ -290,15 +271,9 @@ const Header = () => {
               </div>
             )}
 
-            {/* Close Button */}
             <div className="pt-2 border-t border-gray-200">
-              <Button
-                variant="primary"
-                fullWidth
-                onClick={handleDatePickerClose}
-                size="md"
-              >
-                Done
+              <Button variant="primary" fullWidth onClick={handleDatePickerClose} size="md">
+                {UI_TEXT.DONE}
               </Button>
             </div>
           </div>

@@ -178,14 +178,6 @@ export const EXPENSE_CATEGORIES = {
   CREDIT_CARD: "Credit Card",
 };
 
-export const CREDIT_CARD_CATEGORIES = {
-  DREAM_PURSE: "DreamPurse",
-  AMERICAN_EXPRESS: "American Express",
-  STANDARD_CHARTERED: "Standard Chartered",
-  BIL_ONL: "Bil/Onl",
-  OTHER: "Other",
-};
-
 export const INVESTMENT_CATEGORIES = {
   STOCKS: "Stocks",
   BONDS: "Bonds",
@@ -199,8 +191,7 @@ export const INVESTMENT_CATEGORIES = {
 };
 
 // Sorted expense categories array for dropdowns (alphabetically sorted)
-export const SORTED_EXPENSE_CATEGORIES =
-  Object.values(EXPENSE_CATEGORIES).sort();
+export const SORTED_EXPENSE_CATEGORIES = Object.values(EXPENSE_CATEGORIES).sort();
 
 // Category Colors for Charts
 export const CATEGORY_COLORS = {
@@ -305,23 +296,6 @@ export const VIEW_CONTROL_CONFIG = {
   },
 };
 
-// CSS Classes
-export const CSS_CLASSES = {
-  INCOME_TOTAL: "income-total",
-  EXP_TOTAL: "exp-total",
-  ADD_DESCRIPTION: "add__description",
-  ADD_VALUE: "add__value",
-  ADD_BTN: "add__btn",
-  DEL_BTN: "del__btn",
-  CARD: "card",
-  CARD_HEADER: "card-header",
-  CARD_BODY: "card-body",
-  BTN_PRIMARY: "btn btn-primary",
-  BTN_DANGER: "btn btn-danger",
-  BTN_SUCCESS: "btn btn-success",
-  BTN_SECONDARY: "btn btn-secondary",
-};
-
 // UI Text
 export const UI_TEXT = {
   AVAILABLE_BUDGET: "Available Budget",
@@ -369,6 +343,29 @@ export const UI_TEXT = {
   SAVE: "Save",
   CANCEL: "Cancel",
   CONFIRM: "Confirm",
+  SIGN_IN: "Sign in",
+  SIGN_UP: "Sign up",
+  SIGN_OUT: "Sign out",
+  EMAIL: "Email",
+  PASSWORD: "Password",
+  NAME: "Name",
+  AUTH_SIGN_IN_TITLE: "Sign in to Budgety",
+  AUTH_SIGN_UP_TITLE: "Create your account",
+  AUTH_NO_ACCOUNT: "Don't have an account?",
+  AUTH_HAVE_ACCOUNT: "Already have an account?",
+  AUTH_ERROR_INVALID_CREDENTIALS: "Invalid email or password",
+  AUTH_ERROR_EMAIL_IN_USE: "This email is already registered",
+  AUTH_SUCCESS_SIGNED_IN: "Signed in successfully",
+  AUTH_SUCCESS_SIGNED_UP: "Account created. You can sign in now.",
+  AUTH_NAME_PLACEHOLDER: "Your name",
+  AUTH_EMAIL_PLACEHOLDER: "you@example.com",
+  AUTH_PASSWORD_HINT: "At least 8 characters",
+  AUTH_GENERIC_ERROR: "Something went wrong",
+  SELECT_PERIOD: "Select Period",
+  VIEW_PERIOD_LABEL_SHORT: "View Period",
+  MONTH_LABEL: "Month",
+  YEAR_LABEL: "Year",
+  DONE: "Done",
   RECURRING_TRANSACTIONS: "Recurring Transactions",
   ADD_RECURRING: "Add Recurring Transaction",
   BILL_REMINDERS: "Bill Reminders",
@@ -388,17 +385,14 @@ export const UI_TEXT = {
   ADD_NEW_BUDGET_TITLE: "Add New Budget",
   ADD_NEW_SAVINGS_GOAL_TITLE: "Add New Savings Goal",
   ADD_RECURRING_TRANSACTION_TITLE: "Add Recurring Transaction",
-  COMPREHENSIVE_FINANCIAL_ANALYSIS:
-    "Comprehensive financial analysis and insights",
+  COMPREHENSIVE_FINANCIAL_ANALYSIS: "Comprehensive financial analysis and insights",
   NO_SPENDING_DATA: "No spending data available",
   NO_DATA_AVAILABLE: "No data available",
   CATEGORY_BREAKDOWN: "Category Breakdown",
   MONTHLY_TREND: "Monthly Trend",
-  CONFIRM_DELETE_TRANSACTION:
-    "Are you sure you want to delete this transaction?",
+  CONFIRM_DELETE_TRANSACTION: "Are you sure you want to delete this transaction?",
   CONFIRM_DELETE_GOAL: "Are you sure you want to delete this savings goal?",
-  CONFIRM_DELETE_RECURRING:
-    "Are you sure you want to delete this recurring transaction?",
+  CONFIRM_DELETE_RECURRING: "Are you sure you want to delete this recurring transaction?",
   CONFIRM_DELETE_BUDGET: "Are you sure you want to delete this budget?",
   CONFIRM_DELETE_BILL: "Are you sure you want to delete this bill reminder?",
   CONFIRM_ACTION: "Confirm Action",
@@ -411,8 +405,7 @@ export const UI_TEXT = {
   CLEANUP_IMPORTED_DATA: "Cleanup Imported Data",
   CLEANUP_IMPORTED_DESCRIPTION:
     "This will permanently delete all transactions that were imported from files. This action cannot be undone.",
-  CONFIRM_CLEANUP_IMPORTED:
-    "Are you sure you want to delete all imported transactions? This action cannot be undone.",
+  CONFIRM_CLEANUP_IMPORTED: "Are you sure you want to delete all imported transactions? This action cannot be undone.",
   CLEANUP_IMPORTED_TITLE: "Delete All Imported Transactions",
   NO_IMPORTED_TRANSACTIONS: "No imported transactions found.",
   CLEANUP_SUCCESS: "Successfully deleted {count} imported transaction(s).",
@@ -426,8 +419,7 @@ export const UI_TEXT = {
   DUE_SOON: "⚠️ Due Soon!",
   OVERDUE_BILLS: "⚠️ Overdue Bills",
   UPCOMING_BILLS: "Upcoming Bills",
-  NO_RECURRING_TRANSACTIONS:
-    "No recurring transactions. Add your first recurring transaction!",
+  NO_RECURRING_TRANSACTIONS: "No recurring transactions. Add your first recurring transaction!",
   NO_BILL_REMINDERS: "No bill reminders. Add your first bill reminder!",
   NO_BUDGETS: "No budgets set for this month. Create your first budget!",
   FILTER_BY_CATEGORY: "Filter by Category:",
@@ -471,8 +463,7 @@ export const UI_TEXT = {
   RECURRING: "Recurring",
   PAYMENTS_FOR: "Payments for",
   NO_PAYMENTS_FOR: "No payments for",
-  ADD_BILLS_TO_CALENDAR:
-    "Add bill reminders or recurring transactions to see them on the calendar",
+  ADD_BILLS_TO_CALENDAR: "Add bill reminders or recurring transactions to see them on the calendar",
   RECURRING_PAYMENT: "Recurring Payment",
   PAID: "Paid",
   DAYS_OVERDUE: "days overdue",
@@ -543,26 +534,21 @@ export const ERROR_MESSAGES = {
   NO_TRANSACTIONS_TO_EXPORT: "No transactions to export",
   CSV_EMPTY:
     "CSV file appears to be empty or invalid. Please ensure the file contains at least a header row and one data row.",
-  CSV_NO_HEADERS:
-    "CSV file has no valid headers. Please ensure the first row contains column names.",
+  CSV_NO_HEADERS: "CSV file has no valid headers. Please ensure the first row contains column names.",
   CSV_MISSING_COLUMNS:
     "CSV file format doesn't match expected format. Missing required columns: {missing}. Found columns: {found}. Please ensure your CSV file has columns for Date, Description/Particulars, and Amount/Deposits/Withdrawals.",
   CSV_NO_TRANSACTIONS:
     "No valid transactions found in the CSV file. Please ensure the file contains transaction data with Date, Description, and Amount columns.",
   CSV_PARSE_ERROR:
     "Error parsing CSV file: {message}. Please ensure it's a valid CSV file with proper column headers (Date, Mode, Particulars, Deposits, Withdrawals, Balance).",
-  PDF_PARSE_ERROR:
-    "Error parsing PDF file: {message}. Please ensure it's a valid PDF file with readable text.",
+  PDF_PARSE_ERROR: "Error parsing PDF file: {message}. Please ensure it's a valid PDF file with readable text.",
   EXCEL_PARSE_ERROR:
     "Failed to parse Excel file: {message}. Please ensure the file is a valid Excel file (.xlsx or .xls format).",
-  EXCEL_NO_SHEETS:
-    "Excel file has no sheets. Please ensure the file contains data.",
-  EXCEL_CONVERT_ERROR:
-    "Failed to convert Excel data: {message}. Please check the file format.",
+  EXCEL_NO_SHEETS: "Excel file has no sheets. Please ensure the file contains data.",
+  EXCEL_CONVERT_ERROR: "Failed to convert Excel data: {message}. Please check the file format.",
   EXCEL_EMPTY:
     "Excel file appears to be empty or has no data rows. Please ensure the file contains at least a header row and one data row.",
-  EXCEL_NO_HEADERS:
-    "Excel file has no valid headers. Please ensure the first row contains column names.",
+  EXCEL_NO_HEADERS: "Excel file has no valid headers. Please ensure the first row contains column names.",
   EXCEL_MISSING_COLUMNS:
     "Excel file format doesn't match expected format. Missing required columns: {missing}. Found columns: {found}. Please ensure your Excel file has columns for Date, Description, and Amount.",
   EXCEL_NO_TRANSACTIONS:
@@ -746,21 +732,8 @@ export const DEFAULT_VALUES = {
 // Category Detection Patterns
 export const CATEGORY_PATTERNS = {
   INCOME: {
-    [INCOME_CATEGORIES.SALARY]: [
-      "salary",
-      "payroll",
-      "wage",
-      "pay",
-      "compensation",
-      "income",
-    ],
-    [INCOME_CATEGORIES.FREELANCE]: [
-      "freelance",
-      "consulting",
-      "contract",
-      "gig",
-      "project",
-    ],
+    [INCOME_CATEGORIES.SALARY]: ["salary", "payroll", "wage", "pay", "compensation", "income"],
+    [INCOME_CATEGORIES.FREELANCE]: ["freelance", "consulting", "contract", "gig", "project"],
     [INCOME_CATEGORIES.INVESTMENT]: [
       "investment",
       "dividend",
@@ -778,31 +751,11 @@ export const CATEGORY_PATTERNS = {
     ],
     [INCOME_CATEGORIES.RENTAL]: ["rent", "rental", "lease", "property income"],
     [INCOME_CATEGORIES.BONUS]: ["bonus", "incentive", "reward", "commission"],
-    [INCOME_CATEGORIES.BUSINESS]: [
-      "business",
-      "sale",
-      "revenue",
-      "income from business",
-    ],
+    [INCOME_CATEGORIES.BUSINESS]: ["business", "sale", "revenue", "income from business"],
   },
   EXPENSE: {
-    [EXPENSE_CATEGORIES.GROCERIES]: [
-      "grocery",
-      "supermarket",
-      "food",
-      "vegetable",
-      "mart",
-      "store",
-      "provision",
-    ],
-    [EXPENSE_CATEGORIES.HOUSING]: [
-      "rent",
-      "housing",
-      "mortgage",
-      "emi",
-      "home loan",
-      "maintenance",
-    ],
+    [EXPENSE_CATEGORIES.GROCERIES]: ["grocery", "supermarket", "food", "vegetable", "mart", "store", "provision"],
+    [EXPENSE_CATEGORIES.HOUSING]: ["rent", "housing", "mortgage", "emi", "home loan", "maintenance"],
     [EXPENSE_CATEGORIES.TRANSPORTATION]: [
       "fuel",
       "petrol",
@@ -817,15 +770,7 @@ export const CATEGORY_PATTERNS = {
       "flight",
       "travel",
     ],
-    [EXPENSE_CATEGORIES.DINING]: [
-      "restaurant",
-      "dining",
-      "cafe",
-      "food delivery",
-      "zomato",
-      "swiggy",
-      "hotel",
-    ],
+    [EXPENSE_CATEGORIES.DINING]: ["restaurant", "dining", "cafe", "food delivery", "zomato", "swiggy", "hotel"],
     [EXPENSE_CATEGORIES.UTILITIES]: [
       "electricity",
       "water",
@@ -837,74 +782,17 @@ export const CATEGORY_PATTERNS = {
       "internet",
       "broadband",
     ],
-    [EXPENSE_CATEGORIES.HEALTHCARE]: [
-      "medical",
-      "hospital",
-      "pharmacy",
-      "health",
-      "doctor",
-      "medicine",
-      "clinic",
-    ],
-    [EXPENSE_CATEGORIES.EDUCATION]: [
-      "education",
-      "school",
-      "tuition",
-      "college",
-      "course",
-      "fee",
-    ],
-    [EXPENSE_CATEGORIES.SHOPPING]: [
-      "shopping",
-      "mall",
-      "store",
-      "amazon",
-      "flipkart",
-      "purchase",
-      "buy",
-    ],
-    [EXPENSE_CATEGORIES.ENTERTAINMENT]: [
-      "entertainment",
-      "movie",
-      "netflix",
-      "streaming",
-      "spotify",
-      "game",
-      "cinema",
-    ],
+    [EXPENSE_CATEGORIES.HEALTHCARE]: ["medical", "hospital", "pharmacy", "health", "doctor", "medicine", "clinic"],
+    [EXPENSE_CATEGORIES.EDUCATION]: ["education", "school", "tuition", "college", "course", "fee"],
+    [EXPENSE_CATEGORIES.SHOPPING]: ["shopping", "mall", "store", "amazon", "flipkart", "purchase", "buy"],
+    [EXPENSE_CATEGORIES.ENTERTAINMENT]: ["entertainment", "movie", "netflix", "streaming", "spotify", "game", "cinema"],
     [EXPENSE_CATEGORIES.INSURANCE]: ["insurance", "premium", "policy"],
-    [EXPENSE_CATEGORIES.SUBSCRIPTIONS]: [
-      "subscription",
-      "membership",
-      "recurring",
-      "auto-debit",
-    ],
-    [EXPENSE_CATEGORIES.TRAVEL]: [
-      "travel",
-      "vacation",
-      "trip",
-      "hotel booking",
-      "booking",
-    ],
-    [EXPENSE_CATEGORIES.PERSONAL_CARE]: [
-      "salon",
-      "spa",
-      "beauty",
-      "gym",
-      "fitness",
-    ],
+    [EXPENSE_CATEGORIES.SUBSCRIPTIONS]: ["subscription", "membership", "recurring", "auto-debit"],
+    [EXPENSE_CATEGORIES.TRAVEL]: ["travel", "vacation", "trip", "hotel booking", "booking"],
+    [EXPENSE_CATEGORIES.PERSONAL_CARE]: ["salon", "spa", "beauty", "gym", "fitness"],
     [EXPENSE_CATEGORIES.GIFTS]: ["gift", "donation", "charity"],
-    [EXPENSE_CATEGORIES.BONDS]: [
-      "bonds",
-      "bond",
-      "government bond",
-      "corporate bond",
-    ],
-    [EXPENSE_CATEGORIES.ELSS]: [
-      "elss",
-      "equity linked savings scheme",
-      "tax saving mutual fund",
-    ],
+    [EXPENSE_CATEGORIES.BONDS]: ["bonds", "bond", "government bond", "corporate bond"],
+    [EXPENSE_CATEGORIES.ELSS]: ["elss", "equity linked savings scheme", "tax saving mutual fund"],
     [EXPENSE_CATEGORIES.ETF]: ["etf", "exchange traded fund", "index fund"],
     [EXPENSE_CATEGORIES.INVESTMENTS]: [
       "investment",
@@ -935,20 +823,8 @@ export const CATEGORY_PATTERNS = {
       "tatacapitalhousingfi",
       "tata capital housing",
     ],
-    [EXPENSE_CATEGORIES.MISC_EXPENSES]: [
-      "misc",
-      "miscellaneous",
-      "other expense",
-      "various",
-    ],
-    [EXPENSE_CATEGORIES.MUTUAL_FUNDS]: [
-      "mutual fund",
-      "mf",
-      "sip",
-      "equity fund",
-      "debt fund",
-      "hybrid fund",
-    ],
+    [EXPENSE_CATEGORIES.MISC_EXPENSES]: ["misc", "miscellaneous", "other expense", "various"],
+    [EXPENSE_CATEGORIES.MUTUAL_FUNDS]: ["mutual fund", "mf", "sip", "equity fund", "debt fund", "hybrid fund"],
     [EXPENSE_CATEGORIES.NPS]: ["nps", "national pension scheme", "pension"],
     [EXPENSE_CATEGORIES.PPF]: [
       "ppf",
@@ -960,11 +836,7 @@ export const CATEGORY_PATTERNS = {
       "transfer from savings",
     ],
     [EXPENSE_CATEGORIES.REIT]: ["reit", "real estate investment trust"],
-    [EXPENSE_CATEGORIES.SIP]: [
-      "sip",
-      "systematic investment plan",
-      "mutual fund sip",
-    ],
+    [EXPENSE_CATEGORIES.SIP]: ["sip", "systematic investment plan", "mutual fund sip"],
     [EXPENSE_CATEGORIES.CREDIT_CARD]: [
       "credit card",
       "cred",
@@ -987,20 +859,8 @@ export const CATEGORY_PATTERNS = {
   INVESTMENTS: {
     [INVESTMENT_CATEGORIES.STOCKS]: ["stock", "stocks", "equity", "equities"],
   },
-  [INVESTMENT_CATEGORIES.BONDS]: [
-    "bond",
-    "bonds",
-    "government bond",
-    "corporate bond",
-  ],
-  [INVESTMENT_CATEGORIES.MUTUAL_FUNDS]: [
-    "mutual fund",
-    "mf",
-    "sip",
-    "equity fund",
-    "debt fund",
-    "hybrid fund",
-  ],
+  [INVESTMENT_CATEGORIES.BONDS]: ["bond", "bonds", "government bond", "corporate bond"],
+  [INVESTMENT_CATEGORIES.MUTUAL_FUNDS]: ["mutual fund", "mf", "sip", "equity fund", "debt fund", "hybrid fund"],
   [INVESTMENT_CATEGORIES.ETF]: ["etf", "exchange traded fund", "index fund"],
   [INVESTMENT_CATEGORIES.REITS]: ["reit", "real estate investment trust"],
   [INVESTMENT_CATEGORIES.P2P]: ["p2p", "peer to peer lending", "peer to peer"],
@@ -1029,34 +889,9 @@ export const CATEGORY_PATTERNS = {
 
 // Bank Statement Column Mapping Patterns
 export const COLUMN_MAPPING_PATTERNS = {
-  SERIAL: [
-    "serial",
-    "s.no",
-    "sr no",
-    "sno",
-    "sl no",
-    "sl. no",
-    "sr.",
-    "no.",
-    "number",
-  ],
-  DATE: [
-    "date",
-    "transaction date",
-    "txn date",
-    "value date",
-    "posting date",
-    "transaction_date",
-    "txn_date",
-  ],
-  MODE: [
-    "mode",
-    "transaction mode",
-    "payment mode",
-    "payment_method",
-    "transaction_mode",
-    "method",
-  ],
+  SERIAL: ["serial", "s.no", "sr no", "sno", "sl no", "sl. no", "sr.", "no.", "number"],
+  DATE: ["date", "transaction date", "txn date", "value date", "posting date", "transaction_date", "txn_date"],
+  MODE: ["mode", "transaction mode", "payment mode", "payment_method", "transaction_mode", "method"],
   DESCRIPTION: [
     "description",
     "narration",
@@ -1070,16 +905,7 @@ export const COLUMN_MAPPING_PATTERNS = {
     "transaction details",
     "particulars", // Explicitly added for better matching
   ],
-  DEPOSITS: [
-    "deposit",
-    "deposits",
-    "credit",
-    "cr",
-    "credit amount",
-    "deposit amount",
-    "amount (cr)",
-    "amount(cr)",
-  ],
+  DEPOSITS: ["deposit", "deposits", "credit", "cr", "credit amount", "deposit amount", "amount (cr)", "amount(cr)"],
   WITHDRAW: [
     "withdraw",
     "withdrawal",
@@ -1091,27 +917,7 @@ export const COLUMN_MAPPING_PATTERNS = {
     "amount (dr)",
     "amount(dr)",
   ],
-  AMOUNT: [
-    "amount",
-    "transaction amount",
-    "amount(inr)",
-    "amount (inr)",
-    "amount(inr)",
-    "transaction_amount",
-  ],
-  BALANCE: [
-    "balance",
-    "closing balance",
-    "running balance",
-    "available balance",
-    "balance amount",
-  ],
-  TYPE: [
-    "type",
-    "debit/credit",
-    "dr/cr",
-    "cr/dr",
-    "transaction type",
-    "credit/debit",
-  ],
+  AMOUNT: ["amount", "transaction amount", "amount(inr)", "amount (inr)", "amount(inr)", "transaction_amount"],
+  BALANCE: ["balance", "closing balance", "running balance", "available balance", "balance amount"],
+  TYPE: ["type", "debit/credit", "dr/cr", "cr/dr", "transaction type", "credit/debit"],
 };

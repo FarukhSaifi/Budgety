@@ -35,7 +35,7 @@ const MonthlyTrendChart = () => {
     selectedMonth,
     selectedYear,
   );
-  const { formatCurrency, formatCurrencyForChart } = useCurrencyFormatter();
+  const { formatCurrencyForChart } = useCurrencyFormatter();
   const { formatDate } = useDateFormatter();
 
   // Prepare data for the chart

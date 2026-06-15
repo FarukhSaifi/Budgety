@@ -14,7 +14,6 @@ This project uses path aliases for cleaner and more maintainable imports. Instea
 | `@context/` | `src/context/` | React context providers |
 | `@constants/` | `src/constants/` | Constants and configuration |
 | `@utils/` | `src/utils/` | Utility functions |
-| `@styles/` | `src/styles/` | Style files |
 | `@theme/` | `src/theme/` | Theme configuration |
 
 ## Examples

@@ -1,7 +1,9 @@
 "use client";
 
+import RequireAuth from "@components/features/auth/RequireAuth";
 import AppLayout from "@components/layout/AppLayout";
 import { TIMEOUTS } from "@constants";
+import { AuthProvider } from "@context/AuthContext";
 import { BudgetProvider } from "@context/BudgetContext";
 import { TabProvider } from "@context/TabContext";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -18,23 +20,27 @@ export default function HomePage() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <BudgetProvider>
-            <TabProvider>
-              <AppLayout />
-              <ToastContainer
-                position="top-right"
-                autoClose={TIMEOUTS.TOAST_SUCCESS}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                theme="light"
-              />
-            </TabProvider>
-          </BudgetProvider>
+          <AuthProvider>
+            <RequireAuth>
+              <BudgetProvider>
+                <TabProvider>
+                  <AppLayout />
+                  <ToastContainer
+                    position="top-right"
+                    autoClose={TIMEOUTS.TOAST_SUCCESS}
+                    hideProgressBar={false}
+                    newestOnTop={false}
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss
+                    draggable
+                    pauseOnHover
+                    theme="light"
+                  />
+                </TabProvider>
+              </BudgetProvider>
+            </RequireAuth>
+          </AuthProvider>
         </LocalizationProvider>
       </ThemeProvider>
     </ErrorBoundary>
