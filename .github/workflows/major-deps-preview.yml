@@ -1,5 +1,5 @@
 # Preview available major npm upgrades without changing package.json.
-# Run manually before merging a Dependabot "npm-major" PR.
+# Run manually before merging a Dependabot "npm-major" PR, or when planning a framework bump.
 #
 # Actions → Major dependency preview → Run workflow
 
@@ -11,33 +11,30 @@ on:
 permissions:
   contents: read
 
-env:
-  DATABASE_URL: postgresql://ci:ci@localhost:5432/budgety?sslmode=disable
-  BETTER_AUTH_SECRET: ci-build-placeholder-secret-min-32-chars
-  BETTER_AUTH_URL: http://localhost:3000
-  NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000
-
 jobs:
   preview:
     name: Preview major updates
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: "22"
-          cache: npm
+          node-version: "lts/*"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Baseline — lint and build (current versions)
         run: |
+          export DATABASE_URL=postgresql://ci:ci@localhost:5432/budgety?sslmode=disable
+          export BETTER_AUTH_SECRET=ci-build-placeholder-secret-min-32-chars
+          export BETTER_AUTH_URL=http://localhost:3000
+          export NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
           npm run lint
           npm run build
 
@@ -51,18 +48,13 @@ jobs:
         run: |
           cat <<'EOF'
 
-          === Budgety major upgrade checklist ===
+          === Major upgrade checklist (before merging npm-major PR) ===
 
           1. Read the Dependabot PR body and changelogs for each package.
-          2. Keep these aligned when bumping frameworks:
-             - next + eslint-config-next (same major line)
-             - react + react-dom
-             - @mui/material + @mui/icons-material + @mui/x-date-pickers
-             - better-auth + pg (auth; run scripts/init-auth-tables.sql after schema changes)
-             - @neondatabase/serverless (API routes / Neon)
-          3. Run locally:
-               npm ci && npm run lint && npm run build
-          4. Smoke-test: sign in, transactions list/calendar, import dialog, savings goals, bills.
-          5. Merge only when CI (ESLint, Production build) is green.
+          2. Keep framework families on the same major/minor line (e.g. next + react + types).
+          3. Run locally after checkout:
+               npm install && npm run lint && npm run build
+          4. Smoke-test critical pages and flows in the browser.
+          5. Merge only when CI is green.
 
           EOF

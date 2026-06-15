@@ -1,5 +1,9 @@
-# CodeQL — enable in repo settings if you use GitHub Advanced Security.
-# Day-to-day checks: CI workflow (ESLint + build + npm audit).
+# CodeQL requires "Code scanning" enabled in repo settings:
+# Settings → Code security and analysis → Code scanning → Set up → CodeQL analysis
+#
+# On private repos this needs GitHub Advanced Security (paid) unless your org provides it.
+# Until enabled, this workflow is manual-only so CI does not fail.
+# Day-to-day dependency checks run in the main CI workflow (npm audit).
 
 name: CodeQL
 
@@ -13,23 +17,23 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze JavaScript
+    name: Analyze JavaScript/TypeScript
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript-typescript"

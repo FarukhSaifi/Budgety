@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, master]
   push:
-    branches: [main]
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -12,13 +12,6 @@ permissions:
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  # Placeholders for Next.js build (Neon + Better Auth are not contacted during static analysis)
-  DATABASE_URL: postgresql://ci:ci@localhost:5432/budgety?sslmode=disable
-  BETTER_AUTH_SECRET: ci-build-placeholder-secret-min-32-chars
-  BETTER_AUTH_URL: http://localhost:3000
-  NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000
 
 jobs:
   lint:
@@ -28,19 +21,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: "22"
-          cache: npm
+          node-version: "lts/*"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Run ESLint
+      - name: Run lint
         run: npm run lint
+
 
   audit:
     name: Dependency audit
@@ -49,39 +42,41 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: "22"
-          cache: npm
+          node-version: "lts/*"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Audit dependencies
         run: npm audit --audit-level=high
-        continue-on-error: true
 
   build:
     name: Production build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [lint]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: "22"
-          cache: npm
+          node-version: "lts/*"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Build with Turbopack
+      - name: Build
         run: npm run build
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/budgety?sslmode=disable
+          BETTER_AUTH_SECRET: ci-build-placeholder-secret-min-32-chars
+          BETTER_AUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000
+
