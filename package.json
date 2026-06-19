@@ -14,15 +14,15 @@
     "@better-auth/infra": "^0.2.14",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^9.1.0",
-    "@mui/material": "^9.1.0",
-    "@mui/x-date-pickers": "^9.4.0",
+    "@mui/icons-material": "^9.1.1",
+    "@mui/material": "^9.1.1",
+    "@mui/x-date-pickers": "^9.5.0",
     "@neondatabase/serverless": "^1.1.0",
-    "better-auth": "^1.2.0",
+    "better-auth": "^1.6.18",
     "dayjs": "^1.11.21",
-    "next": "^16.2.7",
+    "next": "^16.2.9",
     "pdfjs-dist": "^6.0.227",
-    "pg": "^8.13.0",
+    "pg": "^8.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-toastify": "^11.1.0",
@@ -32,12 +32,12 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.0",
+    "@tailwindcss/postcss": "^4.3.1",
     "autoprefixer": "^10.5.0",
-    "eslint": "^10.4.1",
-    "eslint-config-next": "^16.2.7",
+    "eslint": "^10.5.0",
+    "eslint-config-next": "^16.2.9",
     "eslint-plugin-react-hooks": "^7.1.1",
     "postcss": "^8.5.15",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.1"
   }
 }
