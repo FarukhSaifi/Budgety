@@ -2,13 +2,13 @@
 
 import { UI_TEXT } from "@constants";
 import { useAuth } from "@context/AuthContext";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 import { Button } from "@ui/Button";
 import { showError, showSuccess } from "@utils/toast";
 import { useState } from "react";
 
 const AuthPage = () => {
-  const { signIn, signUp, useSession } = useAuth();
-  const { isPending } = useSession();
+  const { isConfigured, signIn, signUp, signInWithGoogle } = useAuth();
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,40 +22,30 @@ const AuthPage = () => {
     setLoading(true);
     try {
       if (mode === "signin") {
-        const res = await signIn.email({ email: email.trim(), password });
-        if (res?.error) {
-          showError(res.error.message || UI_TEXT.AUTH_ERROR_INVALID_CREDENTIALS);
-          return;
-        }
+        await signIn(email.trim(), password);
         showSuccess(UI_TEXT.AUTH_SUCCESS_SIGNED_IN);
       } else {
-        const res = await signUp.email({
-          email: email.trim(),
-          password,
-          name: name.trim(),
-        });
-        if (res?.error) {
-          showError(res.error.message || UI_TEXT.AUTH_ERROR_EMAIL_IN_USE);
-          return;
-        }
+        await signUp(email.trim(), password, name.trim());
         showSuccess(UI_TEXT.AUTH_SUCCESS_SIGNED_UP);
-        setMode("signin");
-        setPassword("");
       }
     } catch (err) {
-      showError(err?.message || UI_TEXT.AUTH_GENERIC_ERROR);
+      showError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  if (isPending) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">{UI_TEXT.LOADING}</p>
-      </div>
-    );
-  }
+  const handleGoogle = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      showSuccess(UI_TEXT.AUTH_SUCCESS_SIGNED_IN);
+    } catch (err) {
+      showError(getAuthErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -63,6 +53,13 @@ const AuthPage = () => {
         <h1 className="mb-6 text-center text-xl font-semibold text-gray-800">
           {mode === "signin" ? UI_TEXT.AUTH_SIGN_IN_TITLE : UI_TEXT.AUTH_SIGN_UP_TITLE}
         </h1>
+
+        {!isConfigured && (
+          <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm text-amber-700">
+            {UI_TEXT.AUTH_ERROR_NOT_CONFIGURED}
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
             <div>
@@ -105,7 +102,7 @@ const AuthPage = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              minLength={8}
+              minLength={6}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
               required
@@ -116,6 +113,25 @@ const AuthPage = () => {
             {loading ? UI_TEXT.LOADING : mode === "signin" ? UI_TEXT.SIGN_IN : UI_TEXT.SIGN_UP}
           </Button>
         </form>
+
+        <div className="my-4 flex items-center gap-3">
+          <span className="h-px flex-1 bg-gray-200" />
+          <span className="text-xs uppercase tracking-wide text-gray-400">{UI_TEXT.AUTH_OR}</span>
+          <span className="h-px flex-1 bg-gray-200" />
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          fullWidth
+          size="md"
+          className="py-2.5"
+          disabled={loading}
+          onClick={handleGoogle}
+        >
+          {UI_TEXT.AUTH_CONTINUE_WITH_GOOGLE}
+        </Button>
+
         <p className="mt-4 text-center text-sm text-gray-600">
           {mode === "signin" ? (
             <>

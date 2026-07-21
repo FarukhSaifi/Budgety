@@ -12,8 +12,7 @@ import { getCurrentMonthYear } from "@utils/dateUtils";
 import React, { useEffect, useState } from "react";
 
 const Header = () => {
-  const { useSession, signOut } = useAuth();
-  const { data: session } = useSession();
+  const { user, signOutUser } = useAuth();
   const { activeTab } = useTab();
   const { transactions, viewPeriod, selectedMonth, selectedYear, dispatch } = useBudget();
   const { totalIncome, totalExpense } = useBudgetCalculations(transactions, viewPeriod, selectedMonth, selectedYear);
@@ -172,11 +171,11 @@ const Header = () => {
               <span className="text-xs md:text-sm text-gray-600 font-medium">{getDateRange()}</span>
               <ArrowDownIcon className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />
             </Button>
-            {session?.user && (
+            {user && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => signOut()}
+                onClick={() => signOutUser()}
                 className="text-xs text-gray-600 hover:text-gray-900"
                 title={UI_TEXT.SIGN_OUT}
               >

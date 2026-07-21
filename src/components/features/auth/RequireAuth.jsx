@@ -5,10 +5,9 @@ import { UI_TEXT } from "@constants";
 import { useAuth } from "@context/AuthContext";
 
 export default function RequireAuth({ children }) {
-  const { useSession } = useAuth();
-  const { data: session, isPending } = useSession();
+  const { user, loading } = useAuth();
 
-  if (isPending) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <p className="text-gray-500">{UI_TEXT.LOADING}</p>
@@ -16,7 +15,7 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  if (!session?.user) {
+  if (!user) {
     return <AuthPage />;
   }
 
