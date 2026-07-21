@@ -25,21 +25,22 @@ export default function HomePage() {
               <BudgetProvider>
                 <TabProvider>
                   <AppLayout />
-                  <ToastContainer
-                    position="top-right"
-                    autoClose={TIMEOUTS.TOAST_SUCCESS}
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
-                  />
                 </TabProvider>
               </BudgetProvider>
             </RequireAuth>
+            {/* Mounted outside RequireAuth so auth toasts show on the login screen too. */}
+            <ToastContainer
+              position="top-right"
+              autoClose={TIMEOUTS.TOAST_SUCCESS}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="light"
+            />
           </AuthProvider>
         </LocalizationProvider>
       </ThemeProvider>
