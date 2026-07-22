@@ -2,7 +2,7 @@
  * Central date utilities using dayjs for the whole app.
  * Use this instead of new Date() for parsing, formatting, and date math.
  */
-import { DATE_FORMAT_STORAGE } from "@constants";
+import { DATE_FORMAT, DATE_FORMAT_STORAGE, UI_TEXT } from "@constants";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 
@@ -10,8 +10,8 @@ dayjs.extend(customParseFormat);
 
 /**
  * Parse date/datetime string to dayjs. Accepts ISO (2018-04-04T16:00:00.000Z), YYYY-MM-DD, or DD-MM-YYYY.
- * @param {string} dateString
- * @returns {dayjs.Dayjs | null}
+ * @param {string | null | undefined} dateString
+ * @returns {import('dayjs').Dayjs | null}
  */
 export function parseDate(dateString) {
   if (!dateString) return null;
@@ -19,6 +19,15 @@ export function parseDate(dateString) {
   if (!d.isValid()) d = dayjs(dateString, DATE_FORMAT_STORAGE, true);
   if (!d.isValid()) d = dayjs(dateString, "DD-MM-YYYY", true);
   return d.isValid() ? d : null;
+}
+
+/**
+ * Normalize any date input to storage format (YYYY-MM-DD).
+ * Returns empty string when the value cannot be parsed.
+ */
+export function toStorageDate(dateString) {
+  const d = parseDate(dateString);
+  return d ? d.format(DATE_FORMAT_STORAGE) : "";
 }
 
 /**
@@ -154,4 +163,28 @@ export function compareByDateThenCreatedAt(a, b) {
     dayjs(a.createdAt || a.date).valueOf() -
     dayjs(b.createdAt || b.date).valueOf()
   );
+}
+
+/**
+ * Human-readable relative time (e.g. "2 hours ago") for transaction timestamps.
+ */
+export function formatRelativeTime(dateString) {
+  const d = parseDate(dateString);
+  if (!d) return "";
+
+  const now = dayjs();
+  const diffMins = now.diff(d, "minute");
+  if (diffMins < 1) return UI_TEXT.JUST_NOW;
+  if (diffMins === 1) return `1 ${UI_TEXT.MINUTE_AGO}`;
+  if (diffMins < 60) return `${diffMins} ${UI_TEXT.MINUTES_AGO}`;
+
+  const diffHours = now.diff(d, "hour");
+  if (diffHours === 1) return `1 ${UI_TEXT.HOUR_AGO}`;
+  if (diffHours < 24) return `${diffHours} ${UI_TEXT.HOURS_AGO}`;
+
+  const diffDays = now.diff(d, "day");
+  if (diffDays === 1) return `1 ${UI_TEXT.DAY_AGO}`;
+  if (diffDays < 7) return `${diffDays} ${UI_TEXT.DAYS_AGO}`;
+
+  return d.format(DATE_FORMAT);
 }

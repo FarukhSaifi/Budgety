@@ -38,7 +38,7 @@ export const TRANSACTION_TYPE_LABELS = {
   [TRANSACTION_TYPES.EXPENSE]: "Expense",
 };
 
-// Transaction Modes (Payment Methods)
+// Transaction Modes (Payment Methods) — primary modes match PaymentMode type
 export const TRANSACTION_MODES = {
   CASH: "Cash",
   CARD: "Card",
@@ -52,6 +52,14 @@ export const TRANSACTION_MODES = {
   RTGS: "RTGS",
   OTHER: "Other",
 };
+
+/** Primary payment modes for forms (aligned with Firestore PaymentMode). */
+export const PRIMARY_PAYMENT_MODES = [
+  TRANSACTION_MODES.CASH,
+  TRANSACTION_MODES.CARD,
+  TRANSACTION_MODES.UPI,
+  TRANSACTION_MODES.NET_BANKING,
+];
 
 // Transaction Mode Labels
 export const TRANSACTION_MODE_LABELS = {
@@ -241,6 +249,12 @@ export const VIEW_PERIODS = {
   ALL: "all",
 };
 
+/** localStorage key for dashboard period (viewPeriod / month / year). */
+export const UI_PERIOD_STORAGE_KEY = "budgety.ui.period";
+
+/** Sentinel value in category selects for opening the “add category” flow. */
+export const ADD_CATEGORY_OPTION_VALUE = "__ADD_NEW_CATEGORY__";
+
 // View Period Labels
 export const VIEW_PERIOD_LABELS = {
   [VIEW_PERIODS.MONTHLY]: "Monthly",
@@ -314,6 +328,14 @@ export const UI_TEXT = {
   ADD_NEW_CATEGORY_TITLE: "Add new category",
   ADD_NEW_CATEGORY_LABEL: "Category name",
   ADD_NEW_CATEGORY_PLACEHOLDER: "Enter category name",
+  ADD_CATEGORY_OPTION: "+ Add category",
+  ADD_CATEGORY_TYPE_HINT: "This category will be available for {type} transactions.",
+  SUGGEST_WITH_AI: "Suggest with AI",
+  SUGGEST_CATEGORY_LOADING: "Suggesting…",
+  SUGGEST_CATEGORY_APPLIED: "Suggested: {category}",
+  SUGGEST_CATEGORY_FAILED: "Could not suggest a category. Enter one manually.",
+  SUGGEST_CATEGORY_UNAVAILABLE: "AI suggestions unavailable. Enter a category manually.",
+  CATEGORY_CREATED: "Category “{name}” added",
   BILL_NAME_PLACEHOLDER: "e.g., Electricity Bill",
   ADD_NEW_CATEGORY_REQUIRED: "Please enter a category name",
   MODE_PLACEHOLDER: "Mode",
@@ -373,6 +395,8 @@ export const UI_TEXT = {
   SELECT_PERIOD: "Select Period",
   VIEW_PERIOD_LABEL_SHORT: "View Period",
   MONTH_LABEL: "Month",
+  MONTHLY_LABEL: "Monthly",
+  OUTCOME_ANALYTICS: "Outcome Analytics",
   YEAR_LABEL: "Year",
   DONE: "Done",
   RECURRING_TRANSACTIONS: "Recurring Transactions",
@@ -381,6 +405,16 @@ export const UI_TEXT = {
   ADD_BILL: "Add Bill Reminder",
   MARK_AS_PAID: "Mark as Paid",
   BUDGETS: "Budgets",
+  MONTHLY_BUDGETS: "Monthly Budgets",
+  YEARLY_BUDGETS: "Yearly Budgets",
+  BUDGETS_SUBTITLE: "Track your spending across categories.",
+  TOTAL_SPENT: "Total Spent",
+  LIMIT_LABEL: "Limit",
+  USED_LABEL: "Used",
+  BUDGET_STATUS_GOOD: "Good",
+  BUDGET_STATUS_NEAR_LIMIT: "Near Limit",
+  BUDGET_STATUS_OVER: "Over",
+  ADD_CATEGORY_BUDGET: "Add Category",
   ADD_BUDGET: "Add Budget",
   BUDGET_LIMIT: "Budget Limit",
   SPENT: "Spent",
@@ -395,6 +429,30 @@ export const UI_TEXT = {
   ADD_NEW_SAVINGS_GOAL_TITLE: "Add New Savings Goal",
   ADD_RECURRING_TRANSACTION_TITLE: "Add Recurring Transaction",
   COMPREHENSIVE_FINANCIAL_ANALYSIS: "Comprehensive financial analysis and insights",
+  REPORTS_SUBTITLE:
+    "Deep dive into your financial health and future projections.",
+  THIS_MONTH: "This Month",
+  EXPORT_CSV: "Export CSV",
+  BUDGET_ADHERENCE: "Budget Adherence",
+  ADHERENCE_SCORE: "{score}% Score",
+  INCOME_VS_EXPENSES: "Income vs. Expenses",
+  SMART_INSIGHTS: "Smart Insights",
+  SMART_INSIGHTS_BETA: "BETA",
+  SMART_INSIGHTS_EMPTY:
+    "Add more transactions this month to unlock personalized insights.",
+  REFRESH_INSIGHTS: "Refresh Insights",
+  REVIEW_BUDGETS: "Review Budgets",
+  VIEW_TRANSACTIONS: "View Transactions",
+  CATEGORY_LIMITS: "Category Limits",
+  CATEGORY_SPEND: "Category Spend",
+  WITHIN_BUDGET: "Within Budget",
+  NEXT_3_MONTHS_PROJECTED: "Next 3 Months (Projected)",
+  FORECAST_ESTIMATE: "Est. {amount}",
+  APPLY_SUGGESTION: "Apply Suggestion",
+  INSIGHT_OVERSPEND_TITLE: "Budget Overspend",
+  INSIGHT_SAVINGS_TITLE: "Savings Opportunity",
+  INSIGHT_CATEGORY_SHIFT_TITLE: "Category Shift",
+  INSIGHT_STEADY_TITLE: "Steady Pace",
   NO_SPENDING_DATA: "No spending data available",
   NO_DATA_AVAILABLE: "No data available",
   CATEGORY_BREAKDOWN: "Category Breakdown",
@@ -448,8 +506,57 @@ export const UI_TEXT = {
   MODE: "MODE",
   PARTICULARS: "PARTICULARS",
   IMPORT_BANK_STATEMENT: "Import Bank Statement",
+  IMPORT_TRANSACTIONS: "Import Transactions",
+  IMPORT_TRANSACTIONS_SUBTITLE:
+    "Upload your CSV bank statements to categorize and analyze wealth.",
   HIDE_IMPORT: "Hide Import",
-  UPLOAD_CSV_EXCEL: "Upload CSV, Excel, or PDF file to import transactions",
+  UPLOAD_CSV_EXCEL: "Upload a PDF or CSV bank statement — AI extracts and categorizes transactions",
+  UPLOAD_DROP_HINT: "Drag and drop statement here",
+  UPLOAD_BROWSE_HINT: "Or click to browse your computer (Max {maxMb}MB)",
+  UPLOAD_ACCEPTED_FORMATS: "PDF or CSV (XLSX also supported)",
+  IMPORT_PARSING: "Reading statement with AI…",
+  IMPORT_PREVIEW_TITLE: "Import Preview",
+  IMPORT_PREVIEW_SUBTITLE: "Deselect any rows you want to skip. Duplicates are flagged and unchecked by default.",
+  IMPORT_APPROVE: "Import selected",
+  IMPORT_ITEMS: "Import {count} Items",
+  IMPORT_SELECT_ALL: "Select all",
+  IMPORT_DESELECT_ALL: "Deselect all",
+  IMPORT_DISCARD_ALL: "Discard All",
+  IMPORT_DUPLICATE_BADGE: "Duplicate",
+  IMPORT_FILE_FORMAT_GUIDE_TITLE: "How it works",
+  IMPORT_SUCCESS_COUNT: "Successfully imported {count} transaction(s)!",
+  IMPORT_SUCCESS_WITH_SKIPPED: "Successfully imported {count} transaction(s). {skipped} duplicate(s) were skipped.",
+  IMPORT_NONE_SELECTED: "Select at least one transaction to import.",
+  IMPORT_SUPPORT: "Support",
+  IMPORT_SUPPORT_TIP:
+    "Upload a PDF/CSV bank statement. AI extracts rows, suggests categories, and flags duplicates before you import.",
+  IMPORT_SAMPLE_CSV: "Sample CSV",
+  IMPORT_STEP_UPLOAD: "Upload Statement",
+  IMPORT_STEP_REVIEW: "Review & Map",
+  IMPORT_STEP_FINISH: "Finish Import",
+  IMPORT_AUTO_MAPPING: "Auto-mapping:",
+  IMPORT_AUTO_MAPPING_ACTIVE: "Active",
+  IMPORT_TRANSACTIONS_FOUND: "{count} Transactions Found",
+  IMPORT_STATUS_VALID: "Valid",
+  IMPORT_STATUS_REVIEW: "Review",
+  IMPORT_SELECT_CATEGORY: "Select Category",
+  IMPORT_MISSING_REFERENCE: "Missing reference data",
+  IMPORT_AI_SUGGESTED: "AI has suggested categories for {pct}% of entries.",
+  IMPORT_PRIVACY_TITLE: "Privacy Guaranteed",
+  IMPORT_PRIVACY_BODY: "Statements are processed securely and never shared with other accounts.",
+  IMPORT_AI_CAT_TITLE: "AI Categorization",
+  IMPORT_AI_CAT_BODY: "Merchants are auto-mapped to categories you can edit before import.",
+  IMPORT_SAFE_SYNC_TITLE: "Safe Syncing",
+  IMPORT_SAFE_SYNC_BODY: "Duplicates are detected so you don’t import the same row twice.",
+  IMPORT_EXT_CSV: ".CSV",
+  IMPORT_EXT_XLSX: ".XLSX",
+  IMPORT_EXT_PDF: ".PDF",
+  DESCRIPTION: "Description",
+  AMOUNT: "Amount",
+  STATUS: "Status",
+  SAMPLE_CSV_PATH: "/samples/sample-hdfc.csv",
+  SAMPLE_CSV_FILENAME: "sample-hdfc.csv",
+  CATEGORY_EDITED: "Category edited",
   TOTAL_GOALS: "Total Goals",
   TOTAL_TARGET: "Total Target",
   TOTAL_SAVED: "Total Saved",
@@ -462,13 +569,107 @@ export const UI_TEXT = {
   SAVINGS_RATE: "Savings Rate",
   RECENT_TRANSACTIONS: "Recent Transactions",
   DASHBOARD: "Dashboard",
+  HOME: "Home",
+  TRANSACTION: "Transaction",
+  ANALYTICS: "Analytics",
+  ANALYTICS_AND_REPORTS: "Analytics & Reports",
+  SEARCH_ANALYTICS: "Search analytics…",
+  OVERVIEW: "Overview",
+  MONTHLY_SPEND: "Monthly Spend",
+  BUDGET_HEALTH: "Budget Health",
+  FORECAST_EOY: "Forecast (EOY)",
+  ON_TRACK: "On Track",
+  AT_RISK: "At Risk",
+  WATCH: "Watch",
+  VS_LAST_MONTH: "vs. last month",
+  FORECAST_PACE_HINT: "Projection based on current monthly pace",
+  BUDGET_VS_ACTUAL_SUBTITLE: "Monthly comparison across top categories",
+  EXPENSE_FORECAST_SUBTITLE: "Anticipated spending based on historical data",
+  CATEGORY_DISTRIBUTION: "Category Distribution",
+  CRITICAL_ALERTS: "Critical Alerts",
+  BUDGET_EXCEEDED: "Budget Exceeded",
+  GOAL_REACHED: "Goal Reached",
+  NEARING_LIMIT: "Nearing Limit",
+  NO_CRITICAL_ALERTS: "No critical alerts right now",
+  VIEW_ALL_NOTIFICATIONS: "View All Notifications",
+  EXPORT_PDF: "Export",
+  ACTUAL_SPENT: "Actual Spent",
+  INSIGHT: "Insight",
+  CURRENT_LABEL: "Current",
+  TOTAL_LABEL: "Total",
+  PROFILE: "Profile",
+  TRANSFER: "Transfer",
+  ALL: "All",
+  OUTCOME: "Outcome",
+  BUDGET: "Budget",
+  TOTAL_BALANCE: "Total Balance",
+  AVAILABLE_BALANCE: "Available Balance",
+  THIS_PERIOD: "This Period",
+  TOTAL_SPEND: "Total Spend",
+  MONTHLY_INCOME: "Monthly Income",
+  MONTHLY_EXPENSE: "Monthly Expense",
+  MONTHLY_BUDGET: "Monthly Budget",
+  VIEW_ALL: "View All",
+  STATUS_COMPLETED: "COMPLETED",
+  STATUS_PENDING: "PENDING",
+  JUST_NOW: "Just now",
+  MINUTES_AGO: "minutes ago",
+  MINUTE_AGO: "minute ago",
+  HOURS_AGO: "hours ago",
+  HOUR_AGO: "hour ago",
+  DAYS_AGO: "days ago",
+  DAY_AGO: "day ago",
+  REFRESH: "Refresh",
+  EXPORT_DATA: "Export",
+  MORE_OPTIONS: "More options",
+  MAIN_ACCOUNT: "Main Account",
+  YOUVE_SPENT: "You've Spent",
+  BUDGET_ITEM: "Budget Item",
+  BUDGET_ALERT: "Budget Alert",
+  INCOME_ANALYTICS: "Income Analytics",
+  ACCOUNT_SETTING: "Account Setting",
+  APP_SETTING: "App Setting",
+  EDIT_PROFILE: "Edit Profile",
+  SECURITY_PRIVACY: "Security & Privacy",
+  NOTIFICATIONS: "Notifications",
+  APPEARANCE: "Appearance",
+  CURRENCY_LANGUAGE: "Currency & Language",
+  SORT: "Sort",
+  OF: "of",
+  DAYS_LEFT: "days left",
+  DUE: "Due",
+  OTHERS: "Others",
   BILLS: "Bills",
+  BILLS_AND_RECURRING: "Bills & Recurring",
   GOALS: "Goals",
   ALL_TIME: "All Time",
   PAYMENTS_CALENDAR: "Payments Calendar",
   CALENDAR_VIEW: "Calendar View",
   TOTAL_PAYMENTS: "Total Payments",
   OVERDUE: "Overdue",
+  UPCOMING: "Upcoming",
+  TOTAL_MONTHLY: "Total Monthly",
+  TOTAL_DUE_7_DAYS: "Total Due (7 Days)",
+  TOTAL_DUE_THIS_MONTH: "Total Due this Month",
+  BILLS_TIMELINE: "Bills Timeline",
+  PAY_NOW: "Pay Now",
+  PAY_SELECTED: "Pay Selected",
+  PAY_ALL: "Pay All",
+  STATUS_OVERDUE: "Overdue",
+  STATUS_UPCOMING: "Upcoming",
+  STATUS_AUTO_PAY: "Auto-Pay",
+  STATUS_PAID: "Paid",
+  DUE_TODAY: "Due today",
+  DUE_IN_DAYS: "Due in {n} days",
+  DUE_DAYS_AGO: "Due {n} days ago",
+  DUE_IN_ONE_DAY: "Due in 1 day",
+  DUE_ONE_DAY_AGO: "Due 1 day ago",
+  SEARCH_BILLS: "Search bills…",
+  NO_BILLS_MATCH: "No bills match this filter",
+  SUCCESS_BILLS_MARKED_PAID: "{n} bills marked as paid",
+  NO_UNPAID_BILLS: "No unpaid bills to pay",
+  SHOW_CALENDAR: "Show calendar",
+  HIDE_CALENDAR: "Hide calendar",
   RECURRING: "Recurring",
   PAYMENTS_FOR: "Payments for",
   NO_PAYMENTS_FOR: "No payments for",
@@ -530,7 +731,7 @@ export const UI_TEXT = {
 // User-facing error messages (for API, loading, import/export)
 export const ERROR_MESSAGES = {
   REQUEST_FAILED: "Request failed",
-  LOAD_DATA_FAILED: "Could not load data from server. Using empty state.",
+  LOAD_DATA_FAILED: "Could not refresh data from the server. Showing your last loaded data.",
   SAVE_FAILED: "Failed to save",
   SERVER_ERROR: "An error occurred. Please try again.",
   DB_NOT_CONFIGURED: "Database not configured",
@@ -568,6 +769,41 @@ export const ERROR_MESSAGES = {
     "Error parsing Excel file: {message}. Please ensure it's a valid Excel file (.xlsx format) with proper column headers.",
   IMPORT_NONE_SKIPPED:
     "No transactions were imported. {skipped} transaction(s) were skipped. Reasons: {reasons}. Please check the file format and ensure dates, amounts, and required fields are present.",
+  STATEMENT_UNSUPPORTED_TYPE: "Unsupported file type. Please upload a PDF, CSV, or XLSX bank statement.",
+  STATEMENT_FILE_TOO_LARGE: "File is too large. Maximum size is {maxMb} MB.",
+  STATEMENT_EMPTY_TEXT: "Could not read any text from the uploaded file.",
+  STATEMENT_NO_TRANSACTIONS: "No transactions were found in this statement. Try a clearer PDF/CSV export.",
+  AI_API_KEY_MISSING:
+    "AI parsing is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY), or OPENAI_API_KEY as fallback, in the server environment.",
+  AI_PARSE_FAILED: "AI could not parse this statement: {message}",
+  AI_PARSE_INVALID_JSON: "AI returned an unexpected response. Please try again.",
+  AI_PARSE_EMPTY_RESPONSE: "AI returned an empty response. Please try again.",
+  AI_SUGGEST_CATEGORY_FAILED: "AI could not suggest a category: {message}",
+  AI_SUGGEST_CATEGORY_INVALID: "AI returned an invalid category suggestion.",
+  PARSE_STATEMENT_FAILED: "Failed to parse bank statement. Please try again.",
+  SUGGEST_CATEGORY_TITLE_REQUIRED: "A transaction title is required to suggest a category.",
+};
+
+/**
+ * Bank statement AI import limits & models.
+ * Server prefers Gemini (GOOGLE_GENERATIVE_AI_API_KEY / GEMINI_API_KEY),
+ * then falls back to OpenAI (OPENAI_API_KEY). Keys are server-only.
+ */
+export const STATEMENT_IMPORT = {
+  // gemini-2.5-flash is blocked for many new API keys; use current Flash.
+  GEMINI_MODEL: "gemini-3.6-flash",
+  OPENAI_MODEL: "gpt-4o-mini",
+  MAX_FILE_BYTES: 10 * 1024 * 1024,
+  MAX_TEXT_CHARS: 100_000,
+  ACCEPTED_EXTENSIONS: [".pdf", ".csv", ".xlsx"],
+  ACCEPTED_MIME: [
+    "application/pdf",
+    "text/csv",
+    "application/vnd.ms-excel",
+    "text/plain",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ],
+  FIELD_NAME: "file",
 };
 
 // Recurrence Types
@@ -602,6 +838,48 @@ export const DEFAULT_STATE = {
   searchQuery: "",
 };
 
+// App branding (Stitch project 9083140746767418409)
+export const APP_NAME = "Budgety";
+export const APP_LOGO_SRC = "/budget.png";
+export const APP_LOGO_ALT = "Budgety";
+export const APP_ICON_192_SRC = "/icon-192.png";
+export const APP_ICON_512_SRC = "/icon-512.png";
+export const APP_APPLE_TOUCH_ICON_SRC = "/apple-touch-icon.png";
+export const APP_FAVICON_SRC = "/favicon-32.png";
+export const APP_OG_IMAGE_SRC = "/og-image.png";
+
+/** Stitch light design tokens from screen HTML exports */
+export const STITCH_COLORS = {
+  PRIMARY: "#4343D5",
+  PRIMARY_CONTAINER: "#5D5FEF",
+  PRIMARY_DARK: "#2E2BC2",
+  PRIMARY_MUTED: "#C1C1FF",
+  PRIMARY_SOFT: "#E2E7FF",
+  BACKGROUND: "#FAF8FF",
+  SURFACE_LOW: "#F2F3FF",
+  SURFACE_CONTAINER: "#EAEDFF",
+  ON_SURFACE: "#131B2E",
+  OUTLINE: "#767586",
+  INCOME: "#008259",
+  EXPENSE: "#FF4D4D",
+  TERTIARY: "#006645",
+  BALANCE_FROM: "#1A2B88",
+  BALANCE_TO: "#5B4BDB",
+  FAB: "#5D5FEF",
+};
+
+/** Category colors for spend bars / donuts (Stitch multi-color palette). */
+export const STITCH_CHART_COLORS = [
+  "#4A6CFF",
+  "#22C55E",
+  "#FBBF24",
+  "#F97316",
+  "#06B6D4",
+  "#9CA3AF",
+  "#EC4899",
+  "#8B5CF6",
+];
+
 // Currency Symbol
 export const CURRENCY_SYMBOL = "₹";
 
@@ -609,6 +887,8 @@ export const CURRENCY_SYMBOL = "₹";
 export const DATE_FORMAT = "DD-MM-YYYY";
 /** Long display: DD-MMM-YYYY HH:MM AM/PM */
 export const DATE_FORMAT_LONG = "DD-MMM-YYYY hh:mm A";
+/** Short month + day for list rows (e.g. Oct 12) */
+export const DATE_FORMAT_MONTH_DAY = "MMM D";
 /** ISO 8601 date-only for DB DATE columns (YYYY-MM-DD) */
 export const DATE_FORMAT_STORAGE = "YYYY-MM-DD";
 
@@ -631,25 +911,25 @@ export const MONTHS = [
 // Chart Configuration
 export const CHART_CONFIG = {
   COLORS: [
+    "#4A6CFF",
+    "#22C55E",
+    "#FBBF24",
+    "#F97316",
+    "#06B6D4",
+    "#9CA3AF",
+    "#EC4899",
+    "#8B5CF6",
     "#e74c3c",
     "#3498db",
     "#2ecc71",
     "#f39c12",
     "#9b59b6",
     "#1abc9c",
-    "#e67e22",
-    "#34495e",
-    "#e91e63",
-    "#ff5722",
-    "#00bcd4",
-    "#607d8b",
-    "#ff9800",
-    "#9c27b0",
-    "#795548",
   ],
   HEIGHT: 300,
   MARGIN: { top: 20, right: 30, left: 20, bottom: 20 },
   PIE_OUTER_RADIUS: 100,
+  PIE_INNER_RADIUS: 70,
   DEFAULT_CHART_HEIGHT: 300,
 };
 
@@ -706,6 +986,8 @@ export const DATE_CONSTANTS = {
   MONTHS_PER_YEAR: 12,
   DEFAULT_REMINDER_DAYS: 3,
   MAX_REMINDER_DAYS: 30,
+  /** Window used by Bills sticky summary / Pay Selected. */
+  BILLS_DUE_WINDOW_DAYS: 7,
 };
 
 // Number Formatting

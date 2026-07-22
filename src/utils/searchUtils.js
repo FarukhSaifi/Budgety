@@ -13,16 +13,13 @@ export const filterTransactionsBySearch = (transactions, searchQuery) => {
   const query = searchQuery.toLowerCase().trim();
 
   return transactions.filter((transaction) => {
-    // Search in description
-    const description = (transaction.description || "").toLowerCase();
-    if (description.includes(query)) return true;
+    const title = (transaction.title || transaction.description || "").toLowerCase();
+    if (title.includes(query)) return true;
 
-    // Search in category
     const category = (transaction.category || "").toLowerCase();
     if (category.includes(query)) return true;
 
-    // Search in mode
-    const mode = (transaction.mode || "").toLowerCase();
+    const mode = (transaction.paymentMode || transaction.mode || "").toLowerCase();
     if (mode.includes(query)) return true;
 
     // Search in amount (as string)

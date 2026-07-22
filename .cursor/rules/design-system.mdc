@@ -1,0 +1,78 @@
+---
+description: Budgety design system tokens, components, and Stitch UI conventions
+globs: src/components/**/*.{jsx,js,tsx,ts},tailwind.config.js,src/app/globals.css
+alwaysApply: false
+---
+
+# Budgety Design System
+
+## Source of truth
+
+Stitch project [9083140746767418409](https://stitch.withgoogle.com/projects/9083140746767418409) — assets in `stitch-assets/`, icons in `src/components/icons/` + `public/icons/stitch/`. User screenshots (Home / Transaction / Analytics / Profile / Add sheet) drive the mobile shell.
+
+## Stack
+
+- **Next.js App Router** + React 19
+- **Tailwind CSS** for layout, spacing, color utilities
+- Shared UI: `@common/*`, `@components/icons`, `@components/mobile`, `@components/screens`
+
+## Tokens (Stitch light — Luminous Precision)
+
+| Token                   | Value                 | Where                                      |
+| ----------------------- | --------------------- | ------------------------------------------ |
+| Primary / brand         | `#4343D5`             | `STITCH_COLORS`, `tailwind` `primary.main` |
+| Primary container / FAB | `#5D5FEF`             | CTAs / FAB (`primary-light`)               |
+| Soft surface            | `#FAF8FF` / `#F2F3FF` | `bg-surface`, `bg-surface-low`             |
+| Income                  | `#008259`             | `text-income`                              |
+| Expense                 | `#FF4D4D`             | `text-expense`                             |
+| Card radius             | 16px                  | `rounded-card`                             |
+| Font                    | **Geist**             | `font-sans`                                |
+| Currency                | ₹ INR                 | `useCurrencyFormatter`                     |
+
+Prefer **light** Stitch screens and user reference screenshots. Dark Stitch “Budgety Web” / Obsidian Flux is layout reference only — do not switch the whole app to dark unless light screens lack a feature.
+
+Do not use `lucide-react` or `@mui/icons-material`. Icons are Stitch Material Symbol SVGs from `@components/icons`.
+
+## Navigation IA (4-tab Stitch shell + secondary)
+
+### Primary (bottom nav + FAB)
+
+| ID             | Screen                                              | Stitch icon    |
+| -------------- | --------------------------------------------------- | -------------- |
+| `overview`     | Home (dashboard + budget progress + upcoming bills) | `home`         |
+| `transactions` | Transaction list / calendar + import                | `receipt_long` |
+| `analytics`    | Income / Outcome / Budget tabs                      | `bar_chart`    |
+| `profile`      | Profile + settings + secondary links                | `person`       |
+| FAB            | `AddTransactionSheet`                               | `add`          |
+
+### Secondary (reachable; not in bottom nav)
+
+| ID        | How to reach                                               |
+| --------- | ---------------------------------------------------------- |
+| `bills`   | Home “View All”, Profile → Bills, `/bills`                 |
+| `goals`   | Profile → Goals, `/goals`                                  |
+| `budgets` | Analytics Budget “View All”, Profile → Budgets, `/budgets` |
+| `reports` | Analytics / download, `/reports`                           |
+
+Desktop sidebar lists primary then secondary.
+
+## Components
+
+- Shared UI: `src/components/common/` → `@common`
+- Mobile Stitch primitives: `src/components/mobile/`
+- Icons: `src/components/icons/` (Stitch SVGs only)
+- Screens: `src/components/screens/*`
+- Shell: `AppShell`, `BottomNav` (+ FAB), `Sidebar`, `TopBar`
+
+## Patterns
+
+- Mobile-first; bottom nav `md:hidden`, sidebar `hidden md:flex`
+- Content padding bottom `pb-28` for FAB clearance
+- Amounts: green `+` income, red `-` expense
+- Cards: white / `rounded-card`, soft shadows
+- Primary CTAs: `bg-primary-main`
+
+## Data / Auth
+
+- All budget data is per Firebase Auth user in Firestore collections scoped by `userId`
+- Never show another user’s imports

@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return resource.data.userId == request.auth.uid;
+    }
+
+    function isCreatingAsOwner() {
+      return request.resource.data.userId == request.auth.uid;
+    }
+
+    function ownsDoc() {
+      return isSignedIn() && isOwner();
+    }
+
+    function createsOwnDoc() {
+      return isSignedIn() && isCreatingAsOwner();
+    }
+
+    // Collections from src/constants/firestore.ts (FIRESTORE_COLLECTIONS).
+    // List queries must include where('userId','==',request.auth.uid) so the
+    // rule can prove every matched doc satisfies ownsDoc().
+    match /transactions/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
+    match /budgets/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
+    match /bills/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
+    match /goals/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
+    match /recurringTransactions/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+  }
+}

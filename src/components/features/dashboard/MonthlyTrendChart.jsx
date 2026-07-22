@@ -1,21 +1,18 @@
+"use client";
+
 import {
   CHART_CONFIG,
-  DATE_FORMAT_STORAGE,
   DISPLAY_LIMITS,
-  TIMEOUTS,
+  MONTHS,
+  STITCH_COLORS,
   UI_TEXT,
-  VIEW_PERIODS,
 } from "@constants";
-import { useBudget } from "@context/BudgetContext";
-import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
+import { DashboardWidget } from "@components/features/dashboard/DashboardWidget";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
-import { useDateFormatter } from "@hooks/useDateFormatter";
-import { ChartContainer } from "@ui/ChartContainer";
-import { Widget } from "@ui/Widget";
-import { dateFromMonthYear, daysInMonth } from "@utils/dateUtils";
+import { useAppSelector } from "@store/hooks";
+import { getMonthYear } from "@utils/dateUtils";
 import { exportChartData } from "@utils/exportUtils";
-import { showInfo } from "@utils/toast";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -27,78 +24,45 @@ import {
   YAxis,
 } from "recharts";
 
-const MonthlyTrendChart = () => {
-  const { transactions, viewPeriod, selectedMonth, selectedYear } = useBudget();
-  const { monthlyBreakdown } = useBudgetCalculations(
-    transactions,
-    viewPeriod,
-    selectedMonth,
-    selectedYear,
-  );
+const MonthlyTrendChart = ({ className = "" }) => {
+  const transactions = useAppSelector((s) => s.transactions.items);
+  const { selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
   const { formatCurrencyForChart } = useCurrencyFormatter();
-  const { formatDate } = useDateFormatter();
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Prepare data for the chart
+  // Rolling N-month income/expense bars (matches reference Monthly Trend)
   const chartData = useMemo(() => {
-    if (viewPeriod === VIEW_PERIODS.MONTHLY) {
-      // For monthly view, show daily breakdown or just current month
-      const numDays = daysInMonth(selectedYear, selectedMonth);
-
-      const dailyData = [];
-      for (let day = 1; day <= numDays; day++) {
-        const dateStr = dateFromMonthYear(
-          selectedYear,
-          selectedMonth,
-          day,
-        ).format(DATE_FORMAT_STORAGE);
-
-        const dayTransactions = transactions.filter((t) => {
-          if (!t.date) return false;
-          return t.date.startsWith(dateStr);
-        });
-
-        const income = dayTransactions
-          .filter((t) => t.type === "income")
-          .reduce((sum, t) => sum + (t.amount || 0), 0);
-        const expense = dayTransactions
-          .filter((t) => t.type === "expense")
-          .reduce((sum, t) => sum + (t.amount || 0), 0);
-
-        dailyData.push({
-          date: day,
-          Income: income,
-          Expense: expense,
-        });
-      }
-
-      return dailyData;
+    void refreshKey;
+    const months = [];
+    const anchor = new Date(selectedYear, selectedMonth - 1, 1);
+    for (let i = DISPLAY_LIMITS.TREND_MONTHS - 1; i >= 0; i -= 1) {
+      const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
+      months.push({
+        key: `${d.getFullYear()}-${d.getMonth() + 1}`,
+        label: MONTHS[d.getMonth()].slice(0, 3),
+        Income: 0,
+        Expense: 0,
+      });
     }
-
-    // For yearly/all view, use monthly breakdown
-    return monthlyBreakdown.map((month) => {
-      const dateStr = `${month.year}-${String(month.month).padStart(
-        2,
-        "0",
-      )}-01`;
-      return {
-        month: formatDate(dateStr, "monthYear"),
-        Income: month.income,
-        Expense: month.expense,
-      };
+    const index = new Map(months.map((m) => [m.key, m]));
+    transactions.forEach((t) => {
+      const my = getMonthYear(t.date);
+      if (!my) return;
+      const entry = index.get(`${my.year}-${my.month}`);
+      if (!entry) return;
+      if (t.type === "income") entry.Income += t.amount || 0;
+      else entry.Expense += t.amount || 0;
     });
-  }, [
-    transactions,
-    viewPeriod,
-    selectedMonth,
-    selectedYear,
-    monthlyBreakdown,
-    formatDate,
-  ]);
+    return months.map(({ label, Income, Expense }) => ({
+      label,
+      Income,
+      Expense,
+    }));
+  }, [transactions, selectedMonth, selectedYear, refreshKey]);
 
   const handleExport = () => {
     const exportData = chartData.map((item) => ({
-      Period:
-        viewPeriod === VIEW_PERIODS.MONTHLY ? `Day ${item.date}` : item.month,
+      Period: item.label,
       Income: item.Income,
       Expense: item.Expense,
       Net: item.Income - item.Expense,
@@ -106,78 +70,75 @@ const MonthlyTrendChart = () => {
     exportChartData(exportData, "monthly_trend");
   };
 
-  const handleViewDetails = () => {
-    // Show detailed table view in a modal or info toast
-    const details = chartData
-      .slice(0, DISPLAY_LIMITS.PREVIEW_ITEMS)
-      .map(
-        (item) =>
-          `${
-            viewPeriod === VIEW_PERIODS.MONTHLY
-              ? `Day ${item.date}`
-              : item.month
-          }: Income: ${formatCurrencyForChart(item.Income)}, Expense: ${formatCurrencyForChart(item.Expense)}`,
-      )
-      .join("\n");
-    showInfo(
-      `${UI_TEXT.MONTHLY_TREND} (showing first ${
-        DISPLAY_LIMITS.PREVIEW_ITEMS
-      }):\n${details}${
-        chartData.length > DISPLAY_LIMITS.PREVIEW_ITEMS
-          ? `\n... and ${chartData.length - DISPLAY_LIMITS.PREVIEW_ITEMS} more`
-          : ""
-      }`,
-      { autoClose: TIMEOUTS.TOAST_DETAILS },
-    );
-  };
-
-  if (chartData.length === 0) {
-    return (
-      <Widget
-        title={UI_TEXT.MONTHLY_TREND}
-        onRefresh={() => window.location.reload()}
-      >
-        <div className="py-8 text-center">
-          <p className="text-sm text-gray-600">{UI_TEXT.NO_DATA_AVAILABLE}</p>
-        </div>
-      </Widget>
-    );
-  }
+  const empty = chartData.every((d) => d.Income === 0 && d.Expense === 0);
 
   return (
-    <Widget
+    <DashboardWidget
       title={UI_TEXT.MONTHLY_TREND}
+      onRefresh={() => setRefreshKey((k) => k + 1)}
       onExport={handleExport}
-      onViewDetails={handleViewDetails}
-      onRefresh={() => window.location.reload()}
+      className={className}
     >
-      <ChartContainer height={CHART_CONFIG.DEFAULT_CHART_HEIGHT}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={CHART_CONFIG.MARGIN}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey={viewPeriod === VIEW_PERIODS.MONTHLY ? "date" : "month"}
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis
-              tickFormatter={formatCurrencyForChart}
-              tick={{ fontSize: 12 }}
-            />
-            <Tooltip
-              formatter={(value) => formatCurrencyForChart(value)}
-              contentStyle={{
-                backgroundColor: "white",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-              }}
-            />
-            <Legend />
-            <Bar dataKey="Income" fill="#28b9b5" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Expense" fill="#ff5049" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartContainer>
-    </Widget>
+      {empty ? (
+        <div className="flex h-[280px] items-center justify-center">
+          <p className="text-sm text-gray-400">{UI_TEXT.NO_DATA_AVAILABLE}</p>
+        </div>
+      ) : (
+        <div style={{ height: CHART_CONFIG.DEFAULT_CHART_HEIGHT }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              barGap={4}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#E8EAF2"
+              />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tickFormatter={formatCurrencyForChart}
+                tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                axisLine={false}
+                tickLine={false}
+                width={56}
+              />
+              <Tooltip
+                formatter={(value) => formatCurrencyForChart(Number(value))}
+                contentStyle={{
+                  backgroundColor: "white",
+                  border: "1px solid #E8EAF2",
+                  borderRadius: "12px",
+                  boxShadow: "0 8px 24px rgba(19,27,46,0.08)",
+                }}
+              />
+              <Legend
+                iconType="circle"
+                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+              />
+              <Bar
+                dataKey="Expense"
+                fill={STITCH_COLORS.EXPENSE}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={28}
+              />
+              <Bar
+                dataKey="Income"
+                fill={STITCH_COLORS.INCOME}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={28}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </DashboardWidget>
   );
 };
 

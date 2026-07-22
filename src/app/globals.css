@@ -3,54 +3,47 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 font-sans antialiased;
-    font-family:
-      -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-      "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-      sans-serif;
+    @apply bg-surface font-sans antialiased text-brand-deep;
+    font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 }
 
 @layer utilities {
-  .animate-blob {
-    animation: blob 7s infinite;
+  .glass-card {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(19, 27, 46, 0.06);
   }
-  .animation-delay-2000 {
-    animation-delay: 2s;
+  .glass-nav {
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
-  .animation-delay-4000 {
-    animation-delay: 4s;
+  .neon-gradient {
+    background: linear-gradient(135deg, #5d5fef 0%, #c1c1ff 100%);
   }
-  @keyframes blob {
-    0% {
-      transform: translate(0px, 0px) scale(1);
-    }
-    33% {
-      transform: translate(30px, -50px) scale(1.1);
-    }
-    66% {
-      transform: translate(-20px, 20px) scale(0.9);
-    }
-    100% {
-      transform: translate(0px, 0px) scale(1);
-    }
+  .balance-gradient {
+    background: linear-gradient(135deg, #1a2b88 0%, #3b41c8 45%, #6b5ce7 100%);
   }
-  .glass-effect {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+  .text-display-balance {
+    letter-spacing: -0.02em;
+    font-weight: 700;
   }
-  .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600;
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-  .neon-glow {
-    box-shadow:
-      0 0 20px rgba(102, 126, 234, 0.5),
-      0 0 40px rgba(102, 126, 234, 0.3),
-      0 0 60px rgba(102, 126, 234, 0.1);
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .label-caps {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 }
 
@@ -58,9 +51,23 @@ html {
   scroll-behavior: smooth;
 }
 
-*:focus-visible {
-  outline: 2px solid #3b82f6;
+/* Low specificity so utilities like outline-none / focus rings can override.
+   Pill search fields put the ring on the wrapper via focus-within instead. */
+:where(*):focus-visible {
+  outline: 2px solid #4343d5;
   outline-offset: 2px;
+}
+
+.input-pill-focus:focus-within {
+  outline: none;
+}
+
+.input-pill-focus input:focus,
+.input-pill-focus input:focus-visible,
+.input-pill-focus textarea:focus,
+.input-pill-focus textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none;
 }
 
 ::-webkit-scrollbar {
@@ -68,14 +75,14 @@ html {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f2f3ff;
 }
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: #c1c1ff;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #5d5fef;
 }
 
 .touch-manipulation {
@@ -128,14 +135,12 @@ body {
   z-index: 9999;
 }
 .Toastify__toast {
-  border-radius: 8px;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px -12px rgba(67, 67, 213, 0.22);
   font-family: inherit;
 }
 .Toastify__toast--success {
-  background-color: #10b981;
+  background-color: #008259;
   color: white;
 }
 .Toastify__toast--error {
@@ -147,7 +152,7 @@ body {
   color: white;
 }
 .Toastify__toast--info {
-  background-color: #3b82f6;
+  background-color: #4343d5;
   color: white;
 }
 .Toastify__progress-bar {

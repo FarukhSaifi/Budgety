@@ -1,0 +1,492 @@
+import { db } from "@/lib/firebase";
+import type { Bill, BillStatus, Budget, Goal, PaymentMode, RecurringTransaction, Transaction } from "@/types";
+import { FIRESTORE_COLLECTIONS, PAYMENT_MODES_LIST } from "@constants/firestore";
+import { toStorageDate, todayStorage } from "@utils/dateUtils";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch,
+  type DocumentData,
+  type FirestoreError,
+  type QuerySnapshot,
+} from "firebase/firestore";
+
+function requireDb() {
+  if (!db) {
+    throw new Error("Firestore is not configured. Set NEXT_PUBLIC_FIREBASE_* env vars.");
+  }
+  return db;
+}
+
+/** Normalize any date input to YYYY-MM-DD for storage and month filters. */
+function normalizeTxDate(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return todayStorage();
+  const stored = toStorageDate(raw);
+  if (stored) return stored;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  return todayStorage();
+}
+
+function normalizePaymentMode(value: unknown): PaymentMode {
+  const mode = String(value || "Cash");
+  return (PAYMENT_MODES_LIST.includes(mode as PaymentMode) ? mode : "Cash") as PaymentMode;
+}
+
+function deriveBillStatus(data: DocumentData): BillStatus {
+  if (data.status === "paid" || data.status === "pending" || data.status === "overdue") {
+    return data.status;
+  }
+  if (data.isPaid) return "paid";
+  const due = data.dueDate ? new Date(data.dueDate) : null;
+  if (due && !Number.isNaN(due.getTime()) && due < new Date()) return "overdue";
+  return "pending";
+}
+
+export function mapTransactionDoc(id: string, data: DocumentData): Transaction {
+  const title = String(data.title ?? data.description ?? "");
+  const paymentMode = normalizePaymentMode(data.paymentMode ?? data.mode);
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    title,
+    amount: Number(data.amount) || 0,
+    type: data.type === "income" ? "income" : "expense",
+    category: String(data.category ?? "Other"),
+    paymentMode,
+    date: normalizeTxDate(data.date),
+    isRecurring: Boolean(data.isRecurring),
+    description: title,
+    mode: paymentMode,
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+    imported: Boolean(data.imported),
+  };
+}
+
+export function toTransactionWrite(tx: Partial<Transaction> & { userId: string }) {
+  const title = tx.title ?? tx.description ?? "";
+  const paymentMode = normalizePaymentMode(tx.paymentMode ?? tx.mode);
+  return {
+    userId: tx.userId,
+    title,
+    amount: Number(tx.amount) || 0,
+    type: tx.type === "income" ? "income" : "expense",
+    category: tx.category ?? "Other",
+    paymentMode,
+    date: normalizeTxDate(tx.date),
+    isRecurring: Boolean(tx.isRecurring),
+    createdAt: tx.createdAt ?? new Date().toISOString(),
+    imported: Boolean(tx.imported),
+  };
+}
+
+export function mapBudgetDoc(id: string, data: DocumentData): Budget {
+  const limitAmount = Number(data.limitAmount ?? data.limit ?? data.amount) || 0;
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    category: String(data.category ?? ""),
+    limitAmount,
+    amount: limitAmount,
+    currentAmount: Number(data.currentAmount) || 0,
+    period: data.period === "yearly" ? "yearly" : "monthly",
+    month: data.month != null ? Number(data.month) : undefined,
+    year: data.year != null ? Number(data.year) : undefined,
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+  };
+}
+
+export function toBudgetWrite(b: Partial<Budget> & { userId: string }) {
+  return {
+    userId: b.userId,
+    category: b.category ?? "",
+    limitAmount: Number(b.limitAmount) || 0,
+    currentAmount: Number(b.currentAmount) || 0,
+    period: b.period === "yearly" ? "yearly" : "monthly",
+    month: b.month ?? null,
+    year: b.year ?? null,
+    createdAt: b.createdAt ?? new Date().toISOString(),
+  };
+}
+
+export function mapBillDoc(id: string, data: DocumentData): Bill {
+  const title = String(data.title ?? data.name ?? "");
+  const status = deriveBillStatus(data);
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    title,
+    amount: Number(data.amount) || 0,
+    dueDate: String(data.dueDate ?? ""),
+    recurrence: (data.recurrence as Bill["recurrence"]) || "monthly",
+    status,
+    name: title,
+    isPaid: status === "paid",
+    paidDate: data.paidDate ? String(data.paidDate) : null,
+    isRecurring: data.isRecurring !== false,
+    reminderDays: Number(data.reminderDays) || 3,
+    category: data.category ? String(data.category) : undefined,
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+  };
+}
+
+export function toBillWrite(b: Partial<Bill> & { userId: string }) {
+  const title = b.title ?? b.name ?? "";
+  const status: BillStatus = b.status ?? (b.isPaid ? "paid" : "pending");
+  return {
+    userId: b.userId,
+    title,
+    amount: Number(b.amount) || 0,
+    dueDate: b.dueDate ?? new Date().toISOString(),
+    recurrence: b.recurrence ?? "monthly",
+    status,
+    isPaid: status === "paid",
+    paidDate: b.paidDate ?? null,
+    isRecurring: b.isRecurring !== false,
+    reminderDays: b.reminderDays ?? 3,
+    category: b.category ?? null,
+    createdAt: b.createdAt ?? new Date().toISOString(),
+  };
+}
+
+export function mapGoalDoc(id: string, data: DocumentData): Goal {
+  const title = String(data.title ?? data.name ?? "");
+  const savedAmount = Number(data.savedAmount ?? data.currentAmount) || 0;
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    title,
+    targetAmount: Number(data.targetAmount) || 0,
+    savedAmount,
+    targetDate: String(data.targetDate ?? data.createdAt ?? new Date().toISOString()),
+    name: title,
+    currentAmount: savedAmount,
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+  };
+}
+
+export function toGoalWrite(g: Partial<Goal> & { userId: string }) {
+  const title = g.title ?? g.name ?? "";
+  const savedAmount = Number(g.savedAmount ?? g.currentAmount) || 0;
+  return {
+    userId: g.userId,
+    title,
+    targetAmount: Number(g.targetAmount) || 0,
+    savedAmount,
+    targetDate: g.targetDate ?? new Date().toISOString(),
+    createdAt: g.createdAt ?? new Date().toISOString(),
+  };
+}
+
+export function mapRecurringDoc(id: string, data: DocumentData): RecurringTransaction {
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    type: data.type === "income" ? "income" : "expense",
+    description: String(data.description ?? data.title ?? ""),
+    category: String(data.category ?? "Other"),
+    amount: Number(data.amount) || 0,
+    recurrence: (data.recurrence as RecurringTransaction["recurrence"]) || "monthly",
+    startDate: String(data.startDate ?? ""),
+    endDate: data.endDate ? String(data.endDate) : null,
+    isActive: data.isActive !== false,
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+  };
+}
+
+export function toRecurringWrite(r: Partial<RecurringTransaction> & { userId: string }) {
+  return {
+    userId: r.userId,
+    type: r.type === "income" ? "income" : "expense",
+    description: r.description ?? "",
+    category: r.category ?? "Other",
+    amount: Number(r.amount) || 0,
+    recurrence: r.recurrence ?? "monthly",
+    startDate: r.startDate ?? new Date().toISOString(),
+    endDate: r.endDate ?? null,
+    isActive: r.isActive !== false,
+    createdAt: r.createdAt ?? new Date().toISOString(),
+  };
+}
+
+async function listByUserId<T>(
+  collectionName: string,
+  userId: string,
+  mapper: (id: string, data: DocumentData) => T,
+): Promise<T[]> {
+  const firestore = requireDb();
+  const q = query(collection(firestore, collectionName), where("userId", "==", userId));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => mapper(d.id, d.data()));
+}
+
+/** Unsubscribe function returned by real-time listeners. */
+export type Unsubscribe = () => void;
+
+/**
+ * Real-time listener for a user-scoped collection. Every query is filtered by
+ * `userId == uid` (see firestore.rules). Returns an unsubscribe function.
+ */
+function subscribeByUserId<T>(
+  collectionName: string,
+  userId: string,
+  mapper: (id: string, data: DocumentData) => T,
+  onData: (items: T[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  const firestore = requireDb();
+  const q = query(collection(firestore, collectionName), where("userId", "==", userId));
+  return onSnapshot(
+    q,
+    (snap: QuerySnapshot<DocumentData>) => onData(snap.docs.map((d) => mapper(d.id, d.data()))),
+    (error: FirestoreError) => onError?.(error),
+  );
+}
+
+/** Real-time subscription factory grouped by domain (used by AuthGuard). */
+export const firestoreListeners = {
+  transactions: (userId: string, onData: (items: Transaction[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.TRANSACTIONS, userId, mapTransactionDoc, onData, onError),
+  budgets: (userId: string, onData: (items: Budget[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.BUDGETS, userId, mapBudgetDoc, onData, onError),
+  bills: (userId: string, onData: (items: Bill[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.BILLS, userId, mapBillDoc, onData, onError),
+  goals: (userId: string, onData: (items: Goal[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.GOALS, userId, mapGoalDoc, onData, onError),
+  recurring: (userId: string, onData: (items: RecurringTransaction[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.RECURRING, userId, mapRecurringDoc, onData, onError),
+};
+
+export const firestoreApi = {
+  fetchTransactions: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.TRANSACTIONS, userId, mapTransactionDoc),
+
+  addTransaction: async (tx: Transaction) => {
+    const firestore = requireDb();
+    const payload = toTransactionWrite(tx);
+    if (tx.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, tx.id), payload);
+      return { ...mapTransactionDoc(tx.id, payload) };
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS), payload);
+    return mapTransactionDoc(ref.id, payload);
+  },
+
+  addTransactionsBulk: async (items: Transaction[]) => {
+    const firestore = requireDb();
+    if (!items.length) return [];
+
+    // Firestore batches are capped at 500 ops.
+    const CHUNK = 400;
+    const results: Transaction[] = [];
+
+    for (let offset = 0; offset < items.length; offset += CHUNK) {
+      const chunk = items.slice(offset, offset + CHUNK);
+      const batch = writeBatch(firestore);
+      for (const tx of chunk) {
+        if (!tx.userId) {
+          throw new Error("Cannot import transactions without a signed-in user.");
+        }
+        const payload = toTransactionWrite(tx);
+        const id = tx.id || doc(collection(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS)).id;
+        batch.set(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, id), payload);
+        results.push(mapTransactionDoc(id, payload));
+      }
+      await batch.commit();
+    }
+
+    return results;
+  },
+
+  updateTransaction: async (id: string, userId: string, patch: Partial<Transaction>) => {
+    const firestore = requireDb();
+    const title = patch.title ?? patch.description;
+    const paymentMode =
+      patch.paymentMode != null || patch.mode != null
+        ? normalizePaymentMode(patch.paymentMode ?? patch.mode)
+        : undefined;
+    const payload: DocumentData = { userId };
+    if (title != null) payload.title = title;
+    if (patch.amount != null) payload.amount = Number(patch.amount) || 0;
+    if (patch.type != null) payload.type = patch.type === "income" ? "income" : "expense";
+    if (patch.category != null) payload.category = patch.category;
+    if (paymentMode != null) payload.paymentMode = paymentMode;
+    if (patch.date != null) payload.date = normalizeTxDate(patch.date);
+    if (patch.isRecurring != null) payload.isRecurring = Boolean(patch.isRecurring);
+    if (patch.imported != null) payload.imported = Boolean(patch.imported);
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapTransactionDoc(id, snap.data() ?? payload);
+  },
+
+  deleteTransaction: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, id));
+  },
+
+  deleteImportedTransactions: async (userId: string) => {
+    const items = await listByUserId(FIRESTORE_COLLECTIONS.TRANSACTIONS, userId, mapTransactionDoc);
+    const imported = items.filter((t) => t.imported);
+    const firestore = requireDb();
+    const batch = writeBatch(firestore);
+    imported.forEach((t) => {
+      batch.delete(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, t.id));
+    });
+    await batch.commit();
+    return imported.map((t) => t.id);
+  },
+
+  fetchBudgets: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.BUDGETS, userId, mapBudgetDoc),
+
+  addBudget: async (b: Budget) => {
+    const firestore = requireDb();
+    const payload = toBudgetWrite(b);
+    if (b.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.BUDGETS, b.id), payload);
+      return mapBudgetDoc(b.id, payload);
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.BUDGETS), payload);
+    return mapBudgetDoc(ref.id, payload);
+  },
+
+  updateBudget: async (id: string, userId: string, patch: Partial<Budget>) => {
+    const firestore = requireDb();
+    const payload: DocumentData = { userId };
+    if (patch.category != null) payload.category = patch.category;
+    if (patch.limitAmount != null || patch.amount != null) {
+      payload.limitAmount = Number(patch.limitAmount ?? patch.amount) || 0;
+    }
+    if (patch.currentAmount != null) payload.currentAmount = Number(patch.currentAmount) || 0;
+    if (patch.period != null) payload.period = patch.period === "yearly" ? "yearly" : "monthly";
+    if (patch.month !== undefined) payload.month = patch.month ?? null;
+    if (patch.year !== undefined) payload.year = patch.year ?? null;
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.BUDGETS, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapBudgetDoc(id, snap.data() ?? payload);
+  },
+
+  deleteBudget: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.BUDGETS, id));
+  },
+
+  fetchBills: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.BILLS, userId, mapBillDoc),
+
+  addBill: async (b: Bill) => {
+    const firestore = requireDb();
+    const payload = toBillWrite(b);
+    if (b.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.BILLS, b.id), payload);
+      return mapBillDoc(b.id, payload);
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.BILLS), payload);
+    return mapBillDoc(ref.id, payload);
+  },
+
+  updateBill: async (id: string, userId: string, patch: Partial<Bill>) => {
+    const firestore = requireDb();
+    const payload: DocumentData = { userId };
+    const title = patch.title ?? patch.name;
+    if (title != null) payload.title = title;
+    if (patch.amount != null) payload.amount = Number(patch.amount) || 0;
+    if (patch.dueDate != null) payload.dueDate = patch.dueDate;
+    if (patch.recurrence != null) payload.recurrence = patch.recurrence;
+    if (patch.status != null || patch.isPaid != null) {
+      const status: BillStatus = patch.status ?? (patch.isPaid ? "paid" : "pending");
+      payload.status = status;
+      payload.isPaid = status === "paid";
+    }
+    if (patch.paidDate !== undefined) payload.paidDate = patch.paidDate ?? null;
+    if (patch.isRecurring != null) payload.isRecurring = patch.isRecurring !== false;
+    if (patch.reminderDays != null) payload.reminderDays = patch.reminderDays;
+    if (patch.category !== undefined) payload.category = patch.category ?? null;
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.BILLS, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapBillDoc(id, snap.data() ?? payload);
+  },
+
+  deleteBill: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.BILLS, id));
+  },
+
+  fetchGoals: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.GOALS, userId, mapGoalDoc),
+
+  addGoal: async (g: Goal) => {
+    const firestore = requireDb();
+    const payload = toGoalWrite(g);
+    if (g.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.GOALS, g.id), payload);
+      return mapGoalDoc(g.id, payload);
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.GOALS), payload);
+    return mapGoalDoc(ref.id, payload);
+  },
+
+  updateGoal: async (id: string, userId: string, patch: Partial<Goal>) => {
+    const firestore = requireDb();
+    const payload: DocumentData = { userId };
+    const title = patch.title ?? patch.name;
+    if (title != null) payload.title = title;
+    if (patch.targetAmount != null) payload.targetAmount = Number(patch.targetAmount) || 0;
+    if (patch.savedAmount != null || patch.currentAmount != null) {
+      payload.savedAmount = Number(patch.savedAmount ?? patch.currentAmount) || 0;
+    }
+    if (patch.targetDate != null) payload.targetDate = patch.targetDate;
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.GOALS, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapGoalDoc(id, snap.data() ?? payload);
+  },
+
+  deleteGoal: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.GOALS, id));
+  },
+
+  fetchRecurring: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.RECURRING, userId, mapRecurringDoc),
+
+  addRecurring: async (r: RecurringTransaction) => {
+    const firestore = requireDb();
+    const payload = toRecurringWrite(r);
+    if (r.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.RECURRING, r.id), payload);
+      return mapRecurringDoc(r.id, payload);
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.RECURRING), payload);
+    return mapRecurringDoc(ref.id, payload);
+  },
+
+  updateRecurring: async (id: string, userId: string, patch: Partial<RecurringTransaction>) => {
+    const firestore = requireDb();
+    const payload: DocumentData = { userId };
+    if (patch.type != null) payload.type = patch.type === "income" ? "income" : "expense";
+    if (patch.description != null) payload.description = patch.description;
+    if (patch.category != null) payload.category = patch.category;
+    if (patch.amount != null) payload.amount = Number(patch.amount) || 0;
+    if (patch.recurrence != null) payload.recurrence = patch.recurrence;
+    if (patch.startDate != null) payload.startDate = patch.startDate;
+    if (patch.endDate !== undefined) payload.endDate = patch.endDate ?? null;
+    if (patch.isActive != null) payload.isActive = patch.isActive !== false;
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.RECURRING, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapRecurringDoc(id, snap.data() ?? payload);
+  },
+
+  deleteRecurring: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.RECURRING, id));
+  },
+};

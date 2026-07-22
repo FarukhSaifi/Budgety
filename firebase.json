@@ -1,4 +1,23 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Budgety",
+        "supportEmail": "support@budgety.app",
+        "authorizedRedirectUris": [
+          "http://localhost",
+          "http://localhost:3000",
+          "http://192.168.1.56:3000",
+          "https://budgety-e7e94.firebaseapp.com"
+        ]
+      }
+    },
+    "authorizedDomains": ["localhost", "budgety-e7e94.firebaseapp.com"]
+  },
   "emulators": {
     "auth": {
       "host": "127.0.0.1",
