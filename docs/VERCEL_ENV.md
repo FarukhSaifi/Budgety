@@ -10,17 +10,25 @@ Secrets live in the **Vercel project**, not in git. Use `.env.example` as the te
 | Variable | Production | Preview | Development (`vercel dev`) | Local (`.env.local`) |
 | --- | --- | --- | --- | --- |
 | `DATABASE_URL` | Encrypted (Neon pooled) | Same | Same | Your Neon pooled URL |
-| `BETTER_AUTH_SECRET` | Encrypted (min 32 chars) | **Add in dashboard** (match Production) | Optional | `openssl rand -base64 32` |
-| `BETTER_AUTH_API_KEY` | Encrypted (from Better Auth Dash) | Same as Production | Optional | Copy from Better Auth dashboard |
-| `BETTER_AUTH_URL` | `https://budgety-woad.vercel.app` (no trailing slash) | Optional (falls back to `VERCEL_URL`) | `http://localhost:3000` | `http://localhost:3000` |
-| `NEXT_PUBLIC_BETTER_AUTH_URL` | `https://budgety-woad.vercel.app` | Same as production URL | `http://localhost:3000` | `http://localhost:3000` |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | From Firebase console | Same as Production | From Firebase console | From Firebase console |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `<project-id>.firebaseapp.com` | Same as Production | Same | Same |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID | Same as Production | Same | Same |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | `<project-id>.appspot.com` | Same as Production | Same | Same |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | From Firebase console | Same as Production | Same | Same |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | From Firebase console | Same as Production | Same | Same |
 
-`NEXT_PUBLIC_*` values are **not secrets** — they are exposed to the browser. Never put `DATABASE_URL` or `BETTER_AUTH_SECRET` in a `NEXT_PUBLIC_` variable.
+`NEXT_PUBLIC_*` values are **not secrets** — they are exposed to the browser. Never put `DATABASE_URL` in a `NEXT_PUBLIC_` variable.
 
-## Removed (legacy Vite app)
+See [AUTH_SETUP.md](./AUTH_SETUP.md) for how to obtain Firebase config values.
+
+## Removed (legacy)
 
 These are no longer used by the Next.js app and should be deleted from Vercel if still present:
 
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_API_KEY`
+- `BETTER_AUTH_URL`
+- `NEXT_PUBLIC_BETTER_AUTH_URL`
 - `VITE_API_URL`
 - `PORT`
 
@@ -28,7 +36,7 @@ These are no longer used by the Next.js app and should be deleted from Vercel if
 
 ```bash
 cp .env.example .env.local
-# Edit .env.local — set DATABASE_URL and BETTER_AUTH_SECRET
+# Edit .env.local — set DATABASE_URL and NEXT_PUBLIC_FIREBASE_* values
 npm run dev
 ```
 
@@ -36,7 +44,6 @@ Or sync non-sensitive / development values from Vercel:
 
 ```bash
 npx vercel env pull .env.local --environment=development --yes
-# Then add BETTER_AUTH_SECRET manually (not pulled when sensitive-only on Production)
 ```
 
 ## Vercel CLI (production)
@@ -45,17 +52,14 @@ npx vercel env pull .env.local --environment=development --yes
 npx vercel link   # once per machine
 npx vercel env ls
 
-# Example: set public production URL (safe to repeat)
-npx vercel env add BETTER_AUTH_URL production \
-  --value "https://budgety-woad.vercel.app" --no-sensitive --yes --force
-
-# Sensitive secret (Production only via CLI; Preview may require dashboard)
-openssl rand -base64 32 | npx vercel env add BETTER_AUTH_SECRET production --yes --sensitive --force
+# Example: set a public Firebase config value (safe to repeat)
+npx vercel env add NEXT_PUBLIC_FIREBASE_PROJECT_ID production \
+  --value "your-project-id" --no-sensitive --yes --force
 ```
 
 ### Preview deployments
 
-Add `BETTER_AUTH_SECRET` for **Preview → All branches** in the Vercel dashboard (Settings → Environment Variables), using the **same value as Production** so auth cookies behave consistently against the shared Neon database.
+Set the same `NEXT_PUBLIC_FIREBASE_*` values for **Preview → All branches** so auth works on preview URLs. Add each preview domain under **Firebase → Authentication → Settings → Authorized domains**.
 
 ## After changing env vars
 
@@ -66,7 +70,3 @@ npx vercel --prod
 ```
 
 Or trigger a deploy from the Vercel dashboard.
-
-## Auth tables
-
-Run `scripts/init-auth-tables.sql` once in Neon before first sign-up. See [AUTH_SETUP.md](./AUTH_SETUP.md).

@@ -8,35 +8,38 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint:fix": "eslint src --fix",
+    "emulators": "npx firebase-tools emulators:start --only auth --project demo-budgety"
   },
   "dependencies": {
-    "@better-auth/infra": "^0.2.14",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.1.1",
     "@mui/material": "^9.1.1",
     "@mui/x-date-pickers": "^9.5.0",
     "@neondatabase/serverless": "^1.1.0",
-    "better-auth": "^1.6.18",
     "dayjs": "^1.11.21",
+    "firebase": "^12.4.0",
     "next": "^16.2.9",
     "pdfjs-dist": "^6.0.227",
-    "pg": "^8.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-toastify": "^11.1.0",
+    "read-excel-file": "^9.3.4",
     "recharts": "^3.8.1",
     "server-only": "^0.0.1",
-    "uuid": "^14.0.0",
-    "xlsx": "^0.18.5"
+    "uuid": "^14.0.0"
+  },
+  "overrides": {
+    "sharp": "^0.35.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.1",
     "autoprefixer": "^10.5.0",
-    "eslint": "^10.5.0",
+    "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.9",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "firebase-tools": "^15.0.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.1"
   }

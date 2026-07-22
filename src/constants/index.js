@@ -355,12 +355,21 @@ export const UI_TEXT = {
   AUTH_HAVE_ACCOUNT: "Already have an account?",
   AUTH_ERROR_INVALID_CREDENTIALS: "Invalid email or password",
   AUTH_ERROR_EMAIL_IN_USE: "This email is already registered",
+  AUTH_ERROR_WEAK_PASSWORD: "Password should be at least 6 characters",
+  AUTH_ERROR_INVALID_EMAIL: "Please enter a valid email address",
+  AUTH_ERROR_TOO_MANY_REQUESTS: "Too many attempts. Please try again later.",
+  AUTH_ERROR_POPUP_CLOSED: "Sign in was cancelled",
+  AUTH_ERROR_NETWORK: "Network error. Check your connection and try again.",
+  AUTH_ERROR_NOT_CONFIGURED: "Authentication is not configured. Set the NEXT_PUBLIC_FIREBASE_* environment variables.",
   AUTH_SUCCESS_SIGNED_IN: "Signed in successfully",
-  AUTH_SUCCESS_SIGNED_UP: "Account created. You can sign in now.",
+  AUTH_SUCCESS_SIGNED_UP: "Account created successfully",
+  AUTH_SUCCESS_SIGNED_OUT: "Signed out",
   AUTH_NAME_PLACEHOLDER: "Your name",
   AUTH_EMAIL_PLACEHOLDER: "you@example.com",
-  AUTH_PASSWORD_HINT: "At least 8 characters",
+  AUTH_PASSWORD_HINT: "At least 6 characters",
   AUTH_GENERIC_ERROR: "Something went wrong",
+  AUTH_CONTINUE_WITH_GOOGLE: "Continue with Google",
+  AUTH_OR: "or",
   SELECT_PERIOD: "Select Period",
   VIEW_PERIOD_LABEL_SHORT: "View Period",
   MONTH_LABEL: "Month",
@@ -529,6 +538,8 @@ export const ERROR_MESSAGES = {
   CSV_READ_FAILED: "Failed to read CSV file. Please try again.",
   PDF_NO_VALID_TRANSACTIONS: "No valid transactions found in the PDF file",
   EXCEL_READ_FAILED: "Failed to read Excel file. Please try again.",
+  EXCEL_LEGACY_XLS_UNSUPPORTED:
+    "Legacy .xls files are not supported. Please save the file as .xlsx or export as CSV and try again.",
   EXCEL_FIRST_SHEET: "Could not read the first sheet from Excel file.",
   NO_DATA_TO_EXPORT: "No data to export",
   NO_TRANSACTIONS_TO_EXPORT: "No transactions to export",
@@ -543,7 +554,7 @@ export const ERROR_MESSAGES = {
     "Error parsing CSV file: {message}. Please ensure it's a valid CSV file with proper column headers (Date, Mode, Particulars, Deposits, Withdrawals, Balance).",
   PDF_PARSE_ERROR: "Error parsing PDF file: {message}. Please ensure it's a valid PDF file with readable text.",
   EXCEL_PARSE_ERROR:
-    "Failed to parse Excel file: {message}. Please ensure the file is a valid Excel file (.xlsx or .xls format).",
+    "Failed to parse Excel file: {message}. Please ensure the file is a valid Excel file (.xlsx format).",
   EXCEL_NO_SHEETS: "Excel file has no sheets. Please ensure the file contains data.",
   EXCEL_CONVERT_ERROR: "Failed to convert Excel data: {message}. Please check the file format.",
   EXCEL_EMPTY:
@@ -554,7 +565,7 @@ export const ERROR_MESSAGES = {
   EXCEL_NO_TRANSACTIONS:
     "No valid transactions found in the Excel file. Please ensure the file contains transaction data with Date, Description, and Amount columns.",
   EXCEL_PARSE_ERROR_FALLBACK:
-    "Error parsing Excel file: {message}. Please ensure it's a valid Excel file (.xlsx or .xls format) with proper column headers.",
+    "Error parsing Excel file: {message}. Please ensure it's a valid Excel file (.xlsx format) with proper column headers.",
   IMPORT_NONE_SKIPPED:
     "No transactions were imported. {skipped} transaction(s) were skipped. Reasons: {reasons}. Please check the file format and ensure dates, amounts, and required fields are present.",
 };

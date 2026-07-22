@@ -188,12 +188,7 @@ The project uses path aliases for cleaner imports:
 See `.env.example` and [docs/VERCEL_ENV.md](docs/VERCEL_ENV.md). Required for production:
 
 - `DATABASE_URL` — Neon PostgreSQL connection string (use pooled URL for serverless)
-- `BETTER_AUTH_SECRET` — at least 32 characters (`openssl rand -base64 32`)
-
-Recommended on Vercel:
-
-- `BETTER_AUTH_URL` — `https://budgety-woad.vercel.app`
-- `NEXT_PUBLIC_BETTER_AUTH_URL` — same as `BETTER_AUTH_URL` (public, not a secret)
+- `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID` — from the Firebase console (see [docs/AUTH_SETUP.md](docs/AUTH_SETUP.md))
 
 Local secrets belong in `.env.local` only — never commit them.
 

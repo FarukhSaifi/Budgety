@@ -9,11 +9,10 @@ import { Popover } from "@mui/material";
 import { Button } from "@ui/Button";
 import { MetricCard } from "@ui/MetricCard";
 import { getCurrentMonthYear } from "@utils/dateUtils";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 const Header = () => {
-  const { useSession, signOut } = useAuth();
-  const { data: session } = useSession();
+  const { user, signOutUser } = useAuth();
   const { activeTab } = useTab();
   const { transactions, viewPeriod, selectedMonth, selectedYear, dispatch } = useBudget();
   const { totalIncome, totalExpense } = useBudgetCalculations(transactions, viewPeriod, selectedMonth, selectedYear);
@@ -22,20 +21,8 @@ const Header = () => {
   const { month: defaultMonth, year: defaultYear } = getCurrentMonthYear();
   const [tempMonth, setTempMonth] = useState(selectedMonth || defaultMonth);
   const [tempYear, setTempYear] = useState(selectedYear || defaultYear);
-
-  // Sync temp state with global state when it changes (only when picker is closed)
-  useEffect(() => {
-    if (!datePickerAnchor) {
-      // Only update temp values when picker is closed to avoid conflicts
-      if (selectedMonth && selectedMonth !== tempMonth) {
-        setTempMonth(selectedMonth);
-      }
-      if (selectedYear && selectedYear !== tempYear) {
-        setTempYear(selectedYear);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, selectedYear, datePickerAnchor]);
+  const pickerMonth = datePickerAnchor ? tempMonth : selectedMonth || defaultMonth;
+  const pickerYear = datePickerAnchor ? tempYear : selectedYear || defaultYear;
 
   const getTabTitle = () => {
     const titles = {
@@ -172,11 +159,11 @@ const Header = () => {
               <span className="text-xs md:text-sm text-gray-600 font-medium">{getDateRange()}</span>
               <ArrowDownIcon className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />
             </Button>
-            {session?.user && (
+            {user && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => signOut()}
+                onClick={() => signOutUser()}
                 className="text-xs text-gray-600 hover:text-gray-900"
                 title={UI_TEXT.SIGN_OUT}
               >
@@ -241,7 +228,7 @@ const Header = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">{UI_TEXT.MONTH_LABEL}</label>
                 <select
-                  value={tempMonth}
+                  value={pickerMonth}
                   onChange={handleMonthChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
@@ -258,7 +245,7 @@ const Header = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">{UI_TEXT.YEAR_LABEL}</label>
                 <select
-                  value={tempYear}
+                  value={pickerYear}
                   onChange={handleYearChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >

@@ -20,7 +20,7 @@ import {
 import { parsePDF } from "@utils/pdfParser";
 import { showError, showInfo, showSuccess, showWarning } from "@utils/toast";
 import { useCallback, useState } from "react";
-import * as XLSX from "xlsx";
+import readXlsxFile from "read-excel-file/browser";
 
 function setPreviewFromParsed(parsedTransactions, mapping, setters) {
   const {
@@ -74,13 +74,16 @@ const BankStatementImport = ({ onClose }) => {
 
   const parseFile = async (file) => {
     const fileName = file.name.toLowerCase();
-    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+    const isXlsx = fileName.endsWith(".xlsx");
+    const isLegacyXls = fileName.endsWith(".xls") && !isXlsx;
     const isPDF = fileName.endsWith(".pdf");
 
     if (isPDF) {
       await parsePDFFile(file);
-    } else if (isExcel) {
-      parseExcel(file);
+    } else if (isLegacyXls) {
+      showError(ERROR_MESSAGES.EXCEL_LEGACY_XLS_UNSUPPORTED);
+    } else if (isXlsx) {
+      await parseExcel(file);
     } else {
       parseCSV(file);
     }
@@ -185,116 +188,68 @@ const BankStatementImport = ({ onClose }) => {
     }
   };
 
-  const parseExcel = (file) => {
-    const reader = new FileReader();
-    reader.onerror = () => {
-      showError(ERROR_MESSAGES.EXCEL_READ_FAILED);
-    };
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        let workbook;
+  const parseExcel = async (file) => {
+    try {
+      const sheets = await readXlsxFile(file);
 
-        try {
-          workbook = XLSX.read(data, { type: "array" });
-        } catch (readError) {
-          showError(
-            ERROR_MESSAGES.EXCEL_PARSE_ERROR.replace(
-              "{message}",
-              readError.message,
-            ),
-          );
-          return;
-        }
-
-        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-          showError(ERROR_MESSAGES.EXCEL_NO_SHEETS);
-          return;
-        }
-
-        // Get the first sheet
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-
-        if (!worksheet) {
-          showError(ERROR_MESSAGES.EXCEL_FIRST_SHEET);
-          return;
-        }
-
-        // Convert to JSON with header row
-        let jsonData;
-        try {
-          jsonData = XLSX.utils.sheet_to_json(worksheet, {
-            header: 1,
-            defval: "",
-            raw: false,
-            blankrows: false,
-          });
-        } catch (jsonError) {
-          showError(
-            ERROR_MESSAGES.EXCEL_CONVERT_ERROR.replace(
-              "{message}",
-              jsonError.message,
-            ),
-          );
-          return;
-        }
-
-        if (!jsonData || jsonData.length < 2) {
-          showError(ERROR_MESSAGES.EXCEL_EMPTY);
-          return;
-        }
-
-        // Get headers from first row
-        const headers = jsonData[0].map((h) => String(h || "").trim());
-
-        // Check if headers are valid
-        if (headers.length === 0 || headers.every((h) => !h)) {
-          showError(ERROR_MESSAGES.EXCEL_NO_HEADERS);
-          return;
-        }
-
-        const mapping = detectColumnMapping(headers);
-        const validation = validateColumnMapping(mapping);
-        if (!validation.valid) {
-          showError(
-            ERROR_MESSAGES.EXCEL_MISSING_COLUMNS.replace(
-              "{missing}",
-              validation.missingColumns.join(", "),
-            ).replace("{found}", headers.join(", ")),
-          );
-          return;
-        }
-
-        const parsedTransactions = [];
-        for (let i = 1; i < jsonData.length; i++) {
-          const row = jsonData[i];
-          if (!Array.isArray(row) || row.length === 0) continue;
-          const values = row.map((cell) => {
-            if (cell === null || cell === undefined) return "";
-            if (typeof cell === "number") return String(cell);
-            return String(cell || "").trim();
-          });
-          if (values.every((v) => !v || v === "")) continue;
-          parsedTransactions.push(extractTransactionData(values, mapping));
-        }
-
-        if (parsedTransactions.length === 0) {
-          showError(ERROR_MESSAGES.EXCEL_NO_TRANSACTIONS);
-          return;
-        }
-
-        setParsedState(parsedTransactions, mapping);
-      } catch (error) {
-        showError(
-          ERROR_MESSAGES.EXCEL_PARSE_ERROR_FALLBACK.replace(
-            "{message}",
-            error.message,
-          ),
-        );
+      if (!sheets || sheets.length === 0) {
+        showError(ERROR_MESSAGES.EXCEL_NO_SHEETS);
+        return;
       }
-    };
-    reader.readAsArrayBuffer(file);
+
+      const jsonData = sheets[0]?.data;
+
+      if (!jsonData || jsonData.length < 2) {
+        showError(ERROR_MESSAGES.EXCEL_EMPTY);
+        return;
+      }
+
+      // Get headers from first row
+      const headers = jsonData[0].map((h) => String(h ?? "").trim());
+
+      // Check if headers are valid
+      if (headers.length === 0 || headers.every((h) => !h)) {
+        showError(ERROR_MESSAGES.EXCEL_NO_HEADERS);
+        return;
+      }
+
+      const mapping = detectColumnMapping(headers);
+      const validation = validateColumnMapping(mapping);
+      if (!validation.valid) {
+        showError(
+          ERROR_MESSAGES.EXCEL_MISSING_COLUMNS.replace(
+            "{missing}",
+            validation.missingColumns.join(", "),
+          ).replace("{found}", headers.join(", ")),
+        );
+        return;
+      }
+
+      const parsedTransactions = [];
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!Array.isArray(row) || row.length === 0) continue;
+        const values = row.map((cell) => {
+          if (cell === null || cell === undefined) return "";
+          if (typeof cell === "number") return String(cell);
+          if (cell instanceof Date) return cell.toISOString().slice(0, 10);
+          return String(cell || "").trim();
+        });
+        if (values.every((v) => !v || v === "")) continue;
+        parsedTransactions.push(extractTransactionData(values, mapping));
+      }
+
+      if (parsedTransactions.length === 0) {
+        showError(ERROR_MESSAGES.EXCEL_NO_TRANSACTIONS);
+        return;
+      }
+
+      setParsedState(parsedTransactions, mapping);
+    } catch (readError) {
+      showError(
+        ERROR_MESSAGES.EXCEL_PARSE_ERROR.replace("{message}", readError.message),
+      );
+    }
   };
 
   const handleImport = () => {
@@ -469,12 +424,12 @@ const BankStatementImport = ({ onClose }) => {
                       )}
                     </p>
                     <p className="text-xs text-gray-500 mt-1 wrap-break-word px-2">
-                      CSV, XLS, XLSX, or PDF files
+                      CSV, XLSX, or PDF files
                     </p>
                   </div>
                   <input
                     type="file"
-                    accept=".csv,.xlsx,.xls,.pdf"
+                    accept=".csv,.xlsx,.pdf"
                     onChange={handleFileChange}
                     className="hidden"
                   />
@@ -626,7 +581,7 @@ const BankStatementImport = ({ onClose }) => {
                   File Format Guide:
                 </h6>
                 <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                  <li>Supported formats: CSV, XLS, XLSX</li>
+                  <li>Supported formats: CSV, XLSX</li>
                   <li>
                     First row should contain headers (Date, Description, Amount,
                     etc.)
