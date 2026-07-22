@@ -8,6 +8,8 @@ const nextConfig = {
   turbopack: {
     resolveExtensions: [".js", ".jsx", ".json"],
   },
+  // Temporary: allow LAN IP for login testing on the local network
+  allowedDevOrigins: ["192.168.1.56"],
 };
 
 export default nextConfig;

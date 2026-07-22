@@ -46,6 +46,11 @@ For Google sign-in, the domain hosting the app must be in
 Vercel domains are usually added automatically; add custom domains manually.
 Use the bare host only (e.g. `localhost`, not `http://localhost:3000`).
 
+**LAN login testing (temporary):** `192.168.1.56` is listed in `firebase.json`
+(`auth.authorizedDomains`) and Next.js `allowedDevOrigins` so you can open
+`http://192.168.1.56:3000` on the local network. Also add that host in the
+Firebase console if deploy does not pick it up. Remove it when testing is done.
+
 ## 5. Run the app
 
 ```bash
