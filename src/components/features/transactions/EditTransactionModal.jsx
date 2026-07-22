@@ -15,7 +15,7 @@ import { Dialog } from "@ui/Dialog";
 import { FormField, FormFieldGroup } from "@ui/FormField";
 import { SearchableCategorySelect } from "@ui/SearchableCategorySelect";
 import { showSuccess } from "@utils/toast";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 const EditTransactionModal = ({ open, onClose, transaction }) => {
   const { dispatch } = useBudget();
@@ -44,11 +44,12 @@ const EditTransactionModal = ({ open, onClose, transaction }) => {
   }, [transaction]);
 
   const [formData, setFormData] = useState(initialFormData);
+  const [prevInitialFormData, setPrevInitialFormData] = useState(initialFormData);
 
-  // Update form data when transaction changes
-  useEffect(() => {
+  if (initialFormData !== prevInitialFormData) {
+    setPrevInitialFormData(initialFormData);
     setFormData(initialFormData);
-  }, [initialFormData]);
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
