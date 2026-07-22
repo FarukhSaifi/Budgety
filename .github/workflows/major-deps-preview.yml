@@ -32,9 +32,12 @@ jobs:
       - name: Baseline — lint and build (current versions)
         run: |
           export DATABASE_URL=postgresql://ci:ci@localhost:5432/budgety?sslmode=disable
-          export BETTER_AUTH_SECRET=ci-build-placeholder-secret-min-32-chars
-          export BETTER_AUTH_URL=http://localhost:3000
-          export NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
+          export NEXT_PUBLIC_FIREBASE_API_KEY=ci-build-placeholder
+          export NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo-budgety.firebaseapp.com
+          export NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-budgety
+          export NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=demo-budgety.appspot.com
+          export NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=000000000000
+          export NEXT_PUBLIC_FIREBASE_APP_ID=1:000000000000:web:ci-build-placeholder
           npm run lint
           npm run build
 
