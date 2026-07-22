@@ -4,6 +4,7 @@ import {
   applyResolvedTheme,
   readStoredThemePreference,
   resolveThemePreference,
+  THEME_STORAGE_KEY,
   writeStoredThemePreference,
   type ResolvedTheme,
   type ThemePreference,
@@ -14,10 +15,11 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+
+const THEME_PREFERENCE_CHANGE_EVENT = "budgety-theme-preference-change";
 
 interface ThemeContextValue {
   preference: ThemePreference;
@@ -44,26 +46,46 @@ function getServerSystemDarkSnapshot() {
   return false;
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>("system");
-  const [hydrated, setHydrated] = useState(false);
-  const systemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDarkSnapshot, getServerSystemDarkSnapshot);
+function subscribeThemePreference(onChange: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === THEME_STORAGE_KEY || event.key === null) onChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(THEME_PREFERENCE_CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(THEME_PREFERENCE_CHANGE_EVENT, onChange);
+  };
+}
 
-  useEffect(() => {
-    setPreferenceState(readStoredThemePreference());
-    setHydrated(true);
-  }, []);
+function getThemePreferenceSnapshot() {
+  return readStoredThemePreference();
+}
+
+function getServerThemePreferenceSnapshot(): ThemePreference {
+  return "system";
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const preference = useSyncExternalStore(
+    subscribeThemePreference,
+    getThemePreferenceSnapshot,
+    getServerThemePreferenceSnapshot,
+  );
+  const systemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDarkSnapshot, getServerSystemDarkSnapshot);
 
   const resolved = useMemo(() => resolveThemePreference(preference, systemDark), [preference, systemDark]);
 
   useEffect(() => {
-    if (!hydrated) return;
     applyResolvedTheme(resolved);
-  }, [hydrated, resolved]);
+  }, [resolved]);
 
   const setPreference = useCallback((next: ThemePreference) => {
-    setPreferenceState(next);
     writeStoredThemePreference(next);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(THEME_PREFERENCE_CHANGE_EVENT));
+    }
     applyResolvedTheme(
       resolveThemePreference(
         next,
