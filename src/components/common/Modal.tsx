@@ -2,7 +2,7 @@
 
 import { cn } from "@utils/cn";
 import { CloseIcon } from "@components/icons";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl";
@@ -44,17 +44,32 @@ export function Modal({
 }: ModalProps) {
   const instanceId = useId();
   const [stackIndex, setStackIndex] = useState(0);
-  const [mounted, setMounted] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(open);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      openModalStack.push(instanceId);
+      setStackIndex(openModalStack.length - 1);
+    } else {
+      const idx = openModalStack.indexOf(instanceId);
+      if (idx >= 0) openModalStack.splice(idx, 1);
+    }
+  }
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!open) {
+      if (openModalStack.length === 0) {
+        document.body.style.overflow = "";
+      }
+      return undefined;
+    }
 
-  useEffect(() => {
-    if (!open) return undefined;
-
-    openModalStack.push(instanceId);
-    setStackIndex(openModalStack.length - 1);
     document.body.style.overflow = "hidden";
 
     const onKey = (e: KeyboardEvent) => {
@@ -67,14 +82,20 @@ export function Modal({
     document.addEventListener("keydown", onKey);
 
     return () => {
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose, instanceId]);
+
+  useEffect(
+    () => () => {
       const idx = openModalStack.indexOf(instanceId);
       if (idx >= 0) openModalStack.splice(idx, 1);
-      document.removeEventListener("keydown", onKey);
       if (openModalStack.length === 0) {
         document.body.style.overflow = "";
       }
-    };
-  }, [open, onClose, instanceId]);
+    },
+    [instanceId],
+  );
 
   if (!open || !mounted) return null;
 

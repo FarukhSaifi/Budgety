@@ -7,7 +7,8 @@ import { addGoal, updateGoal } from "@store/slices/goalsSlice";
 import { showError, showSuccess } from "@utils/toast";
 import { toStorageDate } from "@hooks/useDateFormatter";
 import type { Goal } from "@/types";
-import { useEffect, useState, type FormEvent } from "react";
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
+import { useState, type FormEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export interface GoalModalProps {
@@ -29,13 +30,12 @@ export function GoalModal({ open, onClose, goal }: GoalModalProps) {
   const [targetDate, setTargetDate] = useState(todayInput());
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  useResetOnOpen(open, goal?.id, () => {
     setTitle(goal?.title ?? "");
     setTargetAmount(goal ? String(goal.targetAmount) : "");
     setSavedAmount(goal ? String(goal.savedAmount) : "");
     setTargetDate(goal ? toStorageDate(goal.targetDate) || todayInput() : todayInput());
-  }, [open, goal]);
+  });
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
