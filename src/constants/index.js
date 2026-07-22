@@ -538,6 +538,8 @@ export const ERROR_MESSAGES = {
   CSV_READ_FAILED: "Failed to read CSV file. Please try again.",
   PDF_NO_VALID_TRANSACTIONS: "No valid transactions found in the PDF file",
   EXCEL_READ_FAILED: "Failed to read Excel file. Please try again.",
+  EXCEL_LEGACY_XLS_UNSUPPORTED:
+    "Legacy .xls files are not supported. Please save the file as .xlsx or export as CSV and try again.",
   EXCEL_FIRST_SHEET: "Could not read the first sheet from Excel file.",
   NO_DATA_TO_EXPORT: "No data to export",
   NO_TRANSACTIONS_TO_EXPORT: "No transactions to export",
@@ -552,7 +554,7 @@ export const ERROR_MESSAGES = {
     "Error parsing CSV file: {message}. Please ensure it's a valid CSV file with proper column headers (Date, Mode, Particulars, Deposits, Withdrawals, Balance).",
   PDF_PARSE_ERROR: "Error parsing PDF file: {message}. Please ensure it's a valid PDF file with readable text.",
   EXCEL_PARSE_ERROR:
-    "Failed to parse Excel file: {message}. Please ensure the file is a valid Excel file (.xlsx or .xls format).",
+    "Failed to parse Excel file: {message}. Please ensure the file is a valid Excel file (.xlsx format).",
   EXCEL_NO_SHEETS: "Excel file has no sheets. Please ensure the file contains data.",
   EXCEL_CONVERT_ERROR: "Failed to convert Excel data: {message}. Please check the file format.",
   EXCEL_EMPTY:
@@ -563,7 +565,7 @@ export const ERROR_MESSAGES = {
   EXCEL_NO_TRANSACTIONS:
     "No valid transactions found in the Excel file. Please ensure the file contains transaction data with Date, Description, and Amount columns.",
   EXCEL_PARSE_ERROR_FALLBACK:
-    "Error parsing Excel file: {message}. Please ensure it's a valid Excel file (.xlsx or .xls format) with proper column headers.",
+    "Error parsing Excel file: {message}. Please ensure it's a valid Excel file (.xlsx format) with proper column headers.",
   IMPORT_NONE_SKIPPED:
     "No transactions were imported. {skipped} transaction(s) were skipped. Reasons: {reasons}. Please check the file format and ensure dates, amounts, and required fields are present.",
 };
