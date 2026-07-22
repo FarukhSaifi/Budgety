@@ -7,7 +7,8 @@ import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addBudget, updateBudget } from "@store/slices/budgetsSlice";
 import { showError, showSuccess } from "@utils/toast";
 import type { Budget, BudgetPeriod } from "@/types";
-import { useEffect, useState, type FormEvent } from "react";
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
+import { useState, type FormEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export interface BudgetModalProps {
@@ -25,12 +26,11 @@ export function BudgetModal({ open, onClose, budget }: BudgetModalProps) {
   const [period, setPeriod] = useState<BudgetPeriod>("monthly");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  useResetOnOpen(open, budget?.id, () => {
     setCategory(budget?.category ?? "");
     setLimitAmount(budget ? String(budget.limitAmount) : "");
     setPeriod(budget?.period ?? "monthly");
-  }, [open, budget]);
+  });
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

@@ -7,7 +7,8 @@ import { addBill, updateBill } from "@store/slices/billsSlice";
 import { showError, showSuccess } from "@utils/toast";
 import { toStorageDate } from "@hooks/useDateFormatter";
 import type { Bill, RecurrenceType } from "@/types";
-import { useEffect, useState, type FormEvent } from "react";
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
+import { useState, type FormEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export interface BillModalProps {
@@ -31,15 +32,14 @@ export function BillModal({ open, onClose, bill }: BillModalProps) {
   const [reminderDays, setReminderDays] = useState(String(DATE_CONSTANTS.DEFAULT_REMINDER_DAYS));
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  useResetOnOpen(open, bill?.id, () => {
     setTitle(bill?.title ?? bill?.name ?? "");
     setAmount(bill ? String(bill.amount) : "");
     setDueDate(bill ? toStorageDate(bill.dueDate) || todayInput() : todayInput());
     setRecurrence((bill?.recurrence as RecurrenceType) ?? "monthly");
     setIsRecurring(bill ? bill.isRecurring !== false : true);
     setReminderDays(String(bill?.reminderDays ?? DATE_CONSTANTS.DEFAULT_REMINDER_DAYS));
-  }, [open, bill]);
+  });
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

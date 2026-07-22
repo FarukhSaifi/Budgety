@@ -5,6 +5,7 @@ import { AddIcon, CheckIcon, KeyboardArrowDownIcon, SearchIcon } from "@componen
 import { getCategoryIcon } from "@components/features/transactions/TransactionListRow";
 import { cn } from "@utils/cn";
 import {
+  createElement,
   useEffect,
   useId,
   useMemo,
@@ -62,8 +63,6 @@ export function CategorySelect({
     typeof onAddCategory === "function" &&
     trimmedQuery.length > 0 &&
     !options.some((o) => o.toLowerCase() === trimmedQuery.toLowerCase());
-
-  const SelectedIcon = value ? getCategoryIcon(value) : null;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -137,9 +136,12 @@ export function CategorySelect({
         )}
       >
         <span className="flex min-w-0 items-center gap-2.5">
-          {SelectedIcon && (
-            <SelectedIcon className="h-4 w-4 shrink-0 text-primary-main" aria-hidden />
-          )}
+          {value
+            ? createElement(getCategoryIcon(value), {
+                className: "h-4 w-4 shrink-0 text-primary-main",
+                "aria-hidden": true,
+              })
+            : null}
           <span className={cn("truncate", value ? "text-gray-900" : "text-gray-400")}>
             {value || UI_TEXT.CHOOSE}
           </span>

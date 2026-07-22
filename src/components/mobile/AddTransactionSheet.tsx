@@ -10,7 +10,8 @@ import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addTransaction, updateTransaction } from "@store/slices/transactionsSlice";
 import { parseDate, todayStorage } from "@utils/dateUtils";
 import { showError, showSuccess } from "@utils/toast";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
+import { useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { AlertBanner } from "./AlertBanner";
 import { NumericKeypad } from "./NumericKeypad";
@@ -47,8 +48,7 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
 
   const isEdit = Boolean(transaction);
 
-  useEffect(() => {
-    if (!open) return;
+  useResetOnOpen(open, transaction?.id, () => {
     setAlertDismissed(false);
     if (transaction) {
       setSheetType(transaction.type);
@@ -65,7 +65,7 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
       setDate(todayStorage());
       setPaymentMode("Cash");
     }
-  }, [open, transaction]);
+  });
 
   const openDatePicker = () => {
     const el = dateInputRef.current;

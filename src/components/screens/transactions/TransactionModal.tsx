@@ -12,7 +12,8 @@ import { addTransaction, deleteTransaction, updateTransaction } from "@store/sli
 import { showError, showSuccess } from "@utils/toast";
 import { toStorageDate } from "@hooks/useDateFormatter";
 import type { PaymentMode, Transaction, TransactionType } from "@/types";
-import { useEffect, useState, type FormEvent } from "react";
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
+import { useState, type FormEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export interface TransactionModalProps {
@@ -65,9 +66,9 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
   const [form, setForm] = useState<FormState>(buildInitialState(transaction));
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (open) setForm(buildInitialState(transaction));
-  }, [open, transaction]);
+  useResetOnOpen(open, transaction?.id, () => {
+    setForm(buildInitialState(transaction));
+  });
 
   const isEdit = Boolean(transaction);
 

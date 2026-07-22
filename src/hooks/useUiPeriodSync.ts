@@ -6,7 +6,33 @@ import { setViewPeriod } from "@store/slices/uiSlice";
 import type { Transaction, ViewPeriod } from "@/types";
 import { getMonthYear } from "@utils/dateUtils";
 import { loadPersistedUiPeriod, savePersistedUiPeriod } from "@utils/uiPeriodStorage";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+
+const hydrationStore = {
+  hydrated: false,
+  listeners: new Set<() => void>(),
+};
+
+function subscribeHydration(onStoreChange: () => void) {
+  hydrationStore.listeners.add(onStoreChange);
+  return () => {
+    hydrationStore.listeners.delete(onStoreChange);
+  };
+}
+
+function getHydrationSnapshot() {
+  return hydrationStore.hydrated;
+}
+
+function getHydrationServerSnapshot() {
+  return false;
+}
+
+function markHydrated() {
+  if (hydrationStore.hydrated) return;
+  hydrationStore.hydrated = true;
+  hydrationStore.listeners.forEach((listener) => listener());
+}
 
 function filterByPeriod(
   transactions: Transaction[],
@@ -55,7 +81,11 @@ export function useUiPeriodSync(): void {
   const transactions = useAppSelector((s) => s.transactions.items);
   const txStatus = useAppSelector((s) => s.transactions.status);
 
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    getHydrationSnapshot,
+    getHydrationServerSnapshot,
+  );
   const hadPersistedRef = useRef(false);
   const didAutoAdjustRef = useRef(false);
 
@@ -72,7 +102,7 @@ export function useUiPeriodSync(): void {
         }),
       );
     }
-    setHydrated(true);
+    markHydrated();
   }, [dispatch]);
 
   // Persist after hydration so SSR defaults cannot overwrite a stored import month.

@@ -13,7 +13,8 @@ import { addRecurring, updateRecurring } from "@store/slices/recurringSlice";
 import { showError, showSuccess } from "@utils/toast";
 import { toStorageDate } from "@hooks/useDateFormatter";
 import type { RecurrenceType, RecurringTransaction, TransactionType } from "@/types";
-import { useEffect, useState, type FormEvent } from "react";
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
+import { useState, type FormEvent } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export interface RecurringModalProps {
@@ -38,8 +39,7 @@ export function RecurringModal({ open, onClose, recurring }: RecurringModalProps
   const [endDate, setEndDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  useResetOnOpen(open, recurring?.id, () => {
     setType(recurring?.type ?? "expense");
     setDescription(recurring?.description ?? "");
     setCategory(recurring?.category ?? "");
@@ -47,7 +47,7 @@ export function RecurringModal({ open, onClose, recurring }: RecurringModalProps
     setRecurrence((recurring?.recurrence as RecurrenceType) ?? "monthly");
     setStartDate(recurring ? toStorageDate(recurring.startDate) || todayInput() : todayInput());
     setEndDate(recurring?.endDate ? toStorageDate(recurring.endDate) : "");
-  }, [open, recurring]);
+  });
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
