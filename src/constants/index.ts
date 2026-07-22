@@ -385,6 +385,8 @@ export const UI_TEXT = {
     "Sign-in popup was blocked. Allow popups for this site, or try again — we will use a full-page Google sign-in.",
   AUTH_ERROR_UNAUTHORIZED_DOMAIN:
     "This site is not authorized for Firebase Auth. Add your Vercel domain under Firebase → Authentication → Settings → Authorized domains.",
+  AUTH_ERROR_REDIRECT_FAILED:
+    "Google sign-in could not finish after redirect. Allow popups for this site and try again, or confirm the Vercel domain is authorized in Firebase Auth.",
   AUTH_ERROR_NETWORK: "Network error. Check your connection and try again.",
   AUTH_ERROR_NOT_CONFIGURED: "Authentication is not configured. Set the NEXT_PUBLIC_FIREBASE_* environment variables.",
   AUTH_SUCCESS_SIGNED_IN: "Signed in successfully",

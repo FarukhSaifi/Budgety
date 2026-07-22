@@ -12,7 +12,9 @@
           "http://localhost",
           "http://localhost:3000",
           "https://budgety-e7e94.firebaseapp.com",
-          "https://budgety-woad.vercel.app"
+          "https://budgety-e7e94.firebaseapp.com/__/auth/handler",
+          "https://budgety-woad.vercel.app",
+          "https://budgety-woad.vercel.app/__/auth/handler"
         ]
       }
     },

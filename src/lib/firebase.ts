@@ -32,12 +32,30 @@ export const isFirebaseConfigured = Boolean(
   firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId,
 );
 
+/**
+ * On non-Firebase hosts (e.g. Vercel), use the page hostname as authDomain so
+ * Auth helper iframes are same-origin. Pair with next.config.js rewrite of
+ * `/__/auth/*` → `https://<project>.firebaseapp.com/__/auth/*`.
+ * Localhost keeps the configured `*.firebaseapp.com` domain (popup works there).
+ */
+function resolveAuthDomain(): string | undefined {
+  const configured = firebaseConfig.authDomain;
+  if (typeof window === "undefined") return configured;
+  const { hostname } = window.location;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return configured;
+  return hostname;
+}
+
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 
 if (isFirebaseConfigured) {
-  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const clientConfig = {
+    ...firebaseConfig,
+    authDomain: resolveAuthDomain(),
+  };
+  app = getApps().length ? getApp() : initializeApp(clientConfig);
   auth = getAuth(app);
   db = getFirestore(app);
 

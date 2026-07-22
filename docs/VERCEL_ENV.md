@@ -39,7 +39,20 @@ In [Firebase Console → Authentication → Settings → Authorized domains](htt
 
 Without the Vercel host listed, Google sign-in fails with `auth/unauthorized-domain` (or related OAuth errors).
 
-Google sign-in on production uses **full-page redirect** (not a popup) to avoid `auth/popup-blocked` in browsers.
+### Google OAuth redirect URI (required for redirect / same-origin authDomain)
+
+Production uses the app host as `authDomain` (same-origin) plus a Next.js rewrite of `/__/auth/*` → `https://budgety-e7e94.firebaseapp.com/__/auth/*`. That avoids Chrome blocking cross-origin Auth helper storage after `signInWithRedirect`.
+
+In [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials?project=budgety-e7e94) open the **Web client** used by Firebase Google sign-in and ensure **Authorized redirect URIs** includes:
+
+- `https://budgety-woad.vercel.app/__/auth/handler`
+
+(Keep the existing `https://budgety-e7e94.firebaseapp.com/__/auth/handler` entry.)
+
+### Sign-in strategy
+
+- **Desktop:** `signInWithPopup` (Firebase’s recommended approach when not on Firebase Hosting).
+- **Mobile / popup blocked:** `signInWithRedirect`, completed via `getRedirectResult` on bootstrap.
 
 ## After changing env vars
 

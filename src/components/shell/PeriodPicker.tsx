@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { setViewPeriod } from "@store/slices/uiSlice";
 import type { ViewPeriod } from "@/types";
 import { ExpandMoreIcon } from "@components/icons";
+import { cn } from "@utils/cn";
 import { useEffect, useRef, useState } from "react";
 
 function yearRange(): number[] {
@@ -15,11 +16,27 @@ function yearRange(): number[] {
   return years;
 }
 
-export function PeriodPicker() {
+export type PeriodPickerProps = {
+  /** `chip` matches Analytics / section header pill triggers. */
+  variant?: "default" | "chip";
+  /** Popover alignment relative to the trigger. */
+  align?: "left" | "right";
+  /** Abbreviated month label (e.g. "Jul 2026"). Defaults true for `chip`. */
+  compact?: boolean;
+  className?: string;
+};
+
+export function PeriodPicker({
+  variant = "default",
+  align = "left",
+  compact,
+  className,
+}: PeriodPickerProps) {
   const dispatch = useAppDispatch();
   const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((state) => state.ui);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const useCompact = compact ?? variant === "chip";
 
   useEffect(() => {
     if (!open) return undefined;
@@ -30,26 +47,48 @@ export function PeriodPicker() {
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
+  const monthName = MONTHS[selectedMonth - 1] ?? "";
   const label =
     viewPeriod === VIEW_PERIODS.MONTHLY
-      ? `${MONTHS[selectedMonth - 1]} ${selectedYear}`
+      ? `${useCompact ? monthName.slice(0, 3) : monthName} ${selectedYear}`
       : viewPeriod === VIEW_PERIODS.YEARLY
         ? `${selectedYear}`
         : UI_TEXT.ALL_TIME;
 
   return (
-    <div className="relative" ref={ref}>
+    <div className={cn("relative", className)} ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/60 bg-card px-3 py-1.5 text-sm font-medium text-brand-deep hover:bg-surface-low"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={UI_TEXT.SELECT_PERIOD}
+        className={cn(
+          "inline-flex items-center font-medium text-brand-deep transition-colors hover:bg-surface-low",
+          variant === "chip"
+            ? "gap-1 rounded-full border border-outline-variant/60 bg-card px-3 py-1.5 text-xs text-on-surface-variant"
+            : "gap-1.5 rounded-xl border border-outline-variant/60 bg-card px-3 py-1.5 text-sm",
+        )}
       >
         {label}
-        <ExpandMoreIcon className="h-4 w-4 text-on-surface-variant" />
+        <ExpandMoreIcon
+          className={cn(
+            "text-on-surface-variant transition-transform",
+            variant === "chip" ? "h-3.5 w-3.5" : "h-4 w-4",
+            open && "rotate-180",
+          )}
+        />
       </button>
 
       {open && (
-        <div className="absolute left-0 z-1000 mt-2 w-64 rounded-2xl border border-outline-variant/60 bg-card p-4 shadow-elevated">
+        <div
+          role="dialog"
+          aria-label={UI_TEXT.SELECT_PERIOD}
+          className={cn(
+            "absolute z-1000 mt-2 w-64 rounded-2xl border border-outline-variant/60 bg-card p-4 shadow-elevated",
+            align === "right" ? "right-0" : "left-0",
+          )}
+        >
           <p className="mb-3 text-sm font-semibold text-brand-deep">{UI_TEXT.SELECT_PERIOD}</p>
           <div className="space-y-3">
             <label className="block text-xs font-medium text-on-surface-variant">

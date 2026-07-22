@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { AuthUser } from "@/types";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
@@ -12,6 +13,7 @@ import {
   signOut as firebaseSignOut,
   updateProfile,
   type User,
+  type UserCredential,
 } from "firebase/auth";
 
 function toAuthUser(user: User): AuthUser {
@@ -36,11 +38,30 @@ function getFirebaseErrorCode(error: unknown): string {
   return "";
 }
 
-/** Prefer redirect on production — browsers often block OAuth popups on Vercel/mobile. */
+/**
+ * Prefer full-page redirect on mobile (popups are unreliable).
+ * Desktop uses popup; redirect is the fallback when the popup is blocked.
+ * Production redirect requires same-origin authDomain + `/__/auth` proxy
+ * (see firebase.ts + next.config.js) — otherwise Chrome blocks session restore.
+ */
 function preferGoogleRedirect(): boolean {
   if (typeof window === "undefined") return false;
-  if (process.env.NODE_ENV === "production") return true;
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+/** Consume redirect result once (React Strict Mode remounts must not race). */
+let redirectResultPromise: Promise<UserCredential | null> | null = null;
+
+function consumeRedirectResult(): Promise<UserCredential | null> {
+  if (!isFirebaseConfigured) return Promise.resolve(null);
+  if (!redirectResultPromise) {
+    redirectResultPromise = getRedirectResult(auth).catch((error: unknown) => {
+      // Re-throw after clearing the cache so a future retry can run.
+      redirectResultPromise = null;
+      throw error;
+    });
+  }
+  return redirectResultPromise;
 }
 
 interface AuthState {
@@ -100,7 +121,7 @@ export const signInWithGoogle = createAsyncThunk("auth/signInWithGoogle", async 
     return toAuthUser(cred.user);
   } catch (error) {
     const code = getFirebaseErrorCode(error);
-    // Popup blocked locally → fall back to full-page redirect.
+    // Popup blocked → fall back to full-page redirect (needs auth proxy on Vercel).
     if (code === "auth/popup-blocked") {
       await signInWithRedirect(auth, provider);
       return null;
@@ -125,6 +146,11 @@ const authSlice = createSlice({
     },
     setAuthLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
+    },
+    setAuthError(state, action: PayloadAction<string | null>) {
+      state.error = action.payload;
+      state.loading = false;
+      state.initialized = true;
     },
     clearAuthError(state) {
       state.error = null;
@@ -172,12 +198,20 @@ const authSlice = createSlice({
   },
 });
 
-export const { setAuthUser, setAuthLoading, clearAuthError } = authSlice.actions;
+export const { setAuthUser, setAuthLoading, setAuthError, clearAuthError } = authSlice.actions;
 export default authSlice.reducer;
+
+export type AuthChangeListener = (
+  action:
+    | ReturnType<typeof setAuthUser>
+    | ReturnType<typeof setAuthLoading>
+    | ReturnType<typeof setAuthError>,
+) => void;
 
 /** Subscribe once at app root — syncs Firebase session into Redux. */
 export function listenToAuthChanges(
-  dispatch: (action: ReturnType<typeof setAuthUser> | ReturnType<typeof setAuthLoading>) => void,
+  dispatch: AuthChangeListener,
+  options?: { onRedirectError?: (message: string) => void },
 ) {
   if (!isFirebaseConfigured) {
     dispatch(setAuthUser(null));
@@ -185,12 +219,33 @@ export function listenToAuthChanges(
   }
   dispatch(setAuthLoading(true));
 
-  // Complete Google redirect sign-in after returning from the IdP (production / mobile).
-  void getRedirectResult(auth).catch(() => {
-    // Errors surface via onAuthStateChanged / next sign-in attempt.
-  });
+  let cancelled = false;
+  let unsubscribe: (() => void) | undefined;
 
-  return onAuthStateChanged(auth, (user) => {
-    dispatch(setAuthUser(user ? toAuthUser(user) : null));
-  });
+  // Await redirect completion before onAuthStateChanged so a transient null
+  // user does not mark the app initialized and wipe collections.
+  void (async () => {
+    try {
+      const cred = await consumeRedirectResult();
+      if (cancelled) return;
+      if (cred?.user) {
+        dispatch(setAuthUser(toAuthUser(cred.user)));
+      }
+    } catch (error: unknown) {
+      if (cancelled) return;
+      const message = getAuthErrorMessage(error);
+      dispatch(setAuthError(message));
+      options?.onRedirectError?.(message);
+    }
+
+    if (cancelled) return;
+    unsubscribe = onAuthStateChanged(auth, (user) => {
+      dispatch(setAuthUser(user ? toAuthUser(user) : null));
+    });
+  })();
+
+  return () => {
+    cancelled = true;
+    unsubscribe?.();
+  };
 }

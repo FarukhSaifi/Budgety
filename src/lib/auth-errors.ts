@@ -34,6 +34,7 @@ export function getAuthErrorMessage(error: unknown): string {
       return UI_TEXT.AUTH_ERROR_TOO_MANY_REQUESTS;
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
+    case "auth/redirect-cancelled-by-user":
     case "auth/user-cancelled":
       return UI_TEXT.AUTH_ERROR_POPUP_CLOSED;
     case "auth/popup-blocked":
@@ -42,7 +43,13 @@ export function getAuthErrorMessage(error: unknown): string {
       return UI_TEXT.AUTH_ERROR_UNAUTHORIZED_DOMAIN;
     case "auth/network-request-failed":
       return UI_TEXT.AUTH_ERROR_NETWORK;
+    case "auth/argument-error":
+    case "auth/invalid-api-key":
+      return UI_TEXT.AUTH_ERROR_NOT_CONFIGURED;
     default:
+      if (code?.startsWith("auth/")) {
+        return message || UI_TEXT.AUTH_ERROR_REDIRECT_FAILED;
+      }
       return message || UI_TEXT.AUTH_GENERIC_ERROR;
   }
 }

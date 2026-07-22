@@ -8,6 +8,7 @@ import {
   MONTHS,
   PERCENTAGE_THRESHOLDS,
   UI_TEXT,
+  VIEW_PERIODS,
 } from "@constants";
 import { CHART_THEME_COLORS } from "@/lib/theme";
 import { Badge, Button, EmptyState, ProgressBar } from "@common";
@@ -20,6 +21,7 @@ import {
   TransactionItem,
 } from "@components/mobile";
 import { BudgetModal } from "@components/screens/budgets/BudgetModal";
+import { PeriodPicker } from "@components/shell/PeriodPicker";
 import {
   AddIcon,
   ArrowDownwardIcon,
@@ -29,7 +31,6 @@ import {
   FilterListIcon,
   HealthAndSafetyIcon,
   HelpOutlineIcon,
-  KeyboardArrowDownIcon,
   LightbulbIcon,
   MenuIcon,
   SearchIcon,
@@ -47,7 +48,7 @@ import { getCategoryChartColor } from "@utils/colorUtils";
 import { compareByDateThenCreatedAt, getMonthYear } from "@utils/dateUtils";
 import { exportChartData } from "@utils/exportUtils";
 import { percentChange } from "@utils/transactionFilters";
-import type { AnalyticsTab, Budget } from "@/types";
+import type { AnalyticsTab, Budget, ViewPeriod } from "@/types";
 import { useMemo, useState } from "react";
 import {
   Area,
@@ -84,7 +85,7 @@ export function AnalyticsScreen() {
   const transactions = useAppSelector((s) => s.transactions.items);
   const budgets = useAppSelector((s) => s.budgets.items);
   const goals = useAppSelector((s) => s.goals.items);
-  const { selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
+  const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
   const { formatCurrency, formatCurrencyForChart, formatCompactCurrency } =
     useCurrencyFormatter();
 
@@ -97,22 +98,36 @@ export function AnalyticsScreen() {
 
   const current = useBudgetCalculations(
     transactions,
-    "monthly",
+    viewPeriod,
     selectedMonth,
     selectedYear,
   );
 
-  const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
-  const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+  const previousPeriod = useMemo(() => {
+    if (viewPeriod === VIEW_PERIODS.YEARLY) {
+      return {
+        viewPeriod: VIEW_PERIODS.YEARLY as ViewPeriod,
+        month: selectedMonth,
+        year: selectedYear - 1,
+      };
+    }
+    const month = selectedMonth === 1 ? 12 : selectedMonth - 1;
+    const year = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+    return {
+      viewPeriod: VIEW_PERIODS.MONTHLY as ViewPeriod,
+      month,
+      year,
+    };
+  }, [viewPeriod, selectedMonth, selectedYear]);
+
   const previous = useBudgetCalculations(
     transactions,
-    "monthly",
-    prevMonth,
-    prevYear,
+    previousPeriod.viewPeriod,
+    previousPeriod.month,
+    previousPeriod.year,
   );
 
   const searchLower = search.trim().toLowerCase();
-  const periodLabel = `${MONTHS[selectedMonth - 1]?.slice(0, 3) ?? ""} ${selectedYear}`;
 
   const budgetLimit = useMemo(
     () =>
@@ -594,20 +609,18 @@ export function AnalyticsScreen() {
 
           {/* Charts mid row */}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <section className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5 xl:col-span-2">
+            <section className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card backdrop-blur-sm md:p-5 xl:col-span-2">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h3 className="text-base font-semibold text-brand-deep md:text-lg">
                     {UI_TEXT.BUDGET_VS_ACTUAL}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-on-surface-variant">
                     {UI_TEXT.BUDGET_VS_ACTUAL_SUBTITLE}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600">
-                    {periodLabel}
-                  </span>
+                  <PeriodPicker variant="chip" align="right" />
                   <Button size="sm" onClick={handleExportBudgetVsActual}>
                     {UI_TEXT.EXPORT_PDF}
                   </Button>
@@ -682,7 +695,7 @@ export function AnalyticsScreen() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="mt-3 flex flex-wrap justify-center gap-4 border-t border-gray-100 pt-3 text-xs text-gray-500">
+                  <div className="mt-3 flex flex-wrap justify-center gap-4 border-t border-outline-variant/40 pt-3 text-xs text-on-surface-variant">
                     <span className="inline-flex items-center gap-2">
                       <span
                         className="h-3 w-3 rounded-full"
@@ -958,10 +971,7 @@ export function AnalyticsScreen() {
                 </h3>
                 <HelpOutlineIcon className="h-4 w-4 text-gray-400" aria-hidden />
               </div>
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-gray-100 bg-surface-low px-2.5 py-1 text-xs font-medium text-gray-500">
-                {UI_TEXT.MONTHLY_LABEL}
-                <KeyboardArrowDownIcon className="h-3.5 w-3.5" />
-              </span>
+              <PeriodPicker variant="chip" align="right" />
             </div>
             <div className="mb-4 flex items-end gap-2">
               <p className="text-2xl font-bold tracking-tight text-brand-deep md:text-[28px]">
@@ -1089,10 +1099,7 @@ export function AnalyticsScreen() {
                 </h3>
                 <HelpOutlineIcon className="h-4 w-4 text-gray-400" aria-hidden />
               </div>
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-gray-100 bg-surface-low px-2.5 py-1 text-xs font-medium text-gray-500">
-                {UI_TEXT.MONTHLY_LABEL}
-                <KeyboardArrowDownIcon className="h-3.5 w-3.5" />
-              </span>
+              <PeriodPicker variant="chip" align="right" />
             </div>
             <div className="mb-4 flex items-end gap-2">
               <p className="text-2xl font-bold tracking-tight text-brand-deep md:text-[28px]">

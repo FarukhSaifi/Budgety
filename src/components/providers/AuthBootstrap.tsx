@@ -27,7 +27,9 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
   useCategoryPersistence();
 
   useEffect(() => {
-    return listenToAuthChanges(dispatch);
+    return listenToAuthChanges(dispatch, {
+      onRedirectError: (message) => showError(message),
+    });
   }, [dispatch]);
 
   useEffect(() => {
