@@ -7,14 +7,15 @@ import {
   INCOME_CATEGORIES,
   TRANSACTION_TYPES,
 } from "@constants";
+import type { TransactionType } from "@types";
 
 /**
  * Get category for a transaction based on description and type.
- * @param {string} description - Transaction description
- * @param {string} transactionType - TRANSACTION_TYPES.INCOME | TRANSACTION_TYPES.EXPENSE
- * @returns {string} Category key from INCOME_CATEGORIES or EXPENSE_CATEGORIES
  */
-export function categorizeTransaction(description, transactionType) {
+export function categorizeTransaction(
+  description: string | null | undefined,
+  transactionType: TransactionType | string,
+): string {
   if (!description) {
     return transactionType === TRANSACTION_TYPES.INCOME
       ? INCOME_CATEGORIES.OTHER

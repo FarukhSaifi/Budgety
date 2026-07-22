@@ -11,6 +11,7 @@ import {
   UI_TEXT,
   VIEW_PERIODS,
 } from "@constants";
+import { CHART_THEME_COLORS } from "@/lib/theme";
 import { APP_ROUTES } from "@constants/routes";
 import { Badge, Button, EmptyState, ProgressBar } from "@common";
 import {
@@ -622,13 +623,13 @@ export function ReportsScreen() {
             <AreaChart data={spendingTrendDaily} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="reportsSpendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={STITCH_COLORS.PRIMARY} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={STITCH_COLORS.PRIMARY} stopOpacity={0} />
+                  <stop offset="0%" stopColor={CHART_THEME_COLORS.PRIMARY} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={CHART_THEME_COLORS.PRIMARY} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: STITCH_COLORS.OUTLINE }}
+                tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -644,7 +645,7 @@ export function ReportsScreen() {
                 type="monotone"
                 dataKey="spent"
                 name={UI_TEXT.SPENT}
-                stroke={STITCH_COLORS.PRIMARY}
+                stroke={CHART_THEME_COLORS.PRIMARY}
                 strokeWidth={2.5}
                 fill="url(#reportsSpendFill)"
               />
@@ -706,17 +707,17 @@ export function ReportsScreen() {
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#E2E7FF"
+                  stroke={CHART_THEME_COLORS.GRID}
                   vertical={false}
                 />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 12, fill: STITCH_COLORS.OUTLINE }}
+                  tick={{ fontSize: 12, fill: CHART_THEME_COLORS.TICK }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: STITCH_COLORS.OUTLINE }}
+                  tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                   width={48}
                   axisLine={false}
                   tickLine={false}
@@ -736,7 +737,7 @@ export function ReportsScreen() {
                   type="monotone"
                   dataKey="income"
                   name={UI_TEXT.INCOME}
-                  stroke={STITCH_COLORS.INCOME}
+                  stroke={CHART_THEME_COLORS.INCOME}
                   strokeWidth={2.5}
                   dot={false}
                   activeDot={{ r: 5 }}
@@ -745,7 +746,7 @@ export function ReportsScreen() {
                   type="monotone"
                   dataKey="expense"
                   name={UI_TEXT.EXPENSE}
-                  stroke={STITCH_COLORS.EXPENSE}
+                  stroke={CHART_THEME_COLORS.EXPENSE}
                   strokeWidth={2.5}
                   dot={false}
                   activeDot={{ r: 5 }}
@@ -779,7 +780,7 @@ export function ReportsScreen() {
                       insight.tone === "danger" && "bg-red-100 text-expense",
                       insight.tone === "success" && "bg-green-100 text-income",
                       insight.tone === "info" && "bg-primary-soft text-primary-main",
-                      insight.tone === "neutral" && "bg-gray-100 text-gray-500",
+                      insight.tone === "neutral" && "bg-surface-high text-on-surface-variant",
                     )}
                   >
                     {insight.tone === "danger" ? (
@@ -929,14 +930,14 @@ export function ReportsScreen() {
               >
                 <defs>
                   <linearGradient id="reportsForecastFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={STITCH_COLORS.PRIMARY} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={STITCH_COLORS.PRIMARY} stopOpacity={0} />
+                    <stop offset="0%" stopColor={CHART_THEME_COLORS.PRIMARY} stopOpacity={0.25} />
+                    <stop offset="100%" stopColor={CHART_THEME_COLORS.PRIMARY} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME_COLORS.GRID_SOFT} vertical={false} />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11, fill: STITCH_COLORS.OUTLINE }}
+                  tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -952,7 +953,7 @@ export function ReportsScreen() {
                   type="monotone"
                   dataKey="expense"
                   name={UI_TEXT.EXPENSE}
-                  stroke={STITCH_COLORS.PRIMARY}
+                  stroke={CHART_THEME_COLORS.PRIMARY}
                   strokeWidth={2.5}
                   fill="url(#reportsForecastFill)"
                   strokeDasharray="0"
@@ -965,8 +966,8 @@ export function ReportsScreen() {
                         cx={cx}
                         cy={cy}
                         r={4}
-                        fill={STITCH_COLORS.PRIMARY_CONTAINER}
-                        stroke="#fff"
+                        fill={CHART_THEME_COLORS.PRIMARY_CONTAINER}
+                        stroke={CHART_THEME_COLORS.DOT_STROKE}
                         strokeWidth={2}
                       />
                     );

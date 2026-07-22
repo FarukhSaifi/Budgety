@@ -11,12 +11,17 @@
         "authorizedRedirectUris": [
           "http://localhost",
           "http://localhost:3000",
-          "http://192.168.1.56:3000",
-          "https://budgety-e7e94.firebaseapp.com"
+          "https://budgety-e7e94.firebaseapp.com",
+          "https://budgety-woad.vercel.app"
         ]
       }
     },
-    "authorizedDomains": ["localhost", "budgety-e7e94.firebaseapp.com"]
+    "authorizedDomains": [
+      "localhost",
+      "budgety-e7e94.firebaseapp.com",
+      "budgety-e7e94.web.app",
+      "budgety-woad.vercel.app"
+    ]
   },
   "emulators": {
     "auth": {

@@ -177,13 +177,13 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-end justify-center sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm dark:bg-black/65" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         className="relative flex max-h-[94vh] w-full max-w-lg flex-col overflow-visible rounded-t-[28px] bg-surface shadow-elevated sm:rounded-[28px]"
       >
-        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-gray-300 sm:hidden" />
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-outline-variant sm:hidden" />
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-6 pt-3">
           <SegmentedTabs
@@ -209,7 +209,7 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
           )}
 
           <div className="text-center">
-            <p className="text-sm text-gray-400">{UI_TEXT.AMOUNT_PLACEHOLDER}</p>
+            <p className="text-sm text-on-surface-variant">{UI_TEXT.AMOUNT_PLACEHOLDER}</p>
             <p className="mt-1 text-4xl font-bold tracking-tight text-brand-deep">{displayAmount}</p>
           </div>
 
@@ -217,7 +217,7 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={UI_TEXT.DESCRIPTION_PLACEHOLDER}
-            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-primary-main focus:outline-none focus:ring-2 focus:ring-primary-main/20"
+            className="w-full rounded-2xl border border-outline-variant bg-card px-4 py-3 text-sm text-brand-deep placeholder:text-outline focus:border-primary-main focus:outline-none focus:ring-2 focus:ring-primary-main/20"
           />
 
           <CategoryPicker
@@ -227,19 +227,19 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
             titleHint={description}
             amountHint={Number(amount) || undefined}
             showAiSuggest={Boolean(description.trim())}
-            selectClassName="rounded-2xl border-gray-200 py-3"
+            selectClassName="rounded-2xl border-outline-variant py-3"
           />
 
           <div className="relative">
             <button
               type="button"
               onClick={openDatePicker}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-3 text-left transition-colors hover:border-primary-main/40 focus:border-primary-main focus:outline-none focus:ring-2 focus:ring-primary-main/20"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-2xl border border-outline-variant bg-card px-3 py-3 text-left transition-colors hover:border-primary-main/40 focus:border-primary-main focus:outline-none focus:ring-2 focus:ring-primary-main/20"
               aria-label={UI_TEXT.DATE}
             >
               <CalendarTodayIcon className="h-4 w-4 shrink-0 text-primary-main" />
               <span className="flex-1 truncate text-sm font-medium text-brand-deep">{formatDisplayDate(date)}</span>
-              <KeyboardArrowDownIcon className="h-4 w-4 shrink-0 text-gray-400" />
+              <KeyboardArrowDownIcon className="h-4 w-4 shrink-0 text-on-surface-variant" />
             </button>
             {/* Keep input in-flow for a11y/autofill; open via showPicker so the
                 native calendar isn't clipped by the sheet overlay. */}
@@ -258,7 +258,7 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
             <select
               value={paymentMode}
               onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-primary-main focus:outline-none"
+              className="w-full rounded-2xl border border-outline-variant bg-card px-4 py-3 text-sm text-brand-deep focus:border-primary-main focus:outline-none"
             >
               {PAYMENT_MODES_LIST.map((mode) => (
                 <option key={mode} value={mode}>

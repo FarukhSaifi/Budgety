@@ -20,7 +20,7 @@ export function Field({ label, htmlFor, error, required, children, className }: 
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700">
+        <label htmlFor={htmlFor} className="block text-sm font-medium text-brand-deep">
           {label}
           {required && <span className="ml-0.5 text-expense">*</span>}
         </label>
@@ -32,7 +32,7 @@ export function Field({ label, htmlFor, error, required, children, className }: 
 }
 
 const CONTROL_CLASSES =
-  "w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-primary-main focus:outline-none focus:ring-2 focus:ring-primary-main/20 disabled:cursor-not-allowed disabled:bg-gray-50";
+  "w-full rounded-xl border border-outline-variant bg-card px-3.5 py-2.5 text-sm text-brand-deep placeholder:text-outline transition-colors focus:border-primary-main focus:outline-none focus:ring-2 focus:ring-primary-main/20 disabled:cursor-not-allowed disabled:bg-surface-low";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className, ...rest }, ref) {

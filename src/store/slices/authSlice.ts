@@ -4,9 +4,11 @@ import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
+  getRedirectResult,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   updateProfile,
   type User,
@@ -19,6 +21,26 @@ function toAuthUser(user: User): AuthUser {
     displayName: user.displayName,
     photoURL: user.photoURL,
   };
+}
+
+function createGoogleProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  return provider;
+}
+
+function getFirebaseErrorCode(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error) {
+    return String((error as { code?: unknown }).code || "");
+  }
+  return "";
+}
+
+/** Prefer redirect on production — browsers often block OAuth popups on Vercel/mobile. */
+function preferGoogleRedirect(): boolean {
+  if (typeof window === "undefined") return false;
+  if (process.env.NODE_ENV === "production") return true;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
 interface AuthState {
@@ -65,8 +87,26 @@ export const signUpWithEmail = createAsyncThunk(
 );
 
 export const signInWithGoogle = createAsyncThunk("auth/signInWithGoogle", async () => {
-  const cred = await signInWithPopup(auth, new GoogleAuthProvider());
-  return toAuthUser(cred.user);
+  const provider = createGoogleProvider();
+
+  if (preferGoogleRedirect()) {
+    await signInWithRedirect(auth, provider);
+    // Browser navigates away; callers should not expect a resolved user here.
+    return null;
+  }
+
+  try {
+    const cred = await signInWithPopup(auth, provider);
+    return toAuthUser(cred.user);
+  } catch (error) {
+    const code = getFirebaseErrorCode(error);
+    // Popup blocked locally → fall back to full-page redirect.
+    if (code === "auth/popup-blocked") {
+      await signInWithRedirect(auth, provider);
+      return null;
+    }
+    throw error;
+  }
 });
 
 export const signOutUser = createAsyncThunk("auth/signOut", async () => {
@@ -117,9 +157,12 @@ const authSlice = createSlice({
       .addCase(signUpWithEmail.rejected, rejected)
       .addCase(signInWithGoogle.pending, pending)
       .addCase(signInWithGoogle.fulfilled, (state, action) => {
-        state.user = action.payload;
-        state.loading = false;
-        state.initialized = true;
+        if (action.payload) {
+          state.user = action.payload;
+          state.initialized = true;
+        }
+        // null payload = redirect in progress; keep loading until auth state returns
+        state.loading = Boolean(!action.payload);
       })
       .addCase(signInWithGoogle.rejected, rejected)
       .addCase(signOutUser.fulfilled, (state) => {
@@ -141,6 +184,12 @@ export function listenToAuthChanges(
     return () => undefined;
   }
   dispatch(setAuthLoading(true));
+
+  // Complete Google redirect sign-in after returning from the IdP (production / mobile).
+  void getRedirectResult(auth).catch(() => {
+    // Errors surface via onAuthStateChanged / next sign-in attempt.
+  });
+
   return onAuthStateChanged(auth, (user) => {
     dispatch(setAuthUser(user ? toAuthUser(user) : null));
   });

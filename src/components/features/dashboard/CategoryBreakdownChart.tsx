@@ -18,27 +18,44 @@ import {
   PieChart,
   ResponsiveContainer,
   Tooltip,
+  type TooltipContentProps,
 } from "recharts";
 
-const CustomTooltip = ({ active, payload }) => {
+type ChartDatum = {
+  name: string;
+  value: number;
+  color: string;
+};
+
+function CustomTooltip({
+  active,
+  payload,
+}: Partial<TooltipContentProps<number, string>>) {
   const { formatCurrencyForChart } = useCurrencyFormatter();
 
   if (active && payload && payload.length) {
+    const item = payload[0];
     return (
-      <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 shadow-elevated">
+      <div className="rounded-xl border border-outline-variant/60 bg-card px-3 py-2 shadow-elevated">
         <div className="mb-0.5 text-sm font-semibold text-brand-deep">
-          {payload[0].name}
+          {item.name}
         </div>
         <div className="text-sm font-medium text-primary-main">
-          {formatCurrencyForChart(payload[0].value)}
+          {formatCurrencyForChart(Number(item.value))}
         </div>
       </div>
     );
   }
   return null;
-};
+}
 
-const CategoryBreakdownChart = ({ className = "" }) => {
+interface CategoryBreakdownChartProps {
+  className?: string;
+}
+
+export default function CategoryBreakdownChart({
+  className = "",
+}: CategoryBreakdownChartProps) {
   const transactions = useAppSelector((s) => s.transactions.items);
   const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
   const { spendingByCategory } = useBudgetCalculations(
@@ -50,7 +67,7 @@ const CategoryBreakdownChart = ({ className = "" }) => {
   const { formatCurrencyForChart } = useCurrencyFormatter();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const chartData = useMemo(() => {
+  const chartData = useMemo((): ChartDatum[] => {
     void refreshKey;
     return Object.entries(spendingByCategory)
       .map(([name, value], index) => ({
@@ -85,7 +102,7 @@ const CategoryBreakdownChart = ({ className = "" }) => {
     >
       {chartData.length === 0 ? (
         <div className="flex h-[280px] items-center justify-center">
-          <p className="text-sm text-gray-400">{UI_TEXT.NO_SPENDING_DATA}</p>
+          <p className="text-sm text-on-surface-variant">{UI_TEXT.NO_SPENDING_DATA}</p>
         </div>
       ) : (
         <div className="flex h-full flex-col">
@@ -139,6 +156,4 @@ const CategoryBreakdownChart = ({ className = "" }) => {
       )}
     </DashboardWidget>
   );
-};
-
-export default CategoryBreakdownChart;
+}

@@ -1,6 +1,72 @@
 @import "tailwindcss";
 @config "../../tailwind.config.js";
 
+/* Luminous Precision (light) — Stitch */
+:root {
+  --color-primary: #4343d5;
+  --color-primary-container: #5d5fef;
+  --color-primary-dark: #2e2bc2;
+  --color-primary-soft: #e2e7ff;
+  --color-primary-muted: #c1c1ff;
+  --color-surface: #faf8ff;
+  --color-surface-low: #f2f3ff;
+  --color-surface-container: #eaedff;
+  --color-surface-high: #e2e7ff;
+  --color-surface-highest: #dae2fd;
+  --color-card: #ffffff;
+  --color-on-surface: #131b2e;
+  --color-on-surface-variant: #464555;
+  --color-outline: #767586;
+  --color-outline-variant: #c7c4d7;
+  --color-income: #008259;
+  --color-income-soft: #ecfdf5;
+  --color-expense: #ff4d4d;
+  --color-expense-soft: #fff1f2;
+  --color-tertiary: #006645;
+  --shadow-card: 0 1px 3px 0 rgba(19, 27, 46, 0.06), 0 1px 2px 0 rgba(19, 27, 46, 0.04);
+  --shadow-elevated: 0 12px 32px -12px rgba(67, 67, 213, 0.22);
+  --shadow-glow: 0 0 24px rgba(93, 95, 239, 0.28);
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-nav-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(19, 27, 46, 0.06);
+  --scrollbar-track: #f2f3ff;
+  --scrollbar-thumb: #c1c1ff;
+  --focus-ring: #4343d5;
+}
+
+/* Obsidian Flux surfaces + Budgety purple brand (Stitch dark) */
+html.dark {
+  --color-primary: #c1c1ff;
+  --color-primary-container: #5d5fef;
+  --color-primary-dark: #a8a7ff;
+  --color-primary-soft: #2a2a4a;
+  --color-primary-muted: #5b5a9a;
+  --color-surface: #131314;
+  --color-surface-low: #1c1b1c;
+  --color-surface-container: #201f20;
+  --color-surface-high: #2a2a2b;
+  --color-surface-highest: #353436;
+  --color-card: #1f1e1f;
+  --color-on-surface: #e5e2e3;
+  --color-on-surface-variant: #c4d0d1;
+  --color-outline: #849495;
+  --color-outline-variant: #3b494b;
+  --color-income: #27ff97;
+  --color-income-soft: color-mix(in srgb, #27ff97 18%, #1c1b1c);
+  --color-expense: #ffb4ab;
+  --color-expense-soft: color-mix(in srgb, #ffb4ab 20%, #1c1b1c);
+  --color-tertiary: #00e383;
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.45), 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  --shadow-glow: 0 0 28px rgba(93, 95, 239, 0.35);
+  --glass-bg: rgba(28, 27, 28, 0.82);
+  --glass-nav-bg: rgba(19, 19, 20, 0.88);
+  --glass-border: rgba(229, 226, 227, 0.08);
+  --scrollbar-track: #1c1b1c;
+  --scrollbar-thumb: #3b494b;
+  --focus-ring: #c1c1ff;
+}
+
 @layer base {
   body {
     @apply bg-surface font-sans antialiased text-brand-deep;
@@ -12,13 +78,13 @@
 
 @layer utilities {
   .glass-card {
-    background: rgba(255, 255, 255, 0.72);
+    background: var(--glass-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(19, 27, 46, 0.06);
+    border: 1px solid var(--glass-border);
   }
   .glass-nav {
-    background: rgba(255, 255, 255, 0.78);
+    background: var(--glass-nav-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
@@ -51,10 +117,157 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Low specificity so utilities like outline-none / focus rings can override.
-   Pill search fields put the ring on the wrapper via focus-within instead. */
+/* Map common light-only utilities so existing screens pick up dark tokens */
+html.dark .bg-white {
+  background-color: var(--color-card) !important;
+}
+html.dark .bg-white\/60,
+html.dark .bg-white\/70,
+html.dark .bg-white\/80,
+html.dark .bg-white\/90,
+html.dark .bg-white\/95 {
+  background-color: color-mix(in srgb, var(--color-card) 92%, transparent) !important;
+}
+html.dark .hover\:bg-white:hover,
+html.dark .hover\:bg-white\/90:hover {
+  background-color: var(--color-surface-high) !important;
+}
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-slate-900,
+html.dark .text-slate-800 {
+  color: var(--color-on-surface) !important;
+}
+html.dark .text-gray-700,
+html.dark .text-slate-700 {
+  color: color-mix(in srgb, var(--color-on-surface) 92%, var(--color-on-surface-variant)) !important;
+}
+html.dark .text-gray-600,
+html.dark .text-gray-500,
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  color: var(--color-on-surface-variant) !important;
+}
+html.dark .text-gray-400,
+html.dark .text-slate-400 {
+  color: color-mix(in srgb, var(--color-on-surface-variant) 88%, var(--color-outline)) !important;
+}
+html.dark .text-gray-300,
+html.dark .placeholder\:text-gray-400::placeholder {
+  color: var(--color-outline) !important;
+}
+html.dark .border-gray-50,
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .border-slate-200,
+html.dark .border-white\/50,
+html.dark .border-white\/60 {
+  border-color: var(--color-outline-variant) !important;
+}
+html.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--color-outline-variant) !important;
+}
+html.dark .bg-gray-50,
+html.dark .bg-gray-100,
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+  background-color: var(--color-surface-low) !important;
+}
+html.dark .bg-slate-200 {
+  background-color: var(--color-surface-high) !important;
+}
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-slate-50:hover {
+  background-color: var(--color-surface-high) !important;
+}
+html.dark .bg-rose-50,
+html.dark .bg-red-50,
+html.dark .bg-red-100 {
+  background-color: var(--color-expense-soft) !important;
+}
+html.dark .text-rose-100 {
+  color: color-mix(in srgb, var(--color-expense) 28%, transparent) !important;
+}
+html.dark .border-rose-100,
+html.dark .border-red-100,
+html.dark .border-red-200 {
+  border-color: color-mix(in srgb, var(--color-expense) 40%, transparent) !important;
+}
+html.dark .bg-green-50,
+html.dark .bg-green-100,
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100 {
+  background-color: var(--color-income-soft) !important;
+}
+html.dark .text-emerald-100 {
+  color: color-mix(in srgb, var(--color-income) 28%, transparent) !important;
+}
+html.dark .border-green-200 {
+  border-color: color-mix(in srgb, var(--color-income) 40%, transparent) !important;
+}
+html.dark .md\:bg-white {
+  background-color: var(--color-card) !important;
+}
+html.dark .text-green-700,
+html.dark .text-green-800 {
+  color: var(--color-income) !important;
+}
+html.dark .text-red-600,
+html.dark .text-red-700 {
+  color: var(--color-expense) !important;
+}
+html.dark .bg-amber-50,
+html.dark .bg-amber-100 {
+  background-color: color-mix(in srgb, #fbbf24 16%, var(--color-surface-low)) !important;
+}
+html.dark .text-amber-700,
+html.dark .text-amber-800,
+html.dark .text-amber-900 {
+  color: #fcd34d !important;
+}
+html.dark .bg-amber-950\/40 {
+  background-color: color-mix(in srgb, #fbbf24 14%, var(--color-surface-low)) !important;
+}
+html.dark .bg-sky-50 {
+  background-color: color-mix(in srgb, #38bdf8 16%, var(--color-surface-low)) !important;
+}
+html.dark .text-sky-600,
+html.dark .text-sky-700 {
+  color: #7dd3fc !important;
+}
+html.dark .bg-violet-50 {
+  background-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface-low)) !important;
+}
+html.dark .text-violet-50 {
+  color: var(--color-primary) !important;
+}
+html.dark .bg-fuchsia-50 {
+  background-color: color-mix(in srgb, #e879f9 16%, var(--color-surface-low)) !important;
+}
+html.dark .text-fuchsia-700 {
+  color: #f0abfc !important;
+}
+html.dark .from-slate-100,
+html.dark .via-white,
+html.dark .to-indigo-100 {
+  --tw-gradient-from: var(--color-surface-low) var(--tw-gradient-from-position);
+  --tw-gradient-to: var(--color-surface) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--color-surface-container), var(--tw-gradient-to);
+}
+
+/* Solid CTA fills stay container purple; --color-primary is the light brand for text. */
+html.dark .bg-primary-main {
+  background-color: var(--color-primary-container) !important;
+}
+html.dark .hover\:bg-primary-dark:hover {
+  background-color: color-mix(in srgb, var(--color-primary-container) 82%, #000) !important;
+}
+
+/* Low specificity so utilities like outline-none / focus rings can override. */
 :where(*):focus-visible {
-  outline: 2px solid #4343d5;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -75,14 +288,14 @@ html {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f2f3ff;
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #c1c1ff;
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #5d5fef;
+  background: var(--color-primary-container);
 }
 
 .touch-manipulation {
@@ -136,11 +349,14 @@ body {
 }
 .Toastify__toast {
   border-radius: 12px;
-  box-shadow: 0 12px 32px -12px rgba(67, 67, 213, 0.22);
+  box-shadow: var(--shadow-elevated);
   font-family: inherit;
 }
 .Toastify__toast--success {
-  background-color: #008259;
+  background-color: var(--color-income);
+  color: #0e0e0f;
+}
+html:not(.dark) .Toastify__toast--success {
   color: white;
 }
 .Toastify__toast--error {
@@ -152,7 +368,7 @@ body {
   color: white;
 }
 .Toastify__toast--info {
-  background-color: #4343d5;
+  background-color: var(--color-primary-container);
   color: white;
 }
 .Toastify__progress-bar {

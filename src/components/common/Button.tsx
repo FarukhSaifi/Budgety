@@ -22,13 +22,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary-main text-white hover:bg-primary-dark focus-visible:ring-primary-main/40 shadow-glow",
+    "bg-primary-light text-white hover:brightness-95 focus-visible:ring-primary-main/40 shadow-glow",
   secondary:
-    "bg-primary-soft text-primary-dark hover:bg-primary-soft/80 focus-visible:ring-primary-main/30",
+    "bg-primary-soft text-primary-main hover:bg-primary-soft/80 focus-visible:ring-primary-main/30",
   outline:
-    "border border-primary-soft bg-white/80 text-brand-deep hover:bg-surface-low focus-visible:ring-primary-main/30",
-  ghost: "bg-transparent text-gray-600 hover:bg-surface-low focus-visible:ring-primary-soft",
-  danger: "bg-expense text-white hover:brightness-95 focus-visible:ring-expense/40 shadow-sm",
+    "border border-outline-variant bg-card/80 text-brand-deep hover:bg-surface-low focus-visible:ring-primary-main/30",
+  ghost: "bg-transparent text-on-surface-variant hover:bg-surface-low focus-visible:ring-primary-soft",
+  danger: "bg-expense text-white hover:brightness-95 focus-visible:ring-expense/40 shadow-sm dark:text-brand-deep",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

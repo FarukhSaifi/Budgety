@@ -49,15 +49,15 @@ export function UserMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-1000 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-elevated">
-          <div className="border-b border-gray-100 px-4 py-3">
-            <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
-            {user.email && <p className="truncate text-xs text-gray-500">{user.email}</p>}
+        <div className="absolute right-0 z-1000 mt-2 w-56 overflow-hidden rounded-2xl border border-outline-variant/60 bg-card shadow-elevated">
+          <div className="border-b border-outline-variant/60 px-4 py-3">
+            <p className="truncate text-sm font-semibold text-brand-deep">{displayName}</p>
+            {user.email && <p className="truncate text-xs text-on-surface-variant">{user.email}</p>}
           </div>
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex w-full items-center gap-2 px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+            className="flex w-full items-center gap-2 px-4 py-3 text-sm text-brand-deep transition-colors hover:bg-surface-low"
           >
             <LogoutIcon className="h-4 w-4" />
             {UI_TEXT.SIGN_OUT}

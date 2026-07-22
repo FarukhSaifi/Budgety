@@ -1,31 +1,48 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: ["./src/**/*.{js,ts,jsx,tsx}", "./src/app/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Stitch "Futuristic Wealth Dashboard" light tokens (from screen HTML)
+        // CSS variables swap for light (Luminous Precision) / dark (Obsidian + brand)
         primary: {
-          main: "#4343D5",
-          light: "#5D5FEF",
-          dark: "#2E2BC2",
-          soft: "#E2E7FF",
-          muted: "#C1C1FF",
+          main: "var(--color-primary)",
+          light: "var(--color-primary-container)",
+          dark: "var(--color-primary-dark)",
+          soft: "var(--color-primary-soft)",
+          muted: "var(--color-primary-muted)",
         },
         brand: {
-          DEFAULT: "#4343D5",
-          deep: "#131B2E",
-          soft: "#F2F3FF",
+          DEFAULT: "var(--color-primary)",
+          deep: "var(--color-on-surface)",
+          soft: "var(--color-surface-low)",
         },
         surface: {
-          DEFAULT: "#FAF8FF",
-          low: "#F2F3FF",
-          container: "#EAEDFF",
-          high: "#E2E7FF",
+          DEFAULT: "var(--color-surface)",
+          low: "var(--color-surface-low)",
+          container: "var(--color-surface-container)",
+          high: "var(--color-surface-high)",
+          highest: "var(--color-surface-highest)",
         },
-        income: "#008259",
-        expense: "#FF4D4D",
-        tertiary: "#006645",
+        card: "var(--color-card)",
+        outline: {
+          DEFAULT: "var(--color-outline)",
+          variant: "var(--color-outline-variant)",
+        },
+        "on-surface": {
+          DEFAULT: "var(--color-on-surface)",
+          variant: "var(--color-on-surface-variant)",
+        },
+        income: {
+          DEFAULT: "var(--color-income)",
+          soft: "var(--color-income-soft)",
+        },
+        expense: {
+          DEFAULT: "var(--color-expense)",
+          soft: "var(--color-expense-soft)",
+        },
+        tertiary: "var(--color-tertiary)",
       },
       fontFamily: {
         sans: ['"Geist"', "ui-sans-serif", "system-ui", "sans-serif"],
@@ -43,10 +60,10 @@ export default {
         xl: "1.5rem",
       },
       boxShadow: {
-        card: "0 1px 3px 0 rgba(19, 27, 46, 0.06), 0 1px 2px 0 rgba(19, 27, 46, 0.04)",
-        widget: "0 1px 3px 0 rgba(19, 27, 46, 0.06), 0 1px 2px 0 rgba(19, 27, 46, 0.04)",
-        elevated: "0 12px 32px -12px rgba(67, 67, 213, 0.22)",
-        glow: "0 0 24px rgba(93, 95, 239, 0.28)",
+        card: "var(--shadow-card)",
+        widget: "var(--shadow-card)",
+        elevated: "var(--shadow-elevated)",
+        glow: "var(--shadow-glow)",
       },
       zIndex: {
         1000: "1000",

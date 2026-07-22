@@ -4,10 +4,10 @@ import {
   CHART_CONFIG,
   DISPLAY_LIMITS,
   MONTHS,
-  STITCH_COLORS,
   UI_TEXT,
 } from "@constants";
 import { DashboardWidget } from "@components/features/dashboard/DashboardWidget";
+import { CHART_THEME_COLORS } from "@/lib/theme";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useAppSelector } from "@store/hooks";
 import { getMonthYear } from "@utils/dateUtils";
@@ -24,16 +24,41 @@ import {
   YAxis,
 } from "recharts";
 
-const MonthlyTrendChart = ({ className = "" }) => {
+const TOOLTIP_STYLE = {
+  backgroundColor: "var(--color-card)",
+  border: "1px solid var(--color-outline-variant)",
+  borderRadius: "12px",
+  boxShadow: "var(--shadow-elevated)",
+  color: "var(--color-on-surface)",
+};
+
+interface MonthlyTrendChartProps {
+  className?: string;
+}
+
+type TrendDatum = {
+  label: string;
+  Income: number;
+  Expense: number;
+};
+
+export default function MonthlyTrendChart({
+  className = "",
+}: MonthlyTrendChartProps) {
   const transactions = useAppSelector((s) => s.transactions.items);
   const { selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
   const { formatCurrencyForChart } = useCurrencyFormatter();
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Rolling N-month income/expense bars (matches reference Monthly Trend)
-  const chartData = useMemo(() => {
+  const chartData = useMemo((): TrendDatum[] => {
     void refreshKey;
-    const months = [];
+    const months: Array<{
+      key: string;
+      label: string;
+      Income: number;
+      Expense: number;
+    }> = [];
     const anchor = new Date(selectedYear, selectedMonth - 1, 1);
     for (let i = DISPLAY_LIMITS.TREND_MONTHS - 1; i >= 0; i -= 1) {
       const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
@@ -81,7 +106,7 @@ const MonthlyTrendChart = ({ className = "" }) => {
     >
       {empty ? (
         <div className="flex h-[280px] items-center justify-center">
-          <p className="text-sm text-gray-400">{UI_TEXT.NO_DATA_AVAILABLE}</p>
+          <p className="text-sm text-on-surface-variant">{UI_TEXT.NO_DATA_AVAILABLE}</p>
         </div>
       ) : (
         <div style={{ height: CHART_CONFIG.DEFAULT_CHART_HEIGHT }}>
@@ -94,43 +119,44 @@ const MonthlyTrendChart = ({ className = "" }) => {
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="#E8EAF2"
+                stroke={CHART_THEME_COLORS.GRID}
               />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 tickFormatter={formatCurrencyForChart}
-                tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                 axisLine={false}
                 tickLine={false}
                 width={56}
               />
               <Tooltip
                 formatter={(value) => formatCurrencyForChart(Number(value))}
-                contentStyle={{
-                  backgroundColor: "white",
-                  border: "1px solid #E8EAF2",
-                  borderRadius: "12px",
-                  boxShadow: "0 8px 24px rgba(19,27,46,0.08)",
-                }}
+                contentStyle={TOOLTIP_STYLE}
+                labelStyle={{ color: "var(--color-on-surface)" }}
+                itemStyle={{ color: "var(--color-on-surface-variant)" }}
               />
               <Legend
                 iconType="circle"
-                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+                wrapperStyle={{
+                  fontSize: 12,
+                  paddingTop: 8,
+                  color: "var(--color-on-surface-variant)",
+                }}
               />
               <Bar
                 dataKey="Expense"
-                fill={STITCH_COLORS.EXPENSE}
+                fill={CHART_THEME_COLORS.EXPENSE}
                 radius={[6, 6, 0, 0]}
                 maxBarSize={28}
               />
               <Bar
                 dataKey="Income"
-                fill={STITCH_COLORS.INCOME}
+                fill={CHART_THEME_COLORS.INCOME}
                 radius={[6, 6, 0, 0]}
                 maxBarSize={28}
               />
@@ -140,6 +166,4 @@ const MonthlyTrendChart = ({ className = "" }) => {
       )}
     </DashboardWidget>
   );
-};
-
-export default MonthlyTrendChart;
+}

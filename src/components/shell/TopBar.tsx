@@ -1,6 +1,8 @@
 "use client";
 
 import { UI_TEXT } from "@constants";
+import { useTheme } from "@components/providers/ThemeProvider";
+import { DarkModeIcon } from "@components/icons";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useAppSelector } from "@store/hooks";
@@ -14,6 +16,7 @@ export function TopBar() {
   const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((state) => state.ui);
   const transactions = useAppSelector((state) => state.transactions.items);
   const { formatCurrency } = useCurrencyFormatter();
+  const { toggleLightDark, resolved } = useTheme();
   const { totalIncome, totalExpense } = useBudgetCalculations(
     transactions,
     viewPeriod,
@@ -33,7 +36,7 @@ export function TopBar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex items-center gap-3 md:gap-5">
           <div className="hidden text-right sm:block">
             <p className="text-xs font-medium text-gray-400">{UI_TEXT.TOTAL_INCOME}</p>
             <p className={cn("text-sm font-semibold text-income")}>
@@ -46,6 +49,15 @@ export function TopBar() {
               -₹{formatCurrency(totalExpense)}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={toggleLightDark}
+            className="hidden h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-card text-brand-deep transition-colors hover:bg-surface-low sm:flex"
+            aria-label={UI_TEXT.TOGGLE_THEME}
+            title={resolved === "dark" ? UI_TEXT.THEME_LIGHT : UI_TEXT.THEME_DARK}
+          >
+            <DarkModeIcon className="h-5 w-5" />
+          </button>
           <UserMenu />
         </div>
       </div>

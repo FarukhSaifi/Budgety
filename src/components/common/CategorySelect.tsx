@@ -127,9 +127,9 @@ export function CategorySelect({
         }}
         onKeyDown={onTriggerKeyDown}
         className={cn(
-          "flex w-full items-center justify-between gap-2 rounded-full border bg-white px-4 py-2.5 text-left text-sm transition-[border-color,box-shadow]",
+          "flex w-full items-center justify-between gap-2 rounded-full border bg-card px-4 py-2.5 text-left text-sm transition-[border-color,box-shadow]",
           "focus:outline-none focus-visible:outline-none",
-          "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60",
+          "disabled:cursor-not-allowed disabled:bg-surface-low disabled:opacity-60",
           open
             ? "border-primary-light shadow-[0_0_0_1px_rgba(93,95,239,0.12)]"
             : "border-primary-main/70 hover:border-primary-main",
@@ -142,36 +142,36 @@ export function CategorySelect({
                 "aria-hidden": true,
               })
             : null}
-          <span className={cn("truncate", value ? "text-gray-900" : "text-gray-400")}>
+          <span className={cn("truncate", value ? "text-brand-deep" : "text-on-surface-variant")}>
             {value || UI_TEXT.CHOOSE}
           </span>
         </span>
         <KeyboardArrowDownIcon
           className={cn(
-            "h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200",
+            "h-5 w-5 shrink-0 text-on-surface-variant transition-transform duration-200",
             open && "rotate-180",
           )}
         />
       </button>
 
       {open && (
-        <div className="mt-2 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-elevated">
+        <div className="mt-2 overflow-hidden rounded-2xl border border-outline-variant/60 bg-card shadow-elevated">
           <div className="px-3 pt-3 pb-2">
             <label
               className={cn(
-                "input-pill-focus flex items-center gap-2 rounded-full border border-gray-200 bg-surface-low px-3 py-2",
+                "input-pill-focus flex items-center gap-2 rounded-full border border-outline-variant bg-surface-low px-3 py-2",
                 "transition-[box-shadow,border-color]",
                 "focus-within:border-primary-main/40 focus-within:ring-2 focus-within:ring-primary-main/30",
               )}
             >
-              <SearchIcon className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+              <SearchIcon className="h-4 w-4 shrink-0 text-on-surface-variant" aria-hidden />
               <input
                 ref={searchRef}
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={placeholder}
-                className="w-full appearance-none bg-transparent text-sm text-brand-deep outline-none ring-0 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:outline-none"
+                className="w-full appearance-none bg-transparent text-sm text-brand-deep outline-none ring-0 placeholder:text-outline focus:outline-none focus:ring-0 focus-visible:outline-none"
                 aria-label={placeholder}
                 autoComplete="off"
               />
@@ -185,7 +185,7 @@ export function CategorySelect({
             className="max-h-52 overflow-y-auto overscroll-contain px-1 pb-1"
           >
             {filtered.length === 0 && !canAddNew ? (
-              <li className="px-3.5 py-3 text-sm text-gray-400">No categories found</li>
+              <li className="px-3.5 py-3 text-sm text-on-surface-variant">No categories found</li>
             ) : (
               filtered.map((opt) => {
                 const selected = opt === value;
@@ -198,14 +198,14 @@ export function CategorySelect({
                       className={cn(
                         "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
                         selected
-                          ? "bg-primary-soft/60 font-medium text-primary-dark"
-                          : "text-gray-800 hover:bg-surface-low",
+                          ? "bg-primary-soft/60 font-medium text-primary-main"
+                          : "text-brand-deep hover:bg-surface-low",
                       )}
                     >
                       <Icon
                         className={cn(
                           "h-4 w-4 shrink-0",
-                          selected ? "text-primary-main" : "text-gray-500",
+                          selected ? "text-primary-main" : "text-on-surface-variant",
                         )}
                         aria-hidden
                       />
@@ -224,7 +224,7 @@ export function CategorySelect({
             <button
               type="button"
               onClick={handleAddNew}
-              className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-3 text-left text-sm font-medium text-primary-main hover:bg-surface-low"
+              className="flex w-full items-center gap-2 border-t border-outline-variant/60 px-4 py-3 text-left text-sm font-medium text-primary-main hover:bg-surface-low"
             >
               <AddIcon className="h-4 w-4 shrink-0" aria-hidden />
               <span className="truncate">
@@ -237,7 +237,7 @@ export function CategorySelect({
           )}
 
           {panelFooter ? (
-            <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-2 border-t border-outline-variant/60 px-3 py-2.5">
               {typeof panelFooter === "function"
                 ? panelFooter({ close })
                 : panelFooter}

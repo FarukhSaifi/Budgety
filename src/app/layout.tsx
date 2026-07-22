@@ -1,3 +1,4 @@
+import { THEME_STORAGE_KEY } from "@/lib/theme";
 import AppProviders from "@components/providers/AppProviders";
 import {
   APP_APPLE_TOUCH_ICON_SRC,
@@ -6,6 +7,7 @@ import {
   APP_NAME,
   APP_OG_IMAGE_SRC,
   STITCH_COLORS,
+  STITCH_DARK_COLORS,
 } from "@constants";
 import type { Metadata, Viewport } from "next";
 import "react-toastify/dist/ReactToastify.css";
@@ -34,15 +36,33 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: STITCH_COLORS.PRIMARY,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: STITCH_COLORS.BACKGROUND },
+    { media: "(prefers-color-scheme: dark)", color: STITCH_DARK_COLORS.BACKGROUND },
+  ],
   width: "device-width",
   initialScale: 1,
 };
 
+/** Avoid light flash before ThemeProvider hydrates. */
+const themeInitScript = `
+(function(){
+  try {
+    var key=${JSON.stringify(THEME_STORAGE_KEY)};
+    var pref=localStorage.getItem(key);
+    var dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var resolved=pref==='dark'|| (pref!=='light' && dark);
+    var root=document.documentElement;
+    if(resolved){ root.classList.add('dark'); root.style.colorScheme='dark'; root.dataset.theme='dark'; }
+    else { root.classList.remove('dark'); root.style.colorScheme='light'; root.dataset.theme='light'; }
+  } catch(e){}
+})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <link
           href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap"
           rel="stylesheet"

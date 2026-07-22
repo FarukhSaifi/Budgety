@@ -7,9 +7,9 @@ import {
   DISPLAY_LIMITS,
   MONTHS,
   PERCENTAGE_THRESHOLDS,
-  STITCH_COLORS,
   UI_TEXT,
 } from "@constants";
+import { CHART_THEME_COLORS } from "@/lib/theme";
 import { Badge, Button, EmptyState, ProgressBar } from "@common";
 import {
   AlertBanner,
@@ -62,8 +62,8 @@ import {
   YAxis,
 } from "recharts";
 
-const BUDGET_LIMIT_COLOR = STITCH_COLORS.PRIMARY_SOFT;
-const ACTUAL_SPENT_COLOR = STITCH_COLORS.PRIMARY_CONTAINER;
+const BUDGET_LIMIT_COLOR = CHART_THEME_COLORS.PRIMARY_SOFT;
+const ACTUAL_SPENT_COLOR = CHART_THEME_COLORS.PRIMARY_CONTAINER;
 const OVER_BUDGET_COLOR = "#BA1A1A";
 
 type CriticalAlert = {
@@ -628,12 +628,12 @@ export function AnalyticsScreen() {
                       >
                         <CartesianGrid
                           strokeDasharray="3 3"
-                          stroke="#E2E7FF"
+                          stroke={CHART_THEME_COLORS.GRID}
                           vertical={false}
                         />
                         <XAxis
                           dataKey="category"
-                          tick={{ fontSize: 11, fill: "#767586" }}
+                          tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                           axisLine={false}
                           tickLine={false}
                           interval={0}
@@ -642,7 +642,7 @@ export function AnalyticsScreen() {
                           height={56}
                         />
                         <YAxis
-                          tick={{ fontSize: 11, fill: "#767586" }}
+                          tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                           width={44}
                           axisLine={false}
                           tickLine={false}
@@ -721,14 +721,14 @@ export function AnalyticsScreen() {
                   <AreaChart data={expenseForecast} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="expenseForecastFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4343D5" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#4343D5" stopOpacity={0} />
+                        <stop offset="0%" stopColor={CHART_THEME_COLORS.PRIMARY} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={CHART_THEME_COLORS.PRIMARY} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME_COLORS.GRID_SOFT} vertical={false} />
                     <XAxis
                       dataKey="label"
-                      tick={{ fontSize: 11, fill: "#767586" }}
+                      tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -744,7 +744,7 @@ export function AnalyticsScreen() {
                     <Area
                       type="monotone"
                       dataKey="expense"
-                      stroke="#4343D5"
+                      stroke={CHART_THEME_COLORS.PRIMARY}
                       strokeWidth={3}
                       fill="url(#expenseForecastFill)"
                       name={UI_TEXT.EXPENSE}
@@ -761,8 +761,8 @@ export function AnalyticsScreen() {
                             cx={cx}
                             cy={cy}
                             r={isCurrent ? 6 : 4}
-                            fill={isProjected ? STITCH_COLORS.TERTIARY : "#4343D5"}
-                            stroke="#fff"
+                            fill={isProjected ? CHART_THEME_COLORS.TERTIARY : CHART_THEME_COLORS.PRIMARY}
+                            stroke={CHART_THEME_COLORS.DOT_STROKE}
                             strokeWidth={2}
                           />
                         );
@@ -826,7 +826,7 @@ export function AnalyticsScreen() {
                         className={cn(
                           "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
                           alert.tone === "danger" && "bg-red-100 text-expense",
-                          alert.tone === "warning" && "bg-amber-100 text-amber-700",
+                          alert.tone === "warning" && "bg-amber-100 text-amber-700 dark:text-amber-100",
                           alert.tone === "success" && "bg-green-100 text-income",
                         )}
                       >
@@ -989,23 +989,23 @@ export function AnalyticsScreen() {
                 <BarChart data={incomeTrend} margin={CHART_CONFIG.MARGIN}>
                   <defs>
                     <linearGradient id="incomeBarGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#5D5FEF" />
-                      <stop offset="100%" stopColor="#4343D5" />
+                      <stop offset="0%" stopColor={CHART_THEME_COLORS.PRIMARY_CONTAINER} />
+                      <stop offset="100%" stopColor={CHART_THEME_COLORS.PRIMARY} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke="#E2E7FF"
+                    stroke={CHART_THEME_COLORS.GRID}
                     vertical={false}
                   />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 11, fill: "#767586" }}
+                    tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "#767586" }}
+                    tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                     width={36}
                     axisLine={false}
                     tickLine={false}
@@ -1032,7 +1032,7 @@ export function AnalyticsScreen() {
                         fill={
                           entry.label === highlightMonthLabel
                             ? "url(#incomeBarGrad)"
-                            : "#E2E7FF"
+                            : CHART_THEME_COLORS.MUTED_BAR
                         }
                       />
                     ))}
@@ -1120,23 +1120,23 @@ export function AnalyticsScreen() {
                 <BarChart data={expenseTrend} margin={CHART_CONFIG.MARGIN}>
                   <defs>
                     <linearGradient id="outcomeBarGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#5D5FEF" />
-                      <stop offset="100%" stopColor="#4343D5" />
+                      <stop offset="0%" stopColor={CHART_THEME_COLORS.PRIMARY_CONTAINER} />
+                      <stop offset="100%" stopColor={CHART_THEME_COLORS.PRIMARY} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke="#E2E7FF"
+                    stroke={CHART_THEME_COLORS.GRID}
                     vertical={false}
                   />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 11, fill: "#767586" }}
+                    tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "#767586" }}
+                    tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
                     width={36}
                     axisLine={false}
                     tickLine={false}
@@ -1163,7 +1163,7 @@ export function AnalyticsScreen() {
                         fill={
                           entry.label === highlightMonthLabel
                             ? "url(#outcomeBarGrad)"
-                            : "#E2E7FF"
+                            : CHART_THEME_COLORS.MUTED_BAR
                         }
                       />
                     ))}

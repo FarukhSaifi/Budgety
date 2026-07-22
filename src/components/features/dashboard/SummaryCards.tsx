@@ -8,16 +8,37 @@ import {
   ArrowUpwardIcon,
   CheckCircleIcon,
 } from "@components/icons";
+import type { IconComponent } from "@components/icons/types";
+import type { ReactNode } from "react";
 
-const SummaryCards = ({ totalIncome, totalExpense, balance }) => {
+interface SummaryCardsProps {
+  totalIncome: number;
+  totalExpense: number;
+  balance: number;
+}
+
+interface SummaryCard {
+  title: string;
+  value: number;
+  hint: ReactNode;
+  Icon: IconComponent;
+  iconWrap: string;
+  watermark: string;
+}
+
+export default function SummaryCards({
+  totalIncome,
+  totalExpense,
+  balance,
+}: SummaryCardsProps) {
   const { formatCurrency } = useCurrencyFormatter();
 
-  const cards = [
+  const cards: SummaryCard[] = [
     {
       title: UI_TEXT.TOTAL_BALANCE,
       value: balance,
       hint: (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-income">
+        <span className="inline-flex items-center gap-1 rounded-full bg-income-soft px-2.5 py-1 text-[11px] font-semibold text-income">
           <CheckCircleIcon className="h-3 w-3" />
           {UI_TEXT.AVAILABLE_BALANCE}
         </span>
@@ -30,25 +51,25 @@ const SummaryCards = ({ totalIncome, totalExpense, balance }) => {
       title: UI_TEXT.TOTAL_INCOME,
       value: totalIncome,
       hint: (
-        <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+        <span className="inline-flex items-center gap-1 text-xs text-on-surface-variant">
           {UI_TEXT.THIS_PERIOD}
         </span>
       ),
       Icon: ArrowUpwardIcon,
-      iconWrap: "bg-emerald-50 text-income",
-      watermark: "text-emerald-100",
+      iconWrap: "bg-income-soft text-income",
+      watermark: "text-income-soft",
     },
     {
       title: UI_TEXT.TOTAL_EXPENSES,
       value: totalExpense,
       hint: (
-        <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+        <span className="inline-flex items-center gap-1 text-xs text-on-surface-variant">
           {UI_TEXT.THIS_PERIOD}
         </span>
       ),
       Icon: ArrowDownwardIcon,
-      iconWrap: "bg-rose-50 text-expense",
-      watermark: "text-rose-100",
+      iconWrap: "bg-expense-soft text-expense",
+      watermark: "text-expense-soft",
     },
   ];
 
@@ -59,7 +80,7 @@ const SummaryCards = ({ totalIncome, totalExpense, balance }) => {
         return (
           <div
             key={card.title}
-            className="relative overflow-hidden rounded-2xl border border-gray-100/80 bg-white p-5 shadow-card md:p-6"
+            className="relative overflow-hidden rounded-2xl border border-outline-variant/60 bg-card p-5 shadow-card md:p-6"
           >
             <Icon
               className={`pointer-events-none absolute -right-1 -top-1 h-24 w-24 opacity-40 ${card.watermark}`}
@@ -67,7 +88,7 @@ const SummaryCards = ({ totalIncome, totalExpense, balance }) => {
             />
             <div className="relative">
               <div className="mb-4 flex items-start justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
                   {card.title}
                 </p>
                 <span
@@ -87,6 +108,4 @@ const SummaryCards = ({ totalIncome, totalExpense, balance }) => {
       })}
     </div>
   );
-};
-
-export default SummaryCards;
+}

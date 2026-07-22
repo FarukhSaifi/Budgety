@@ -107,7 +107,7 @@ export function Modal({
       style={{ zIndex }}
     >
       <div
-        className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm dark:bg-black/65"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -115,16 +115,16 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative flex max-h-[min(92vh,100dvh)] w-full flex-col overflow-hidden rounded-t-card bg-white shadow-elevated sm:rounded-card",
+          "relative flex max-h-[min(92vh,100dvh)] w-full flex-col overflow-hidden rounded-t-card bg-card shadow-elevated sm:rounded-card",
           SIZE_CLASSES[size],
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title ?? ""}</h2>
+        <div className="flex shrink-0 items-center justify-between border-b border-outline-variant/60 px-5 py-4">
+          <h2 className="text-lg font-semibold text-brand-deep">{title ?? ""}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-low hover:text-brand-deep"
             aria-label="Close"
           >
             <CloseIcon className="h-5 w-5" />
@@ -139,7 +139,7 @@ export function Modal({
           {children}
         </div>
         {footer && (
-          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-gray-100 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-outline-variant/60 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {footer}
           </div>
         )}

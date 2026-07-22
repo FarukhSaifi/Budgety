@@ -13,8 +13,28 @@ Stitch project [9083140746767418409](https://stitch.withgoogle.com/projects/9083
 ## Stack
 
 - **Next.js App Router** + React 19
-- **Tailwind CSS** for layout, spacing, color utilities
+- **Tailwind CSS** for layout, spacing, color utilities (`darkMode: "class"`)
 - Shared UI: `@common/*`, `@components/icons`, `@components/mobile`, `@components/screens`
+
+## Light / dark themes
+
+| Mode | Visual system | Tokens |
+| ---- | ------------- | ------ |
+| Light | Stitch **Luminous Precision** | `:root` in `globals.css`, `STITCH_COLORS` |
+| Dark | Stitch **Obsidian Flux** surfaces + Budgety purple brand | `html.dark` in `globals.css`, `STITCH_DARK_COLORS` |
+
+### Strategy
+
+- Tailwind `darkMode: "class"` — toggle via `html.dark` (not `prefers-color-scheme` alone).
+- Preference: `light` | `dark` | `system`, stored under **`budgety.theme`** (`THEME_STORAGE_KEY` in `src/lib/theme.ts`).
+- `ThemeProvider` (`src/components/providers/ThemeProvider.tsx`) reads/writes preference, resolves system, applies `class` + `colorScheme` + `data-theme`.
+- FOUC script in `src/app/layout.tsx` applies the class before paint.
+- UI: `ThemeToggle` on Profile → Appearance; compact toggle on desktop `TopBar`.
+- Prefer semantic tokens (`bg-surface`, `bg-card`, `text-brand-deep`, `text-on-surface-variant`, `border-outline-variant`) over raw hex.
+- Charts: use `CHART_THEME_COLORS` from `@/lib/theme` (CSS vars) so strokes/fills follow the active theme.
+- `globals.css` remaps common light-only utilities (`bg-white`, gray text/borders) under `html.dark` for legacy screens.
+
+Do not use `lucide-react` or `@mui/icons-material`. Icons are Stitch Material Symbol SVGs from `@components/icons`.
 
 ## Tokens (Stitch light — Luminous Precision)
 
@@ -29,9 +49,17 @@ Stitch project [9083140746767418409](https://stitch.withgoogle.com/projects/9083
 | Font                    | **Geist**             | `font-sans`                                |
 | Currency                | ₹ INR                 | `useCurrencyFormatter`                     |
 
-Prefer **light** Stitch screens and user reference screenshots. Dark Stitch “Budgety Web” / Obsidian Flux is layout reference only — do not switch the whole app to dark unless light screens lack a feature.
+## Tokens (dark — Obsidian Flux + purple)
 
-Do not use `lucide-react` or `@mui/icons-material`. Icons are Stitch Material Symbol SVGs from `@components/icons`.
+| Token        | Value     | Notes                          |
+| ------------ | --------- | ------------------------------ |
+| Background   | `#131314` | `STITCH_DARK_COLORS.BACKGROUND` |
+| Surface low  | `#1C1B1C` | Cards / elevated panels        |
+| On surface   | `#E5E2E3` | Primary text                   |
+| Primary      | `#C1C1FF` | Brand on dark                  |
+| FAB / CTA    | `#5D5FEF` | Unchanged container purple     |
+| Income       | `#27FF97` |                                |
+| Expense      | `#FFB4AB` |                                |
 
 ## Navigation IA (4-tab Stitch shell + secondary)
 
@@ -69,7 +97,7 @@ Desktop sidebar lists primary then secondary.
 - Mobile-first; bottom nav `md:hidden`, sidebar `hidden md:flex`
 - Content padding bottom `pb-28` for FAB clearance
 - Amounts: green `+` income, red `-` expense
-- Cards: white / `rounded-card`, soft shadows
+- Cards: `bg-card` / `rounded-card`, soft shadows (theme-aware)
 - Primary CTAs: `bg-primary-main`
 
 ## Data / Auth

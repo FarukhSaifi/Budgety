@@ -24,13 +24,13 @@ export const ACTION_TYPES = {
   SET_SEARCH_QUERY: "SET_SEARCH_QUERY",
   ADD_CATEGORY: "ADD_CATEGORY",
   RESTORE_STATE: "RESTORE_STATE",
-};
+} as const;
 
 // Transaction Types
 export const TRANSACTION_TYPES = {
   INCOME: "income",
   EXPENSE: "expense",
-};
+} as const;
 
 // Transaction Type Labels
 export const TRANSACTION_TYPE_LABELS = {
@@ -247,7 +247,7 @@ export const VIEW_PERIODS = {
   MONTHLY: "monthly",
   YEARLY: "yearly",
   ALL: "all",
-};
+} as const;
 
 /** localStorage key for dashboard period (viewPeriod / month / year). */
 export const UI_PERIOD_STORAGE_KEY = "budgety.ui.period";
@@ -266,7 +266,7 @@ export const VIEW_PERIOD_LABELS = {
 export const VIEW_TYPES = {
   LIST: "list",
   CALENDAR: "calendar",
-};
+} as const;
 
 // View Type Labels
 export const VIEW_TYPE_LABELS = {
@@ -381,6 +381,10 @@ export const UI_TEXT = {
   AUTH_ERROR_INVALID_EMAIL: "Please enter a valid email address",
   AUTH_ERROR_TOO_MANY_REQUESTS: "Too many attempts. Please try again later.",
   AUTH_ERROR_POPUP_CLOSED: "Sign in was cancelled",
+  AUTH_ERROR_POPUP_BLOCKED:
+    "Sign-in popup was blocked. Allow popups for this site, or try again — we will use a full-page Google sign-in.",
+  AUTH_ERROR_UNAUTHORIZED_DOMAIN:
+    "This site is not authorized for Firebase Auth. Add your Vercel domain under Firebase → Authentication → Settings → Authorized domains.",
   AUTH_ERROR_NETWORK: "Network error. Check your connection and try again.",
   AUTH_ERROR_NOT_CONFIGURED: "Authentication is not configured. Set the NEXT_PUBLIC_FIREBASE_* environment variables.",
   AUTH_SUCCESS_SIGNED_IN: "Signed in successfully",
@@ -429,8 +433,7 @@ export const UI_TEXT = {
   ADD_NEW_SAVINGS_GOAL_TITLE: "Add New Savings Goal",
   ADD_RECURRING_TRANSACTION_TITLE: "Add Recurring Transaction",
   COMPREHENSIVE_FINANCIAL_ANALYSIS: "Comprehensive financial analysis and insights",
-  REPORTS_SUBTITLE:
-    "Deep dive into your financial health and future projections.",
+  REPORTS_SUBTITLE: "Deep dive into your financial health and future projections.",
   THIS_MONTH: "This Month",
   EXPORT_CSV: "Export CSV",
   BUDGET_ADHERENCE: "Budget Adherence",
@@ -438,8 +441,7 @@ export const UI_TEXT = {
   INCOME_VS_EXPENSES: "Income vs. Expenses",
   SMART_INSIGHTS: "Smart Insights",
   SMART_INSIGHTS_BETA: "BETA",
-  SMART_INSIGHTS_EMPTY:
-    "Add more transactions this month to unlock personalized insights.",
+  SMART_INSIGHTS_EMPTY: "Add more transactions this month to unlock personalized insights.",
   REFRESH_INSIGHTS: "Refresh Insights",
   REVIEW_BUDGETS: "Review Budgets",
   VIEW_TRANSACTIONS: "View Transactions",
@@ -507,8 +509,7 @@ export const UI_TEXT = {
   PARTICULARS: "PARTICULARS",
   IMPORT_BANK_STATEMENT: "Import Bank Statement",
   IMPORT_TRANSACTIONS: "Import Transactions",
-  IMPORT_TRANSACTIONS_SUBTITLE:
-    "Upload your CSV bank statements to categorize and analyze wealth.",
+  IMPORT_TRANSACTIONS_SUBTITLE: "Upload your CSV bank statements to categorize and analyze wealth.",
   HIDE_IMPORT: "Hide Import",
   UPLOAD_CSV_EXCEL: "Upload a PDF or CSV bank statement — AI extracts and categorizes transactions",
   UPLOAD_DROP_HINT: "Drag and drop statement here",
@@ -633,11 +634,16 @@ export const UI_TEXT = {
   SECURITY_PRIVACY: "Security & Privacy",
   NOTIFICATIONS: "Notifications",
   APPEARANCE: "Appearance",
+  THEME_LIGHT: "Light",
+  THEME_DARK: "Dark",
+  THEME_SYSTEM: "System",
+  TOGGLE_THEME: "Toggle theme",
   CURRENCY_LANGUAGE: "Currency & Language",
   SORT: "Sort",
   OF: "of",
   DAYS_LEFT: "days left",
-  DUE: "Due",
+  /** Label used in bill rows (includes trailing colon). */
+  DUE: "Due:",
   OTHERS: "Others",
   BILLS: "Bills",
   BILLS_AND_RECURRING: "Bills & Recurring",
@@ -677,8 +683,6 @@ export const UI_TEXT = {
   RECURRING_PAYMENT: "Recurring Payment",
   PAID: "Paid",
   DAYS_OVERDUE: "days overdue",
-  DAYS_LEFT: "days left",
-  DUE: "Due:",
   TODAY: "Today",
   CLOSE: "Close",
   OPENING_BALANCE: "Opening Balance",
@@ -812,7 +816,7 @@ export const RECURRENCE_TYPES = {
   WEEKLY: "weekly",
   MONTHLY: "monthly",
   YEARLY: "yearly",
-};
+} as const;
 
 // Recurrence Labels
 export const RECURRENCE_LABELS = {
@@ -863,6 +867,32 @@ export const STITCH_COLORS = {
   INCOME: "#008259",
   EXPENSE: "#FF4D4D",
   TERTIARY: "#006645",
+  BALANCE_FROM: "#1A2B88",
+  BALANCE_TO: "#5B4BDB",
+  FAB: "#5D5FEF",
+};
+
+/** Stitch Obsidian Flux surfaces + Budgety purple brand (dark mode). */
+export const STITCH_DARK_COLORS = {
+  PRIMARY: "#C1C1FF",
+  PRIMARY_CONTAINER: "#5D5FEF",
+  PRIMARY_DARK: "#A8A7FF",
+  PRIMARY_MUTED: "#5B5A9A",
+  PRIMARY_SOFT: "#2A2A4A",
+  BACKGROUND: "#131314",
+  SURFACE: "#131314",
+  SURFACE_LOW: "#1C1B1C",
+  SURFACE_CONTAINER: "#201F20",
+  SURFACE_HIGH: "#2A2A2B",
+  SURFACE_HIGHEST: "#353436",
+  ON_SURFACE: "#E5E2E3",
+  ON_SURFACE_VARIANT: "#C4D0D1",
+  OUTLINE: "#849495",
+  OUTLINE_VARIANT: "#3B494B",
+  CARD: "#1F1E1F",
+  INCOME: "#27FF97",
+  EXPENSE: "#FFB4AB",
+  TERTIARY: "#00E383",
   BALANCE_FROM: "#1A2B88",
   BALANCE_TO: "#5B4BDB",
   FAB: "#5D5FEF",

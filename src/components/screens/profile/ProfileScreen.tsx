@@ -1,6 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
+import { ThemeToggle } from "@common";
 import { ProfileSettingRow } from "@components/mobile";
 import { useAppNavigation } from "@hooks/useAppNavigation";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
@@ -14,7 +15,6 @@ import {
   MenuIcon,
   NotificationsIcon,
   PersonIcon,
-  SettingsIcon,
   TuneIcon,
 } from "@components/icons";
 
@@ -40,7 +40,7 @@ export function ProfileScreen() {
       <header className="flex items-center justify-between">
         <button
           type="button"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-card text-brand-deep"
           aria-label="Menu"
         >
           <MenuIcon className="h-5 w-5" />
@@ -79,7 +79,7 @@ export function ProfileScreen() {
         <h3 className="mb-1 text-sm font-bold text-brand-deep">
           {UI_TEXT.ACCOUNT_SETTING}
         </h3>
-        <div className="rounded-card bg-white px-3 shadow-card">
+        <div className="rounded-card bg-card px-3 shadow-card">
           <ProfileSettingRow
             icon={PersonIcon}
             title={UI_TEXT.EDIT_PROFILE}
@@ -110,12 +110,10 @@ export function ProfileScreen() {
         <h3 className="mb-1 text-sm font-bold text-brand-deep">
           {UI_TEXT.APP_SETTING}
         </h3>
-        <div className="rounded-card bg-white px-3 shadow-card">
-          <ProfileSettingRow
-            icon={SettingsIcon}
-            title={UI_TEXT.APPEARANCE}
-            subtitle="Theme & layout"
-          />
+        <div className="rounded-card bg-card px-3 shadow-card">
+          <div className="border-b border-gray-100 py-3.5">
+            <ThemeToggle />
+          </div>
           <ProfileSettingRow
             icon={AccountBalanceWalletIcon}
             title={UI_TEXT.CURRENCY_LANGUAGE}

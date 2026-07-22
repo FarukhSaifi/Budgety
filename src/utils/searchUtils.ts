@@ -1,11 +1,13 @@
+import type { Transaction } from "@types";
+
 /**
  * Filters transactions based on search query
  * Searches in: description, category, mode, and amount
- * @param {Array} transactions - Array of transactions to filter
- * @param {string} searchQuery - Search query string
- * @returns {Array} - Filtered transactions
  */
-export const filterTransactionsBySearch = (transactions, searchQuery) => {
+export const filterTransactionsBySearch = (
+  transactions: Transaction[],
+  searchQuery: string | null | undefined,
+): Transaction[] => {
   if (!searchQuery || searchQuery.trim() === "") {
     return transactions;
   }
@@ -22,15 +24,12 @@ export const filterTransactionsBySearch = (transactions, searchQuery) => {
     const mode = (transaction.paymentMode || transaction.mode || "").toLowerCase();
     if (mode.includes(query)) return true;
 
-    // Search in amount (as string)
     const amount = String(transaction.amount || 0);
     if (amount.includes(query)) return true;
 
-    // Search in formatted amount (remove currency symbol and commas)
     const formattedAmount = amount.replace(/[₹,]/g, "");
     if (formattedAmount.includes(query)) return true;
 
     return false;
   });
 };
-

@@ -22,9 +22,9 @@ export function AlertBanner({
   icon,
 }: AlertBannerProps) {
   const tones = {
-    info: "bg-[#EEF0FF] text-brand-deep",
-    warning: "bg-amber-50 text-amber-900",
-    budget: "bg-[#F3E8FF] text-brand-deep",
+    info: "bg-primary-soft text-brand-deep",
+    warning: "bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100",
+    budget: "bg-surface-container text-brand-deep",
   };
 
   return (
@@ -46,7 +46,7 @@ export function AlertBanner({
       </span>
       <div className="min-w-0 flex-1">
         {title && <p className="text-sm font-semibold">{title}</p>}
-        <p className={cn("text-sm leading-snug", title ? "text-gray-600" : "font-medium")}>
+        <p className={cn("text-sm leading-snug", title ? "text-on-surface-variant" : "font-medium")}>
           {message}
         </p>
       </div>
@@ -54,7 +54,7 @@ export function AlertBanner({
         <button
           type="button"
           onClick={onDismiss}
-          className="shrink-0 rounded-full p-1 text-gray-400 hover:bg-black/5 hover:text-gray-600"
+          className="shrink-0 rounded-full p-1 text-on-surface-variant hover:bg-black/5 hover:text-brand-deep dark:hover:bg-white/10"
           aria-label="Dismiss"
         >
           <CloseIcon className="h-4 w-4" />

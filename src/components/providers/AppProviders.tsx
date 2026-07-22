@@ -1,37 +1,47 @@
 "use client";
 
-import AuthBootstrap from "@components/providers/AuthBootstrap";
-import { AuthProvider } from "@context/AuthContext";
-import { TIMEOUTS } from "@constants";
 import { ErrorBoundary } from "@common";
+import AuthBootstrap from "@components/providers/AuthBootstrap";
+import { ThemeProvider, useTheme } from "@components/providers/ThemeProvider";
+import { TIMEOUTS } from "@constants";
+import { AuthProvider } from "@context/AuthContext";
 import ReduxProvider from "@store/ReduxProvider";
 import type { ReactNode } from "react";
 import { ToastContainer } from "react-toastify";
 
+function ThemedToasts() {
+  const { resolved } = useTheme();
+  return (
+    <ToastContainer
+      position="top-right"
+      autoClose={TIMEOUTS.TOAST_SUCCESS}
+      hideProgressBar={false}
+      newestOnTop
+      closeOnClick
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+      theme={resolved === "dark" ? "dark" : "light"}
+    />
+  );
+}
+
 /**
  * Client provider tree:
- * ErrorBoundary → Redux store → auth/Firestore bootstrap → auth context → app.
+ * ErrorBoundary → Redux → theme → auth/Firestore bootstrap → auth context → app.
  */
 export default function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary>
       <ReduxProvider>
-        <AuthBootstrap>
-          <AuthProvider>
-            {children}
-            <ToastContainer
-              position="top-right"
-              autoClose={TIMEOUTS.TOAST_SUCCESS}
-              hideProgressBar={false}
-              newestOnTop
-              closeOnClick
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-              theme="light"
-            />
-          </AuthProvider>
-        </AuthBootstrap>
+        <ThemeProvider>
+          <AuthBootstrap>
+            <AuthProvider>
+              {children}
+              <ThemedToasts />
+            </AuthProvider>
+          </AuthBootstrap>
+        </ThemeProvider>
       </ReduxProvider>
     </ErrorBoundary>
   );

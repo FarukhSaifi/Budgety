@@ -11,7 +11,7 @@ export interface StatCardProps {
 }
 
 const TONE_ACCENT: Record<NonNullable<StatCardProps["tone"]>, string> = {
-  default: "bg-gray-100 text-gray-600",
+  default: "bg-surface-high text-on-surface-variant",
   income: "bg-green-100 text-income",
   expense: "bg-red-100 text-expense",
   brand: "bg-primary-soft text-primary-main",
@@ -21,12 +21,12 @@ export function StatCard({ label, value, icon, hint, tone = "default", className
   return (
     <div
       className={cn(
-        "rounded-card border border-gray-100 bg-white p-4 shadow-card md:p-5",
+        "rounded-card border border-outline-variant/60 bg-card p-4 shadow-card md:p-5",
         className,
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-gray-500">{label}</p>
+        <p className="text-sm font-medium text-on-surface-variant">{label}</p>
         {icon && (
           <span
             className={cn(
@@ -38,8 +38,8 @@ export function StatCard({ label, value, icon, hint, tone = "default", className
           </span>
         )}
       </div>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">{value}</p>
-      {hint && <div className="mt-1 text-xs text-gray-500">{hint}</div>}
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-brand-deep">{value}</p>
+      {hint && <div className="mt-1 text-xs text-on-surface-variant">{hint}</div>}
     </div>
   );
 }

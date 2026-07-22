@@ -44,8 +44,8 @@ export function FilterPills<T extends string = string>({
               className={cn(
                 "shrink-0 px-1 pb-2 text-sm font-medium transition-colors",
                 active
-                  ? "border-b-2 border-brand-deep text-brand-deep font-semibold"
-                  : "border-b-2 border-transparent text-gray-400",
+                  ? "border-b-2 border-primary-main text-primary-main font-semibold"
+                  : "border-b-2 border-transparent text-on-surface-variant",
               )}
             >
               {opt.label}
@@ -62,8 +62,8 @@ export function FilterPills<T extends string = string>({
             className={cn(
               "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors",
               active
-                ? "bg-brand-deep text-white"
-                : "bg-surface-low text-gray-600 hover:bg-surface-container",
+                ? "bg-primary-light text-white"
+                : "bg-surface-low text-on-surface-variant hover:bg-surface-container",
             )}
           >
             {opt.label}

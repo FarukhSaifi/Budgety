@@ -4,11 +4,11 @@ import type { ReactNode } from "react";
 export type BadgeTone = "neutral" | "success" | "danger" | "warning" | "info";
 
 const TONE_CLASSES: Record<BadgeTone, string> = {
-  neutral: "bg-gray-100 text-gray-700",
-  success: "bg-green-100 text-green-700",
-  danger: "bg-red-100 text-red-600",
+  neutral: "bg-surface-high text-on-surface-variant",
+  success: "bg-income-soft text-income",
+  danger: "bg-expense-soft text-expense",
   warning: "bg-amber-100 text-amber-700",
-  info: "bg-primary-soft text-primary-dark",
+  info: "bg-primary-soft text-primary-main",
 };
 
 export interface BadgeProps {

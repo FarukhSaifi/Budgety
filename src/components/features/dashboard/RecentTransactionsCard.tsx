@@ -49,10 +49,10 @@ export function RecentTransactionsCard({
       >
         {recent.length === 0 ? (
           <div className="px-2 py-10 text-center md:px-3">
-            <p className="text-sm text-gray-400">{UI_TEXT.NO_TRANSACTIONS}</p>
+            <p className="text-sm text-on-surface-variant">{UI_TEXT.NO_TRANSACTIONS}</p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-outline-variant/60">
             {recent.map((transaction) => (
               <li key={transaction.id}>
                 <TransactionListRow

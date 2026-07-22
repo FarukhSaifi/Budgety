@@ -1,6 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOL, STITCH_CHART_COLORS, UI_TEXT, CHART_CONFIG } from "@constants";
+import { CHART_THEME_COLORS } from "@/lib/theme";
 import { cn } from "@utils/cn";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
@@ -51,7 +52,7 @@ function exteriorPercentLabel({
     <text
       x={x}
       y={y}
-      fill="#767586"
+      fill={CHART_THEME_COLORS.TICK}
       textAnchor={x > cx ? "start" : "end"}
       dominantBaseline="central"
       fontSize={11}
@@ -116,7 +117,7 @@ export function DonutChartCard({
           </p>
         </div>
         {activeLabel && (
-          <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-full bg-brand-deep px-2.5 py-1 text-[10px] font-medium text-white shadow-md">
+          <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-full bg-primary-light px-2.5 py-1 text-[10px] font-medium text-white shadow-md">
             {activeLabel}
           </div>
         )}

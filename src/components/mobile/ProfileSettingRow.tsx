@@ -29,7 +29,7 @@ export function ProfileSettingRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 border-b border-gray-100 py-3.5 text-left last:border-b-0",
+        "flex w-full items-center gap-3 border-b border-outline-variant/60 py-3.5 text-left last:border-b-0",
         className,
       )}
     >
@@ -53,9 +53,9 @@ export function ProfileSettingRow({
           </p>
           {badge}
         </div>
-        {subtitle && <p className="truncate text-xs text-gray-400">{subtitle}</p>}
+        {subtitle && <p className="truncate text-xs text-on-surface-variant">{subtitle}</p>}
       </div>
-      <ChevronRightIcon className="h-5 w-5 shrink-0 text-gray-300" />
+      <ChevronRightIcon className="h-5 w-5 shrink-0 text-outline" />
     </button>
   );
 }

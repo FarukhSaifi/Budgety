@@ -25,13 +25,13 @@ export function DashboardWidget({
   return (
     <div
       className={cn(
-        "flex h-full flex-col rounded-2xl border border-gray-100/80 bg-white shadow-card",
+        "flex h-full flex-col rounded-2xl border border-outline-variant/60 bg-card shadow-card",
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 pb-3 pt-5 md:px-6">
+      <div className="flex items-center justify-between gap-3 border-b border-outline-variant/60 px-5 pb-3 pt-5 md:px-6">
         <h3 className="text-base font-bold text-brand-deep">{title}</h3>
-        <div className="flex items-center gap-0.5 text-gray-400">
+        <div className="flex items-center gap-0.5 text-on-surface-variant">
           {action}
           {onRefresh && (
             <button

@@ -37,8 +37,8 @@ export function SegmentedTabs<T extends string = string>({
             className={cn(
               "shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors",
               active
-                ? "bg-brand-deep text-white shadow-sm"
-                : "bg-transparent text-gray-500 hover:text-brand-deep",
+                ? "bg-primary-light text-white shadow-sm"
+                : "bg-transparent text-on-surface-variant hover:text-brand-deep",
             )}
           >
             {opt.label}

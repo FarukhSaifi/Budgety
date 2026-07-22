@@ -3,34 +3,33 @@
  */
 import { ERROR_MESSAGES, UI_TEXT } from "@constants";
 import { formatForDisplay } from "@hooks/useDateFormatter";
+import type { Transaction } from "@types";
 import { todayStorage } from "@utils/dateUtils";
 import { showError, showSuccess } from "@utils/toast";
 
+type CsvRow = Record<string, string | number | boolean | null | undefined>;
+
 /**
  * Export data to CSV format
- * @param {Array} data - Array of objects to export
- * @param {string} filename - Name of the file
- * @param {Array} headers - Optional custom headers
  */
-export const exportToCSV = (data, filename = "export.csv", headers = null) => {
+export const exportToCSV = (
+  data: CsvRow[],
+  filename = "export.csv",
+  headers: string[] | null = null,
+): void => {
   if (!data || data.length === 0) {
     showError(ERROR_MESSAGES.NO_DATA_TO_EXPORT);
     return;
   }
 
-  // Get headers from first object if not provided
   const csvHeaders = headers || Object.keys(data[0]);
 
-  // Create CSV content
   const csvContent = [
-    // Headers
     csvHeaders.join(","),
-    // Data rows
     ...data.map((row) =>
       csvHeaders
         .map((header) => {
           const value = row[header];
-          // Handle values with commas or quotes
           if (value === null || value === undefined) return "";
           const stringValue = String(value);
           if (stringValue.includes(",") || stringValue.includes('"')) {
@@ -42,7 +41,6 @@ export const exportToCSV = (data, filename = "export.csv", headers = null) => {
     ),
   ].join("\n");
 
-  // Create blob and download
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
@@ -59,10 +57,11 @@ export const exportToCSV = (data, filename = "export.csv", headers = null) => {
 
 /**
  * Export chart data to CSV
- * @param {Array} chartData - Chart data array
- * @param {string} chartName - Name of the chart
  */
-export const exportChartData = (chartData, chartName = "chart") => {
+export const exportChartData = (
+  chartData: CsvRow[],
+  chartName = "chart",
+): void => {
   if (!chartData || chartData.length === 0) {
     showError(ERROR_MESSAGES.NO_DATA_TO_EXPORT);
     return;
@@ -75,9 +74,8 @@ export const exportChartData = (chartData, chartName = "chart") => {
 
 /**
  * Export transactions to CSV
- * @param {Array} transactions - Array of transactions
  */
-export const exportTransactions = (transactions) => {
+export const exportTransactions = (transactions: Transaction[]): void => {
   if (!transactions || transactions.length === 0) {
     showError(ERROR_MESSAGES.NO_TRANSACTIONS_TO_EXPORT);
     return;
@@ -86,9 +84,9 @@ export const exportTransactions = (transactions) => {
   const data = transactions.map((t) => ({
     Date: formatForDisplay(t.date, "short"),
     Type: t.type,
-    Description: t.description,
+    Description: t.description ?? t.title,
     Category: t.category,
-    Mode: t.mode,
+    Mode: t.mode ?? t.paymentMode,
     Amount: t.amount,
   }));
 

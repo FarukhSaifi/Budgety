@@ -28,19 +28,19 @@ export function ChartCard({
   emptyMessage = "No data available",
 }: ChartCardProps) {
   return (
-    <div className={cn("rounded-card border border-gray-100 bg-white p-4 shadow-card md:p-5", className)}>
+    <div className={cn("rounded-card border border-outline-variant/60 bg-card p-4 shadow-card md:p-5", className)}>
       {(title || action) && (
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
-            {subtitle && <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>}
+            {title && <h3 className="text-base font-semibold text-brand-deep">{title}</h3>}
+            {subtitle && <p className="mt-0.5 text-sm text-on-surface-variant">{subtitle}</p>}
           </div>
           {action}
         </div>
       )}
       {empty ? (
         <div
-          className="flex items-center justify-center text-sm text-gray-400"
+          className="flex items-center justify-center text-sm text-on-surface-variant"
           style={{ height }}
         >
           {emptyMessage}

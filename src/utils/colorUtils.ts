@@ -6,10 +6,8 @@ import {
 
 /**
  * Returns "white" or dark gray for text on a given hex background (WCAG contrast).
- * @param {string} hex - e.g. "#3498db"
- * @returns {string} "#ffffff" or "#1f2937"
  */
-export function getContrastText(hex) {
+export function getContrastText(hex: string | null | undefined): string {
   if (!hex || typeof hex !== "string") return "#1f2937";
   const clean = hex.replace("#", "");
   if (clean.length !== 6) return "#1f2937";
@@ -24,27 +22,34 @@ export function getContrastText(hex) {
  * Multi-color chart / progress fill for a category (Analytics donut + budget bars).
  * Prefers CATEGORY_COLORS so Analytics and /budgets stay aligned; falls back to
  * STITCH_CHART_COLORS by index for unknown categories.
- * @param {string} categoryName
- * @param {number} [index=0]
- * @returns {string}
  */
-export function getCategoryChartColor(categoryName, index = 0) {
+export function getCategoryChartColor(
+  categoryName: string | null | undefined,
+  index = 0,
+): string {
   const known =
-    categoryName && (CATEGORY_COLORS)[categoryName];
+    categoryName &&
+    (CATEGORY_COLORS as Record<string, string>)[categoryName];
   if (known && known.toLowerCase() !== DEFAULT_CATEGORY_TAG_COLOR.toLowerCase()) {
     return known;
   }
   return STITCH_CHART_COLORS[Math.abs(index) % STITCH_CHART_COLORS.length];
 }
 
+export interface CategoryTagStyle {
+  backgroundColor: string;
+  color: string;
+}
+
 /**
  * Style for a category tag (background + text color) using CATEGORY_COLORS.
- * @param {string} categoryName - Category name (e.g. "Groceries")
- * @returns {{ backgroundColor: string, color: string }}
  */
-export function getCategoryTagStyle(categoryName) {
+export function getCategoryTagStyle(
+  categoryName: string | null | undefined,
+): CategoryTagStyle {
   const backgroundColor =
-    (categoryName && CATEGORY_COLORS[categoryName]) ||
+    (categoryName &&
+      (CATEGORY_COLORS as Record<string, string>)[categoryName]) ||
     DEFAULT_CATEGORY_TAG_COLOR;
   return {
     backgroundColor,

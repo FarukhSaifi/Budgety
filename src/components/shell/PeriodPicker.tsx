@@ -42,17 +42,17 @@ export function PeriodPicker() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/60 bg-card px-3 py-1.5 text-sm font-medium text-brand-deep hover:bg-surface-low"
       >
         {label}
-        <ExpandMoreIcon className="h-4 w-4 text-gray-400" />
+        <ExpandMoreIcon className="h-4 w-4 text-on-surface-variant" />
       </button>
 
       {open && (
-        <div className="absolute left-0 z-1000 mt-2 w-64 rounded-2xl border border-gray-100 bg-white p-4 shadow-elevated">
-          <p className="mb-3 text-sm font-semibold text-gray-900">{UI_TEXT.SELECT_PERIOD}</p>
+        <div className="absolute left-0 z-1000 mt-2 w-64 rounded-2xl border border-outline-variant/60 bg-card p-4 shadow-elevated">
+          <p className="mb-3 text-sm font-semibold text-brand-deep">{UI_TEXT.SELECT_PERIOD}</p>
           <div className="space-y-3">
-            <label className="block text-xs font-medium text-gray-600">
+            <label className="block text-xs font-medium text-on-surface-variant">
               {UI_TEXT.VIEW_PERIOD_LABEL_SHORT}
               <Select
                 className="mt-1"
@@ -68,7 +68,7 @@ export function PeriodPicker() {
             </label>
 
             {viewPeriod === VIEW_PERIODS.MONTHLY && (
-              <label className="block text-xs font-medium text-gray-600">
+              <label className="block text-xs font-medium text-on-surface-variant">
                 {UI_TEXT.MONTH_LABEL}
                 <Select
                   className="mt-1"
@@ -93,7 +93,7 @@ export function PeriodPicker() {
             )}
 
             {(viewPeriod === VIEW_PERIODS.MONTHLY || viewPeriod === VIEW_PERIODS.YEARLY) && (
-              <label className="block text-xs font-medium text-gray-600">
+              <label className="block text-xs font-medium text-on-surface-variant">
                 {UI_TEXT.YEAR_LABEL}
                 <Select
                   className="mt-1"

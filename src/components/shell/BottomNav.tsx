@@ -29,7 +29,7 @@ export function BottomNav({ onFabClick }: BottomNavProps) {
         aria-current={isActive ? "page" : undefined}
         className={cn(
           "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-          isActive ? "text-brand-deep" : "text-gray-400",
+          isActive ? "text-primary-main" : "text-on-surface-variant",
         )}
       >
         <Icon className={cn("h-5 w-5", isActive && "scale-105")} />
@@ -39,7 +39,7 @@ export function BottomNav({ onFabClick }: BottomNavProps) {
   };
 
   return (
-    <nav className="glass-nav fixed bottom-0 left-0 right-0 z-1000 border-t border-gray-100 md:hidden safe-area-inset-bottom">
+    <nav className="glass-nav fixed bottom-0 left-0 right-0 z-1000 border-t border-outline-variant/60 md:hidden safe-area-inset-bottom">
       <div className="relative flex h-[68px] items-stretch px-1">
         {left.map(renderItem)}
 

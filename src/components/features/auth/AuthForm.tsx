@@ -14,6 +14,9 @@ interface AuthFormProps {
   mode: AuthMode;
 }
 
+const INPUT_CLASSES =
+  "w-full rounded-xl border border-outline-variant bg-card px-3 py-2.5 text-sm text-brand-deep outline-none transition placeholder:text-outline focus:border-primary-main focus:ring-2 focus:ring-primary-main/20";
+
 export default function AuthForm({ mode }: AuthFormProps) {
   const { isConfigured, signIn, signUp, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
@@ -46,22 +49,25 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const handleGoogle = async () => {
     setLoading(true);
     try {
-      await signInWithGoogle();
-      showSuccess(UI_TEXT.AUTH_SUCCESS_SIGNED_IN);
+      const user = await signInWithGoogle();
+      // null = redirect flow started (page will navigate to Google).
+      if (user) {
+        showSuccess(UI_TEXT.AUTH_SUCCESS_SIGNED_IN);
+      }
     } catch (err) {
       showError(getAuthErrorMessage(err));
-    } finally {
       setLoading(false);
     }
+    // Keep loading=true during redirect so the button stays disabled until unload.
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-100 via-white to-indigo-100" />
-      <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#3B45E1]/15 blur-3xl" />
-      <div className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-emerald-400/10 blur-3xl" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-surface-low via-surface to-primary-soft/40" />
+      <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-primary-container/20 blur-3xl" />
+      <div className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-tertiary/10 blur-3xl" />
 
-      <div className="relative w-full max-w-md rounded-2xl border border-white/60 bg-white/90 p-6 shadow-xl backdrop-blur md:p-8">
+      <div className="relative w-full max-w-md rounded-2xl border border-outline-variant/60 bg-card/95 p-6 shadow-elevated backdrop-blur md:p-8">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl">
             <Image
@@ -73,16 +79,16 @@ export default function AuthForm({ mode }: AuthFormProps) {
               priority
             />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-2xl font-semibold tracking-tight text-brand-deep">
             {APP_NAME}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-on-surface-variant">
             {isSignUp ? UI_TEXT.AUTH_SIGN_UP_TITLE : UI_TEXT.AUTH_SIGN_IN_TITLE}
           </p>
         </div>
 
         {!isConfigured && (
-          <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm text-amber-700">
+          <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-center text-sm text-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
             {UI_TEXT.AUTH_ERROR_NOT_CONFIGURED}
           </p>
         )}
@@ -92,7 +98,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             <div>
               <label
                 htmlFor="auth-name"
-                className="mb-1 block text-sm font-medium text-slate-700"
+                className="mb-1 block text-sm font-medium text-brand-deep"
               >
                 {UI_TEXT.NAME}
               </label>
@@ -102,7 +108,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={UI_TEXT.AUTH_NAME_PLACEHOLDER}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[#3B45E1] focus:ring-2 focus:ring-[#3B45E1]/20"
+                className={INPUT_CLASSES}
                 autoComplete="name"
                 required
               />
@@ -111,7 +117,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           <div>
             <label
               htmlFor="auth-email"
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-brand-deep"
             >
               {UI_TEXT.EMAIL}
             </label>
@@ -121,7 +127,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={UI_TEXT.AUTH_EMAIL_PLACEHOLDER}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[#3B45E1] focus:ring-2 focus:ring-[#3B45E1]/20"
+              className={INPUT_CLASSES}
               autoComplete="email"
               required
             />
@@ -129,7 +135,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           <div>
             <label
               htmlFor="auth-password"
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-brand-deep"
             >
               {UI_TEXT.PASSWORD}
             </label>
@@ -139,7 +145,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={UI_TEXT.AUTH_PASSWORD_HINT}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[#3B45E1] focus:ring-2 focus:ring-[#3B45E1]/20"
+              className={INPUT_CLASSES}
               autoComplete={isSignUp ? "new-password" : "current-password"}
               minLength={6}
               required
@@ -149,7 +155,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           <button
             type="submit"
             disabled={loading || !isConfigured}
-            className="w-full rounded-xl bg-[#3B45E1] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#3B45E1]/25 transition hover:bg-[#2f38c4] disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-primary-light px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-container/25 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading
               ? UI_TEXT.LOADING
@@ -160,18 +166,18 @@ export default function AuthForm({ mode }: AuthFormProps) {
         </form>
 
         <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs uppercase tracking-wide text-slate-400">
+          <div className="h-px flex-1 bg-outline-variant" />
+          <span className="text-xs uppercase tracking-wide text-on-surface-variant">
             {UI_TEXT.AUTH_OR}
           </span>
-          <div className="h-px flex-1 bg-slate-200" />
+          <div className="h-px flex-1 bg-outline-variant" />
         </div>
 
         <button
           type="button"
           onClick={handleGoogle}
           disabled={loading || !isConfigured}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-outline-variant bg-card px-4 py-2.5 text-sm font-medium text-brand-deep transition hover:bg-surface-low disabled:cursor-not-allowed disabled:opacity-60"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
             <path
@@ -182,11 +188,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
           {UI_TEXT.AUTH_CONTINUE_WITH_GOOGLE}
         </button>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
+        <p className="mt-6 text-center text-sm text-on-surface-variant">
           {isSignUp ? UI_TEXT.AUTH_HAVE_ACCOUNT : UI_TEXT.AUTH_NO_ACCOUNT}{" "}
           <Link
             href={isSignUp ? "/login" : "/register"}
-            className="font-semibold text-[#3B45E1] hover:underline"
+            className="font-semibold text-primary-main hover:underline"
           >
             {isSignUp ? UI_TEXT.SIGN_IN : UI_TEXT.SIGN_UP}
           </Link>

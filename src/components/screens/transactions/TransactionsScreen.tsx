@@ -329,7 +329,7 @@ export function TransactionsScreen() {
           }
         />
       ) : (
-        <div className="space-y-6 md:rounded-card md:bg-white md:p-5 md:shadow-card">
+        <div className="space-y-6 md:rounded-card md:bg-card md:p-5 md:shadow-card">
           {groups.map(([day, list]) => {
             const header = formatGroupHeader(day);
             return (

@@ -480,7 +480,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       <ImportStepper activeStep={activeStep} />
 
       {importedCount > 0 && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 dark:text-income">
           {UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(importedCount))}
         </div>
       )}

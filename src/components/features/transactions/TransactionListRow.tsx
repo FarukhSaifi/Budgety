@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@common";
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
 import {
   AccountBalanceIcon,
@@ -38,14 +39,14 @@ const ICON_TILES: {
   {
     match: /salary|payroll|freelance|bonus|paycheck/i,
     Icon: WorkIcon,
-    wrap: "bg-emerald-50 text-income",
-    badge: "bg-emerald-50 text-income",
+    wrap: "bg-income-soft text-income",
+    badge: "bg-income-soft text-income",
   },
   {
     match: /income|deposit|credit\s*salary/i,
     Icon: PaymentsIcon,
-    wrap: "bg-emerald-50 text-income",
-    badge: "bg-emerald-50 text-income",
+    wrap: "bg-income-soft text-income",
+    badge: "bg-income-soft text-income",
   },
   {
     match: /credit\s*card/i,
@@ -56,14 +57,14 @@ const ICON_TILES: {
   {
     match: /bond|elss|mutual|sip|invest|equity|stock/i,
     Icon: AccountBalanceIcon,
-    wrap: "bg-emerald-50 text-income",
-    badge: "bg-emerald-50 text-income",
+    wrap: "bg-income-soft text-income",
+    badge: "bg-income-soft text-income",
   },
   {
     match: /saving|emergency\s*fund/i,
     Icon: SavingsIcon,
-    wrap: "bg-emerald-50 text-income",
-    badge: "bg-emerald-50 text-income",
+    wrap: "bg-income-soft text-income",
+    badge: "bg-income-soft text-income",
   },
   {
     match: /restaurant|dining|food|meal|swiggy|zomato/i,
@@ -122,8 +123,8 @@ const ICON_TILES: {
   {
     match: /apple|download|software|tech|electronics/i,
     Icon: FileDownloadIcon,
-    wrap: "bg-brand-deep text-white",
-    badge: "bg-primary-soft text-primary-dark",
+    wrap: "bg-primary-light text-white",
+    badge: "bg-primary-soft text-primary-main",
   },
   {
     match: /mall|shopping\s*bag|myntra|ajio/i,
@@ -160,15 +161,33 @@ const ICON_TILES: {
 export function resolveTransactionIconTile(transaction: Transaction) {
   const haystack = `${transaction.category || ""} ${transaction.title || ""} ${transaction.description || ""}`;
   const match = ICON_TILES.find((tile) => tile.match.test(haystack));
-  if (match) return match;
   const isIncome = transaction.type === "income";
+  if (match) {
+    // Keep chip colors aligned with transaction type (e.g. SIP expense ≠ income green).
+    const usesIncomeFill = match.wrap.includes("income");
+    if (!isIncome && usesIncomeFill) {
+      return {
+        ...match,
+        wrap: "bg-expense-soft text-expense",
+        badge: "bg-expense-soft text-expense",
+      };
+    }
+    if (isIncome && match.wrap.includes("rose")) {
+      return {
+        ...match,
+        wrap: "bg-income-soft text-income",
+        badge: "bg-income-soft text-income",
+      };
+    }
+    return match;
+  }
   return {
     Icon: isIncome ? PaymentsIcon : WalletIcon,
     wrap: isIncome
-      ? "bg-emerald-50 text-income"
-      : "bg-violet-50 text-primary-main",
+      ? "bg-income-soft text-income"
+      : "bg-primary-soft text-primary-main",
     badge: isIncome
-      ? "bg-emerald-50 text-income"
+      ? "bg-income-soft text-income"
       : "bg-primary-soft text-primary-dark",
   };
 }
@@ -187,7 +206,7 @@ export interface TransactionListRowProps {
   transaction: Transaction;
   formatCurrency: (n: number) => string;
   onClick?: () => void;
-  /** `list` = Stitch transactions feed; `recent` = dashboard card row. */
+  /** `list` = transactions feed (circular tile + category chip); `recent` = dashboard row (rounded tile + date + type/category chips). */
   variant?: TransactionListRowVariant;
   className?: string;
 }
@@ -203,8 +222,6 @@ export function TransactionListRow({
   const isIncome = transaction.type === "income";
   const title =
     transaction.title || transaction.description || UI_TEXT.NO_DESCRIPTION;
-  const categoryLabel =
-    transaction.category || (isIncome ? UI_TEXT.INCOME : UI_TEXT.EXPENSE);
   const { Icon, wrap, badge } = resolveTransactionIconTile(transaction);
   const dateLabel = formatDate(transaction.date, "monthDay");
   const isRecent = variant === "recent";
@@ -231,26 +248,27 @@ export function TransactionListRow({
         <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "truncate text-sm text-brand-deep",
-            isRecent ? "font-bold" : "font-bold",
-          )}
-        >
-          {title}
-        </p>
-        {isRecent ? (
-          <span
-            className={cn(
-              "mt-1 inline-flex max-w-full truncate rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-              badge,
-            )}
-          >
-            {categoryLabel}
-          </span>
-        ) : (
-          <p className="truncate text-[10px] text-gray-400">{categoryLabel}</p>
-        )}
+        <p className="truncate text-sm font-bold text-brand-deep">{title}</p>
+        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
+          {isRecent ? (
+            <Badge
+              tone={isIncome ? "success" : "danger"}
+              className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            >
+              {isIncome ? UI_TEXT.INCOME : UI_TEXT.EXPENSE}
+            </Badge>
+          ) : null}
+          {transaction.category ? (
+            <span
+              className={cn(
+                "inline-flex max-w-full truncate rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                badge,
+              )}
+            >
+              {transaction.category}
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="shrink-0 text-right">
         <p
@@ -263,15 +281,9 @@ export function TransactionListRow({
           {CURRENCY_SYMBOL}
           {formatCurrency(transaction.amount)}
         </p>
-        {isRecent ? (
-          dateLabel ? (
-            <p className="mt-0.5 text-[11px] text-gray-400">{dateLabel}</p>
-          ) : null
-        ) : (
-          <p className="text-[10px] text-gray-400">
-            {isIncome ? UI_TEXT.INCOME : UI_TEXT.EXPENSE}
-          </p>
-        )}
+        {isRecent && dateLabel ? (
+          <p className="mt-0.5 text-[11px] text-on-surface-variant">{dateLabel}</p>
+        ) : null}
       </div>
     </button>
   );

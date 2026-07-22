@@ -3,70 +3,58 @@
 Secrets live in the **Vercel project**, not in git. Use `.env.example` as the template and `.env.local` for local development.
 
 **Project:** `farukh-saifis-projects/budgety`  
-**Production URL:** https://budgety-woad.vercel.app
+**Production URL:** https://budgety-woad.vercel.app  
+**Firebase project:** `budgety-e7e94`
 
-## Required variables
+## Required on Vercel (Production + Preview)
 
-| Variable | Production | Preview | Development (`vercel dev`) | Local (`.env.local`) |
-| --- | --- | --- | --- | --- |
-| `DATABASE_URL` | Encrypted (Neon pooled) | Same | Same | Your Neon pooled URL |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | From Firebase console | Same as Production | From Firebase console | From Firebase console |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `<project-id>.firebaseapp.com` | Same as Production | Same | Same |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Firebase project ID | Same as Production | Same | Same |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | `<project-id>.appspot.com` | Same as Production | Same | Same |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | From Firebase console | Same as Production | Same | Same |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | From Firebase console | Same as Production | Same | Same |
+| Variable | Notes |
+| --- | --- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase web app config |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Usually `budgety-e7e94.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | `budgety-e7e94` |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | From Firebase console |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | From Firebase console |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | From Firebase console |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | Server-only — bank statement AI import (`/api/parse-statement`) |
 
-`NEXT_PUBLIC_*` values are **not secrets** — they are exposed to the browser. Never put `DATABASE_URL` in a `NEXT_PUBLIC_` variable.
+`NEXT_PUBLIC_*` values are public (safe in the browser). Never put API secrets in `NEXT_PUBLIC_*`.
 
-See [AUTH_SETUP.md](./AUTH_SETUP.md) for how to obtain Firebase config values.
+## Do **not** set on Vercel
 
-## Removed (legacy)
+| Variable | Why |
+| --- | --- |
+| `NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST` | Points the client at a local emulator — breaks production auth |
+| `DATABASE_URL` | Legacy Neon — unused by the Firebase app (safe to delete from Vercel) |
 
-These are no longer used by the Next.js app and should be deleted from Vercel if still present:
+## Firebase Auth domains (required for Google sign-in on Vercel)
 
-- `BETTER_AUTH_SECRET`
-- `BETTER_AUTH_API_KEY`
-- `BETTER_AUTH_URL`
-- `NEXT_PUBLIC_BETTER_AUTH_URL`
-- `VITE_API_URL`
-- `PORT`
+In [Firebase Console → Authentication → Settings → Authorized domains](https://console.firebase.google.com/project/budgety-e7e94/authentication/settings) add:
 
-## Local setup
+- `localhost` (dev)
+- `budgety-e7e94.firebaseapp.com`
+- **`budgety-woad.vercel.app`** (production)
+- Any custom domain you attach later
+- Preview hosts (e.g. `budgety-xxx.vercel.app`) if you use Google sign-in on PR previews
 
-```bash
-cp .env.example .env.local
-# Edit .env.local — set DATABASE_URL and NEXT_PUBLIC_FIREBASE_* values
-npm run dev
-```
+Without the Vercel host listed, Google sign-in fails with `auth/unauthorized-domain` (or related OAuth errors).
 
-Or sync non-sensitive / development values from Vercel:
-
-```bash
-npx vercel env pull .env.local --environment=development --yes
-```
-
-## Vercel CLI (production)
-
-```bash
-npx vercel link   # once per machine
-npx vercel env ls
-
-# Example: set a public Firebase config value (safe to repeat)
-npx vercel env add NEXT_PUBLIC_FIREBASE_PROJECT_ID production \
-  --value "your-project-id" --no-sensitive --yes --force
-```
-
-### Preview deployments
-
-Set the same `NEXT_PUBLIC_FIREBASE_*` values for **Preview → All branches** so auth works on preview URLs. Add each preview domain under **Firebase → Authentication → Settings → Authorized domains**.
+Google sign-in on production uses **full-page redirect** (not a popup) to avoid `auth/popup-blocked` in browsers.
 
 ## After changing env vars
 
-Redeploy production so new variables apply:
+Redeploy so Next.js picks up new `NEXT_PUBLIC_*` values at build time:
 
 ```bash
 npx vercel --prod
 ```
 
-Or trigger a deploy from the Vercel dashboard.
+Or redeploy from the Vercel dashboard.
+
+## Local setup
+
+```bash
+cp .env.example .env.local
+# Fill NEXT_PUBLIC_FIREBASE_* and GOOGLE_GENERATIVE_AI_API_KEY
+npm run dev
+```
