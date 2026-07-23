@@ -15,6 +15,8 @@ import {
   VIEW_PERIODS,
 } from "@constants";
 
+import { DEFAULT_CATEGORY_COLOR } from "@constants/firestore";
+
 import { Button } from "@components/common/Button";
 import { ConfirmDialog } from "@components/common/ConfirmDialog";
 import { Spinner } from "@components/common/Spinner";
@@ -48,7 +50,6 @@ import { cn } from "@utils/cn";
 import { getMonthYear } from "@utils/dateUtils";
 import { filterDuplicates } from "@utils/duplicateDetection";
 import { enrichStagingCategoriesWithAi } from "@utils/enrichStagingCategories";
-import { DEFAULT_CATEGORY_COLOR } from "@constants/firestore";
 import {
   prepareRowForDuplicateCheck,
   rawRowsToStaging,

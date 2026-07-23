@@ -4,6 +4,8 @@ import { useId, useState } from "react";
 
 import { TRANSACTION_TYPES, UI_TEXT } from "@constants";
 
+import { DEFAULT_CATEGORY_COLOR } from "@constants/firestore";
+
 import { Button } from "@components/common/Button";
 import { CategorySelect } from "@components/common/CategorySelect";
 import { Field, Input } from "@components/common/Field";
@@ -18,7 +20,6 @@ import { requestCategorySuggestion } from "@utils/suggestCategoryClient";
 import { showError, showSuccess } from "@utils/toast";
 
 import type { TransactionType } from "@/types";
-import { DEFAULT_CATEGORY_COLOR } from "@constants/firestore";
 
 export interface CategoryPickerProps {
   value: string;
