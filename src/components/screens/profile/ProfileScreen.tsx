@@ -7,7 +7,9 @@ import { ThemeToggle } from "@common";
 import {
   AccountBalanceWalletIcon,
   CalendarClockIcon,
+  CreditCardIcon,
   FlagIcon,
+  GroupIcon,
   LogoutIcon,
   MenuIcon,
   NotificationsIcon,
@@ -139,6 +141,24 @@ export function ProfileScreen() {
             title={UI_TEXT.BUDGETS}
             subtitle={UI_TEXT.BUDGET_VS_ACTUAL}
             onClick={() => navigateToTab("budgets")}
+          />
+          <ProfileSettingRow
+            icon={CreditCardIcon}
+            title={UI_TEXT.DEBT_PAYOFF}
+            subtitle={UI_TEXT.DEBT_TRACKER}
+            onClick={() => navigateToTab("debt")}
+          />
+          <ProfileSettingRow
+            icon={GroupIcon}
+            title={UI_TEXT.SPLIT_EXPENSES}
+            subtitle={UI_TEXT.SPLIT_TRACKER}
+            onClick={() => navigateToTab("split")}
+          />
+          <ProfileSettingRow
+            icon={TuneIcon}
+            title={UI_TEXT.SMART_RULES}
+            subtitle={UI_TEXT.RULES_TITLE}
+            onClick={() => navigateToTab("rules")}
           />
         </div>
       </section>

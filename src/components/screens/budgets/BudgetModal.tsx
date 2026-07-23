@@ -30,12 +30,14 @@ export function BudgetModal({ open, onClose, budget }: BudgetModalProps) {
   const [category, setCategory] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
   const [period, setPeriod] = useState<BudgetPeriod>("monthly");
+  const [rollover, setRollover] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useResetOnOpen(open, budget?.id, () => {
     setCategory(budget?.category ?? "");
     setLimitAmount(budget ? String(budget.limitAmount) : "");
     setPeriod(budget?.period ?? "monthly");
+    setRollover(Boolean(budget?.rollover));
   });
 
   const handleSubmit = async (e: FormEvent) => {
@@ -57,7 +59,7 @@ export function BudgetModal({ open, onClose, budget }: BudgetModalProps) {
           updateBudget({
             id: budget.id,
             userId,
-            patch: { category, limitAmount: limit, period },
+            patch: { category, limitAmount: limit, period, rollover },
           }),
         ).unwrap();
         showSuccess(UI_TEXT.SUCCESS_BUDGET_UPDATED);
@@ -69,6 +71,8 @@ export function BudgetModal({ open, onClose, budget }: BudgetModalProps) {
           limitAmount: limit,
           currentAmount: 0,
           period,
+          rollover,
+          rolloverBalance: 0,
           month: period === VIEW_PERIODS.MONTHLY ? selectedMonth : undefined,
           year: selectedYear,
           createdAt: new Date().toISOString(),
@@ -129,6 +133,15 @@ export function BudgetModal({ open, onClose, budget }: BudgetModalProps) {
             <option value="yearly">{UI_TEXT.YEARLY_BREAKDOWN}</option>
           </Select>
         </Field>
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-outline-variant px-3.5 py-2.5">
+          <span className="text-sm text-on-surface-variant">{UI_TEXT.ROLLOVER_BUDGET}</span>
+          <input
+            type="checkbox"
+            checked={rollover}
+            onChange={(e) => setRollover(e.target.checked)}
+            className="h-4 w-4 rounded border-outline-variant text-primary-main focus:ring-primary-main/30"
+          />
+        </label>
       </form>
     </Modal>
   );

@@ -61,10 +61,6 @@ function kindIcon(kind: DebtKind) {
   return <PaymentsIcon className={cls} />;
 }
 
-function todayInput(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 // ---------------------------------------------------------------------------
 // Card context menu
 // ---------------------------------------------------------------------------

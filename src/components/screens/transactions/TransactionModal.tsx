@@ -28,6 +28,7 @@ import { toStorageDate } from "@hooks/useDateFormatter";
 import { useResetOnOpen } from "@hooks/useResetOnOpen";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addTransaction, deleteTransaction, updateTransaction } from "@store/slices/transactionsSlice";
+import { applyCategorizationRules } from "@utils/applyCategorizationRules";
 import { cn } from "@utils/cn";
 import { showError, showSuccess } from "@utils/toast";
 
@@ -48,6 +49,8 @@ interface FormState {
   paymentMode: PaymentMode;
   date: string;
   isRecurring: boolean;
+  taxDeductible: boolean;
+  isShared: boolean;
 }
 
 function todayInput(): string {
@@ -64,6 +67,8 @@ function buildInitialState(transaction?: Transaction | null): FormState {
       paymentMode: transaction.paymentMode ?? "Cash",
       date: toStorageDate(transaction.date) || todayInput(),
       isRecurring: Boolean(transaction.isRecurring),
+      taxDeductible: Boolean(transaction.taxDeductible),
+      isShared: Boolean(transaction.isShared),
     };
   }
   return {
@@ -74,6 +79,8 @@ function buildInitialState(transaction?: Transaction | null): FormState {
     paymentMode: "Cash",
     date: todayInput(),
     isRecurring: false,
+    taxDeductible: false,
+    isShared: false,
   };
 }
 
@@ -85,12 +92,15 @@ const TYPE_OPTIONS = [
 export function TransactionModal({ open, onClose, transaction }: TransactionModalProps) {
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.auth.user?.uid);
+  const rules = useAppSelector((state) => state.rules.items);
   const [form, setForm] = useState<FormState>(() => buildInitialState(transaction));
   const [submitting, setSubmitting] = useState(false);
   const amountId = useId();
   const descriptionId = useId();
   const dateId = useId();
   const recurringId = useId();
+  const taxId = useId();
+  const sharedId = useId();
 
   useResetOnOpen(open, transaction?.id, () => {
     setForm(buildInitialState(transaction));
@@ -120,7 +130,11 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
     e.preventDefault();
     if (!userId) return;
     const amount = Number(form.amount);
-    if (!form.description.trim() || !form.category) {
+    const ruled =
+      form.category.trim() ||
+      applyCategorizationRules(form.description.trim(), form.type, rules) ||
+      "";
+    if (!form.description.trim() || !ruled) {
       showError(UI_TEXT.PLEASE_FILL_ALL_FIELDS);
       return;
     }
@@ -131,6 +145,7 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
 
     setSubmitting(true);
     const dateIso = new Date(form.date).toISOString();
+    const title = form.description.trim();
     try {
       if (isEdit && transaction) {
         await dispatch(
@@ -138,15 +153,17 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
             id: transaction.id,
             userId,
             patch: {
-              title: form.description.trim(),
-              description: form.description.trim(),
+              title,
+              description: title,
               amount,
               type: form.type,
-              category: form.category,
+              category: ruled,
               paymentMode: form.paymentMode,
               mode: form.paymentMode,
               date: dateIso,
               isRecurring: form.isRecurring,
+              taxDeductible: form.taxDeductible,
+              isShared: form.isShared,
             },
           }),
         ).unwrap();
@@ -155,15 +172,17 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
         const newTransaction: Transaction = {
           id: uuidv4(),
           userId,
-          title: form.description.trim(),
-          description: form.description.trim(),
+          title,
+          description: title,
           amount,
           type: form.type,
-          category: form.category,
+          category: ruled,
           paymentMode: form.paymentMode,
           mode: form.paymentMode,
           date: dateIso,
           isRecurring: form.isRecurring,
+          taxDeductible: form.taxDeductible,
+          isShared: form.isShared,
           createdAt: new Date().toISOString(),
           imported: false,
         };
@@ -357,6 +376,45 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
               />
             </label>
           </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label
+            htmlFor={taxId}
+            className={cn(
+              "flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-colors",
+              form.taxDeductible
+                ? "border-primary-main/40 bg-primary-soft/50"
+                : "border-outline-variant bg-card hover:bg-surface-low/60",
+            )}
+          >
+            <span className="text-sm text-on-surface-variant">{UI_TEXT.TAX_DEDUCTIBLE}</span>
+            <input
+              id={taxId}
+              type="checkbox"
+              checked={form.taxDeductible}
+              onChange={(e) => update("taxDeductible", e.target.checked)}
+              className="h-4 w-4 shrink-0 rounded border-outline-variant text-primary-main focus:ring-primary-main/30"
+            />
+          </label>
+          <label
+            htmlFor={sharedId}
+            className={cn(
+              "flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-colors",
+              form.isShared
+                ? "border-primary-main/40 bg-primary-soft/50"
+                : "border-outline-variant bg-card hover:bg-surface-low/60",
+            )}
+          >
+            <span className="text-sm text-on-surface-variant">{UI_TEXT.SHARED_EXPENSE}</span>
+            <input
+              id={sharedId}
+              type="checkbox"
+              checked={form.isShared}
+              onChange={(e) => update("isShared", e.target.checked)}
+              className="h-4 w-4 shrink-0 rounded border-outline-variant text-primary-main focus:ring-primary-main/30"
+            />
+          </label>
         </div>
       </form>
     </Modal>

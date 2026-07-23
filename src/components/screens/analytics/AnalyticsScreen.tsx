@@ -73,7 +73,7 @@ import { useAppSelector } from "@store/hooks";
 import { cn } from "@utils/cn";
 import { getCategoryChartColor } from "@utils/colorUtils";
 import { compareByDateThenCreatedAt } from "@utils/dateUtils";
-import { exportChartData } from "@utils/exportUtils";
+import { exportChartData, exportTaxAuditReport } from "@utils/exportUtils";
 import { buildRollingMonthTrend } from "@utils/periodFilter";
 import { percentChange } from "@utils/transactionFilters";
 
@@ -470,6 +470,14 @@ export function AnalyticsScreen() {
           onClick={() => setTab("reports")}
         >
           {UI_TEXT.REPORTS_TAB}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          leftIcon={<DownloadIcon className="h-4 w-4" />}
+          onClick={() => exportTaxAuditReport(transactions)}
+        >
+          {UI_TEXT.TAX_EXPORT}
         </Button>
       </div>
 

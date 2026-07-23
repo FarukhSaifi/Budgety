@@ -20,6 +20,7 @@ import { FIRESTORE_COLLECTIONS, PAYMENT_MODES_LIST } from "@constants/firestore"
 
 import { toStorageDate, todayStorage } from "@utils/dateUtils";
 
+import { buildCategorySeedDocs, resolveCategoryColor } from "@/lib/categoryDefaults";
 import { db } from "@/lib/firebase";
 import type {
   Bill,
@@ -37,7 +38,6 @@ import type {
   Transaction,
   TransactionType,
 } from "@/types";
-import { buildCategorySeedDocs, resolveCategoryColor } from "@/lib/categoryDefaults";
 
 function requireDb() {
   if (!db) {

@@ -95,3 +95,28 @@ export const exportTransactions = (transactions: Transaction[]): void => {
   const timestamp = todayStorage();
   exportToCSV(data, `transactions_${timestamp}.csv`);
 };
+
+/**
+ * One-click Tax & Audit export — prefers tax-deductible rows when present.
+ */
+export const exportTaxAuditReport = (transactions: Transaction[]): void => {
+  const tagged = transactions.filter((t) => t.taxDeductible);
+  const rows = (tagged.length > 0 ? tagged : transactions).map((t) => ({
+    Date: formatForDisplay(t.date, "short"),
+    Type: t.type,
+    Description: t.description ?? t.title,
+    Category: t.category,
+    PaymentMode: t.paymentMode ?? t.mode,
+    Amount: t.amount,
+    TaxDeductible: t.taxDeductible ? "Yes" : "No",
+    SharedExpense: t.isShared ? "Yes" : "No",
+  }));
+
+  if (rows.length === 0) {
+    showError(ERROR_MESSAGES.NO_TRANSACTIONS_TO_EXPORT);
+    return;
+  }
+
+  const timestamp = todayStorage();
+  exportToCSV(rows, `tax_audit_${timestamp}.csv`);
+};

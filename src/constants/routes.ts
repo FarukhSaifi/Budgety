@@ -75,10 +75,13 @@ export function isPrimaryNavPathActive(
     return tab === "analytics" || tab === "budgets";
   }
   if (primaryId === "profile") {
-    return tab === "profile" || tab === "goals";
+    return tab === "profile" || tab === "goals" || tab === "debt" || tab === "split" || tab === "rules";
   }
   if (primaryId === "overview") {
     return tab === "overview" || tab === "bills";
+  }
+  if (primaryId === "transactions") {
+    return tab === "transactions";
   }
   return tab === primaryId;
 }

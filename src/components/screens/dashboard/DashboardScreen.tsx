@@ -6,7 +6,10 @@ import { CURRENCY_SYMBOL, DEFAULT_VALUES, DISPLAY_LIMITS, TRANSACTION_TYPES, UI_
 
 import CategoryBreakdownChart from "@components/features/dashboard/CategoryBreakdownChart";
 import MonthlyTrendChart from "@components/features/dashboard/MonthlyTrendChart";
+import { NetWorthWidget } from "@components/features/dashboard/NetWorthWidget";
 import { RecentTransactionsCard } from "@components/features/dashboard/RecentTransactionsCard";
+import { SafeToSpendWidget } from "@components/features/dashboard/SafeToSpendWidget";
+import { SubscriptionAlertWidget } from "@components/features/dashboard/SubscriptionAlertWidget";
 import SummaryCards from "@components/features/dashboard/SummaryCards";
 import { ChevronRightIcon, NotificationsIcon } from "@components/icons";
 import { BillPreviewRow, BudgetProgress } from "@components/mobile";
@@ -38,6 +41,8 @@ export function DashboardScreen() {
   const transactions = useAppSelector((s) => s.transactions.items);
   const budgets = useAppSelector((s) => s.budgets.items);
   const bills = useAppSelector((s) => s.bills.items);
+  const goals = useAppSelector((s) => s.goals.items);
+  const debts = useAppSelector((s) => s.debt.items);
   const current = useAppSelector(selectPeriodAggregates);
   const { formatCurrency } = useCurrencyFormatter();
 
@@ -51,8 +56,43 @@ export function DashboardScreen() {
     return allIncome - allExpense;
   }, [transactions]);
 
+  const totalDebt = useMemo(
+    () => debts.reduce((sum, d) => sum + (d.balance || 0), 0),
+    [debts],
+  );
+
+  const safeToSpend = useMemo(() => {
+    const now = new Date();
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const daysLeft = Math.max(1, end.getDate() - now.getDate() + 1);
+    const upcomingBillTotal = bills
+      .filter((b) => !b.isPaid && b.status !== "paid")
+      .filter((b) => {
+        const due = new Date(b.dueDate);
+        return (
+          due.getMonth() === now.getMonth() &&
+          due.getFullYear() === now.getFullYear() &&
+          due >= now
+        );
+      })
+      .reduce((sum, b) => sum + (b.amount || 0), 0);
+    const remainingGoalTarget = goals.reduce(
+      (sum, g) => sum + Math.max(0, (g.targetAmount || 0) - (g.savedAmount || 0)) / 12,
+      0,
+    );
+    const amount = current.totalIncome - current.totalExpense - upcomingBillTotal - remainingGoalTarget;
+    return {
+      amount,
+      daysLeft,
+      dailyAmount: amount / daysLeft,
+    };
+  }, [bills, current.totalExpense, current.totalIncome, goals]);
+
   const budgetLimit = useMemo(
-    () => budgets.filter((b) => b.period === "monthly").reduce((sum, b) => sum + (b.limitAmount || 0), 0),
+    () =>
+      budgets
+        .filter((b) => b.period === "monthly")
+        .reduce((sum, b) => sum + (b.limitAmount || 0) + (b.rolloverBalance || 0), 0),
     [budgets],
   );
 
@@ -105,6 +145,17 @@ export function DashboardScreen() {
       </div>
 
       <SummaryCards totalIncome={current.totalIncome} totalExpense={current.totalExpense} balance={totalBalance} />
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <SafeToSpendWidget
+          amount={safeToSpend.amount}
+          daysLeft={safeToSpend.daysLeft}
+          dailyAmount={safeToSpend.dailyAmount}
+        />
+        <NetWorthWidget assets={totalBalance} debt={totalDebt} />
+      </div>
+
+      <SubscriptionAlertWidget />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <MonthlyTrendChart className="lg:col-span-3" />
