@@ -1,0 +1,457 @@
+"use client";
+
+import { useEffect, useRef, useState, type FormEvent } from "react";
+
+import { v4 as uuidv4 } from "uuid";
+
+import { UI_TEXT } from "@constants";
+
+import { Badge, Button, CategoryPicker, ConfirmDialog, EmptyState, Field, Input, Modal, Select } from "@common";
+
+import {
+  AddIcon,
+  AutoAwesomeIcon,
+  DeleteIcon,
+  EditIcon,
+  MoreVertIcon,
+  TuneIcon,
+} from "@components/icons";
+
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
+import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { addRule, deleteRule, fetchRules, updateRule } from "@store/slices/rulesSlice";
+import { cn } from "@utils/cn";
+import { showSuccess } from "@utils/toast";
+
+import type { CategorizationRule } from "@/types";
+
+// ---------------------------------------------------------------------------
+// Rule card context menu
+// ---------------------------------------------------------------------------
+
+function RuleCardMenu({
+  onEdit,
+  onDelete,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointer = (e: MouseEvent | TouchEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("touchstart", onPointer);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("touchstart", onPointer);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+        aria-label={UI_TEXT.MORE_OPTIONS}
+        aria-expanded={open}
+      >
+        <MoreVertIcon className="h-5 w-5" />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-elevated">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-surface-low"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onEdit();
+            }}
+          >
+            <EditIcon className="h-4 w-4" />
+            {UI_TEXT.EDIT}
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-expense hover:bg-red-50"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            <DeleteIcon className="h-4 w-4" />
+            {UI_TEXT.DELETE}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Add / Edit modal
+// ---------------------------------------------------------------------------
+
+interface RuleModalProps {
+  open: boolean;
+  onClose: () => void;
+  rule?: CategorizationRule | null;
+}
+
+function RuleModal({ open, onClose, rule }: RuleModalProps) {
+  const dispatch = useAppDispatch();
+  const userId = useAppSelector((s) => s.auth.user?.uid);
+
+  const [name, setName] = useState("");
+  const [matchContains, setMatchContains] = useState("");
+  const [category, setCategory] = useState("");
+  const [transactionType, setTransactionType] = useState<"any" | "income" | "expense">("any");
+  const [isActive, setIsActive] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useResetOnOpen(open, rule?.id, () => {
+    setName(rule?.name ?? "");
+    setMatchContains(rule?.matchContains ?? "");
+    setCategory(rule?.category ?? "");
+    setTransactionType((rule?.transactionType as "any" | "income" | "expense") ?? "any");
+    setIsActive(rule?.isActive ?? true);
+  });
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!userId) return;
+
+    if (!name.trim() || !matchContains.trim() || !category) {
+      import("@utils/toast").then(({ showError }) =>
+        showError(UI_TEXT.PLEASE_FILL_ALL_FIELDS),
+      );
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (rule) {
+        await dispatch(
+          updateRule({
+            id: rule.id,
+            userId,
+            patch: {
+              name: name.trim(),
+              matchContains: matchContains.trim(),
+              category,
+              transactionType,
+              isActive,
+            },
+          }),
+        ).unwrap();
+        showSuccess(UI_TEXT.SUCCESS_RULE_UPDATED);
+      } else {
+        const newRule: CategorizationRule = {
+          id: uuidv4(),
+          userId,
+          name: name.trim(),
+          matchContains: matchContains.trim(),
+          category,
+          transactionType,
+          isActive,
+          createdAt: new Date().toISOString(),
+        };
+        await dispatch(addRule(newRule)).unwrap();
+        showSuccess(UI_TEXT.SUCCESS_RULE_ADDED);
+      }
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const pickerType = transactionType === "income" ? "income" : "expense";
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={rule ? UI_TEXT.EDIT_RULE : UI_TEXT.ADD_RULE}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={submitting}>
+            {UI_TEXT.CANCEL}
+          </Button>
+          <Button type="submit" form="rule-form" loading={submitting}>
+            {UI_TEXT.SAVE}
+          </Button>
+        </>
+      }
+    >
+      <form id="rule-form" onSubmit={handleSubmit} className="space-y-4">
+        <Field label={UI_TEXT.RULE_NAME} required>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g., Swiggy → Dining Out"
+          />
+        </Field>
+
+        <Field label={UI_TEXT.RULE_TRANSACTION_TYPE}>
+          <Select
+            value={transactionType}
+            onChange={(e) => setTransactionType(e.target.value as "any" | "income" | "expense")}
+          >
+            <option value="any">{UI_TEXT.RULE_TYPE_ANY}</option>
+            <option value="income">{UI_TEXT.RULE_TYPE_INCOME}</option>
+            <option value="expense">{UI_TEXT.RULE_TYPE_EXPENSE}</option>
+          </Select>
+        </Field>
+
+        <Field label={UI_TEXT.RULE_MATCH_CONTAINS} required>
+          <Input
+            value={matchContains}
+            onChange={(e) => setMatchContains(e.target.value)}
+            placeholder='e.g., "swiggy" or "netflix"'
+          />
+        </Field>
+
+        <Field label={UI_TEXT.RULE_CATEGORY} required>
+          <CategoryPicker
+            value={category}
+            onChange={setCategory}
+            type={pickerType}
+            showAiSuggest={false}
+            placeholder="Select category"
+          />
+        </Field>
+
+        <Field label={UI_TEXT.RULE_IS_ACTIVE}>
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <div
+              role="switch"
+              aria-checked={isActive}
+              tabIndex={0}
+              onClick={() => setIsActive((v) => !v)}
+              onKeyDown={(e) => {
+                if (e.key === " " || e.key === "Enter") {
+                  e.preventDefault();
+                  setIsActive((v) => !v);
+                }
+              }}
+              className={cn(
+                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-main/40",
+                isActive ? "bg-primary-main" : "bg-outline-variant",
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                  isActive ? "translate-x-6" : "translate-x-1",
+                )}
+              />
+            </div>
+            <span className="text-sm text-brand-deep">
+              {isActive ? UI_TEXT.RULE_IS_ACTIVE : UI_TEXT.RULE_INACTIVE}
+            </span>
+          </label>
+        </Field>
+      </form>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main screen
+// ---------------------------------------------------------------------------
+
+export function RulesScreen() {
+  const dispatch = useAppDispatch();
+  const userId = useAppSelector((s) => s.auth.user?.uid);
+  const { items: rules, status } = useAppSelector((s) => s.rules);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<CategorizationRule | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CategorizationRule | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (userId && status === "idle") {
+      void dispatch(fetchRules(userId));
+    }
+  }, [dispatch, userId, status]);
+
+  const openAdd = () => {
+    setEditing(null);
+    setModalOpen(true);
+  };
+
+  const openEdit = (r: CategorizationRule) => {
+    setEditing(r);
+    setModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await dispatch(deleteRule(pendingDelete.id)).unwrap();
+      showSuccess(UI_TEXT.SUCCESS_RULE_DELETED);
+      setPendingDelete(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const activeCount = rules.filter((r) => r.isActive).length;
+
+  return (
+    <div className="mx-auto max-w-lg space-y-5 pb-4 md:max-w-2xl">
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-brand-deep">
+            {UI_TEXT.RULES_TITLE}
+          </h1>
+          <p className="mt-1 text-sm text-on-surface-variant">{UI_TEXT.RULES_SUBTITLE}</p>
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          leftIcon={<AddIcon className="h-4 w-4" />}
+          onClick={openAdd}
+        >
+          {UI_TEXT.ADD_RULE}
+        </Button>
+      </header>
+
+      {rules.length > 0 && (
+        <div className="rounded-card border border-primary-soft/40 bg-primary-soft/20 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <AutoAwesomeIcon className="h-4 w-4 text-primary-main" />
+            <p className="text-sm text-on-surface-variant">
+              <span className="font-semibold text-brand-deep">{activeCount}</span> active{" "}
+              {activeCount === 1 ? "rule" : "rules"} — new transactions will be auto-categorized.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <section className="space-y-3">
+        {rules.length === 0 ? (
+          <EmptyState
+            icon={<TuneIcon className="h-6 w-6" />}
+            title={UI_TEXT.NO_RULES}
+            description={UI_TEXT.NO_RULES_HINT}
+            action={
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<AddIcon className="h-4 w-4" />}
+                onClick={openAdd}
+              >
+                {UI_TEXT.ADD_RULE}
+              </Button>
+            }
+          />
+        ) : (
+          rules.map((rule) => (
+            <RuleCard
+              key={rule.id}
+              rule={rule}
+              onEdit={() => openEdit(rule)}
+              onDelete={() => setPendingDelete(rule)}
+            />
+          ))
+        )}
+
+        {rules.length > 0 && (
+          <button
+            type="button"
+            onClick={openAdd}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed border-primary-soft bg-surface/60 px-4 py-6 text-primary-main transition-colors hover:border-primary-main/40 hover:bg-primary-soft/30"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-primary-soft bg-white shadow-card">
+              <AddIcon className="h-4 w-4" />
+            </span>
+            <span className="text-sm font-semibold">{UI_TEXT.ADD_RULE}</span>
+          </button>
+        )}
+      </section>
+
+      <RuleModal open={modalOpen} onClose={() => setModalOpen(false)} rule={editing} />
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title={UI_TEXT.DELETE_RULE_TITLE}
+        message={UI_TEXT.CONFIRM_DELETE_RULE}
+        confirmLabel={UI_TEXT.DELETE}
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Rule card
+// ---------------------------------------------------------------------------
+
+function RuleCard({
+  rule,
+  onEdit,
+  onDelete,
+}: {
+  rule: CategorizationRule;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const typeLabels: Record<string, string> = {
+    any: UI_TEXT.RULE_TYPE_ANY,
+    income: UI_TEXT.RULE_TYPE_INCOME,
+    expense: UI_TEXT.RULE_TYPE_EXPENSE,
+  };
+
+  return (
+    <article
+      className={cn(
+        "rounded-card border bg-card p-4 shadow-card",
+        rule.isActive ? "border-gray-100" : "border-outline-variant/30 opacity-60",
+      )}
+    >
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary-main">
+            <TuneIcon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-brand-deep">{rule.name}</p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+              <Badge tone={rule.isActive ? "success" : "neutral"}>
+                {rule.isActive ? UI_TEXT.RULE_IS_ACTIVE : UI_TEXT.RULE_INACTIVE}
+              </Badge>
+              {rule.transactionType && rule.transactionType !== "any" && (
+                <Badge tone="info">{typeLabels[rule.transactionType]}</Badge>
+              )}
+            </div>
+          </div>
+        </div>
+        <RuleCardMenu onEdit={onEdit} onDelete={onDelete} />
+      </div>
+
+      <div className="mt-3 rounded-xl bg-surface-low/70 px-3.5 py-2.5 text-sm">
+        <span className="text-on-surface-variant">IF title contains </span>
+        <span className="font-mono font-semibold text-primary-main">
+          &ldquo;{rule.matchContains}&rdquo;
+        </span>
+        <span className="text-on-surface-variant"> → </span>
+        <span className="font-semibold text-brand-deep">{rule.category}</span>
+      </div>
+    </article>
+  );
+}

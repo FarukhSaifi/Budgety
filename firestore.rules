@@ -49,5 +49,30 @@ service cloud.firestore {
       allow read, update, delete: if ownsDoc();
       allow create: if createsOwnDoc();
     }
+
+    match /categories/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
+    match /rules/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
+    match /debts/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
+    match /splitExpenses/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
+    match /splitParticipants/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
   }
 }

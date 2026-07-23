@@ -1,27 +1,14 @@
 import { useMemo } from "react";
 
-import {
-  INCOME_CATEGORIES,
-  INVESTMENT_CATEGORIES,
-  SORTED_EXPENSE_CATEGORIES,
-} from "@constants";
-
 import { useAppSelector } from "@store/hooks";
 
 import type { TransactionType } from "@/types";
-
-const BASE_INCOME = Object.values(INCOME_CATEGORIES) as string[];
-const BASE_EXPENSE = [
-  ...new Set([
-    ...(SORTED_EXPENSE_CATEGORIES as string[]),
-    ...(Object.values(INVESTMENT_CATEGORIES) as string[]),
-  ]),
-].sort((a, b) => a.localeCompare(b));
 
 export interface CategoriesResult {
   income: string[];
   expense: string[];
   getByType: (type: TransactionType) => string[];
+  colorByName: Record<string, string>;
 }
 
 function mergeUnique(base: string[], extra: string[]): string[] {
@@ -37,14 +24,26 @@ function mergeUnique(base: string[], extra: string[]): string[] {
 }
 
 /**
- * Single source of categories: built-in constants merged with any user-added
- * categories stored in the ui slice and categories seen in transactions.
+ * Single source of categories: Firestore-backed catalog (categoriesSlice),
+ * merged with any category names already present on transactions.
  */
 export function useCategories(): CategoriesResult {
-  const userCategories = useAppSelector((state) => state.ui.categories);
+  const catalog = useAppSelector((state) => state.categories.items);
   const transactions = useAppSelector((state) => state.transactions.items);
 
   return useMemo(() => {
+    const incomeFromCatalog = catalog
+      .filter((c) => c.type === "income")
+      .map((c) => c.name);
+    const expenseFromCatalog = catalog
+      .filter((c) => c.type === "expense")
+      .map((c) => c.name);
+
+    const colorByName: Record<string, string> = {};
+    catalog.forEach((c) => {
+      colorByName[c.name.toLowerCase()] = c.color;
+    });
+
     const txIncome: string[] = [];
     const txExpense: string[] = [];
     transactions.forEach((t) => {
@@ -53,19 +52,18 @@ export function useCategories(): CategoriesResult {
       else txExpense.push(t.category);
     });
 
-    const income = mergeUnique(BASE_INCOME, [
-      ...(userCategories.income ?? []),
-      ...txIncome,
-    ]);
-    const expense = mergeUnique(BASE_EXPENSE, [
-      ...(userCategories.expense ?? []),
-      ...txExpense,
-    ]);
+    const income = mergeUnique(incomeFromCatalog, txIncome).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    const expense = mergeUnique(expenseFromCatalog, txExpense).sort((a, b) =>
+      a.localeCompare(b),
+    );
 
     return {
       income,
       expense,
       getByType: (type: TransactionType) => (type === "income" ? income : expense),
+      colorByName,
     };
-  }, [userCategories, transactions]);
+  }, [catalog, transactions]);
 }

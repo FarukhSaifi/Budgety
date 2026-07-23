@@ -39,14 +39,16 @@ import { TransactionModal } from "@components/screens/transactions/TransactionMo
 
 import { useDuplicateKeys } from "@hooks/useDuplicateKeys";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { addCategoriesBulk } from "@store/slices/categoriesSlice";
 import { addTransactionsBulk, deleteImportedTransactions } from "@store/slices/transactionsSlice";
-import { addCategoriesBulk, setSearchQuery, setSelectedCategory, setViewPeriod } from "@store/slices/uiSlice";
+import { setSearchQuery, setSelectedCategory, setViewPeriod } from "@store/slices/uiSlice";
 import { detectColumnMapping, extractTransactionData } from "@utils/bankStatementParser";
 import { collectNovelCategories } from "@utils/categoryNormalize";
 import { cn } from "@utils/cn";
 import { getMonthYear } from "@utils/dateUtils";
 import { filterDuplicates } from "@utils/duplicateDetection";
 import { enrichStagingCategoriesWithAi } from "@utils/enrichStagingCategories";
+import { DEFAULT_CATEGORY_COLOR } from "@constants/firestore";
 import {
   prepareRowForDuplicateCheck,
   rawRowsToStaging,
@@ -109,7 +111,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   const dispatch = useAppDispatch();
   const userId = useAppSelector((s) => s.auth.user?.uid);
   const transactions = useAppSelector((s) => s.transactions.items);
-  const userCategories = useAppSelector((s) => s.ui.categories);
+  const catalog = useAppSelector((s) => s.categories.items);
 
   const [file, setFile] = useState<File | null>(null);
   const [staging, setStaging] = useState<StagingRow[]>([]);
@@ -153,14 +155,40 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
   const persistDiscoveredCategories = useCallback(
     (discovered: DiscoveredCategories | undefined) => {
+      if (!userId) return;
       const income = discovered?.income ?? [];
       const expense = discovered?.expense ?? [];
       const count = income.length + expense.length;
       if (count === 0) return;
-      dispatch(addCategoriesBulk({ income, expense }));
-      showInfo(UI_TEXT.IMPORT_NEW_CATEGORIES_ADDED.replace("{count}", String(count)));
+      const createdAt = new Date().toISOString();
+      const existing = new Set(catalog.map((c) => `${c.type}:${c.name.toLowerCase()}`));
+      const toAdd = [
+        ...income
+          .filter((name) => !existing.has(`income:${name.toLowerCase()}`))
+          .map((name) => ({
+            userId,
+            name,
+            type: "income" as const,
+            color: DEFAULT_CATEGORY_COLOR,
+            isDefault: false,
+            createdAt,
+          })),
+        ...expense
+          .filter((name) => !existing.has(`expense:${name.toLowerCase()}`))
+          .map((name) => ({
+            userId,
+            name,
+            type: "expense" as const,
+            color: DEFAULT_CATEGORY_COLOR,
+            isDefault: false,
+            createdAt,
+          })),
+      ];
+      if (toAdd.length === 0) return;
+      void dispatch(addCategoriesBulk(toAdd));
+      showInfo(UI_TEXT.IMPORT_NEW_CATEGORIES_ADDED.replace("{count}", String(toAdd.length)));
     },
-    [dispatch],
+    [catalog, dispatch, userId],
   );
 
   const handleSort = useCallback(
@@ -194,6 +222,14 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     [transactions],
   );
 
+  const catalogLists = useMemo(
+    () => ({
+      income: catalog.filter((c) => c.type === "income").map((c) => c.name),
+      expense: catalog.filter((c) => c.type === "expense").map((c) => c.name),
+    }),
+    [catalog],
+  );
+
   const parseViaApi = useCallback(
     async (selected: File) => {
       const form = new FormData();
@@ -222,12 +258,12 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       const discovered =
         data.meta?.discoveredCategories ??
         collectNovelCategories(rows, {
-          income: userCategories.income ?? [],
-          expense: userCategories.expense ?? [],
+          income: catalogLists.income,
+          expense: catalogLists.expense,
         });
       return { rows, discovered };
     },
-    [userCategories.expense, userCategories.income],
+    [catalogLists.expense, catalogLists.income],
   );
 
   const parseExcelClient = useCallback(
@@ -283,12 +319,12 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
       const stagingRows = rawRowsToStaging(parsed);
       const existing = {
-        income: userCategories.income ?? [],
-        expense: userCategories.expense ?? [],
+        income: catalogLists.income,
+        expense: catalogLists.expense,
       };
       return enrichStagingCategoriesWithAi(stagingRows, existing);
     },
-    [userCategories.expense, userCategories.income],
+    [catalogLists.expense, catalogLists.income],
   );
 
   const handleFile = useCallback(

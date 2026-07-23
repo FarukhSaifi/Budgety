@@ -1,3 +1,4 @@
+import { firestoreApi } from "@/lib/firestore";
 import type { CategoryState } from "@/types";
 
 /** localStorage key prefix; full key is `budgety.categories.{userId}`. */
@@ -25,7 +26,7 @@ function normalizeList(list: string[]): string[] {
   return out;
 }
 
-/** Read user-added categories from localStorage. Returns null when missing/invalid/SSR. */
+/** Read legacy user-added categories from localStorage (migration only). */
 export function loadPersistedCategories(userId: string): CategoryState | null {
   if (typeof window === "undefined" || !userId) return null;
   try {
@@ -44,19 +45,62 @@ export function loadPersistedCategories(userId: string): CategoryState | null {
   }
 }
 
-/** Persist user-added categories so custom names survive refresh (device-local). */
-export function savePersistedCategories(
-  userId: string,
-  categories: CategoryState,
-): void {
+function clearPersistedCategories(userId: string): void {
   if (typeof window === "undefined" || !userId) return;
   try {
-    const payload: CategoryState = {
-      income: normalizeList(categories.income ?? []),
-      expense: normalizeList(categories.expense ?? []),
-    };
-    window.localStorage.setItem(storageKey(userId), JSON.stringify(payload));
+    window.localStorage.removeItem(storageKey(userId));
   } catch {
-    // Quota / private mode — ignore; in-memory categories still work for the session.
+    // ignore
   }
+}
+
+/**
+ * One-time migration: push legacy localStorage custom categories into Firestore,
+ * then clear the device-local key. Safe to call repeatedly.
+ */
+export async function migrateLocalCategoriesToFirestore(userId: string): Promise<void> {
+  const local = loadPersistedCategories(userId);
+  if (!local) return;
+
+  const existing = await firestoreApi.fetchCategories(userId);
+  const existingKeys = new Set(existing.map((c) => `${c.type}:${c.name.toLowerCase()}`));
+  const createdAt = new Date().toISOString();
+  const toAdd: Array<{
+    userId: string;
+    name: string;
+    type: "income" | "expense";
+    color: string;
+    isDefault: boolean;
+    createdAt: string;
+  }> = [];
+
+  for (const name of local.income) {
+    const key = `income:${name.toLowerCase()}`;
+    if (existingKeys.has(key)) continue;
+    toAdd.push({
+      userId,
+      name,
+      type: "income",
+      color: "#95a5a6",
+      isDefault: false,
+      createdAt,
+    });
+  }
+  for (const name of local.expense) {
+    const key = `expense:${name.toLowerCase()}`;
+    if (existingKeys.has(key)) continue;
+    toAdd.push({
+      userId,
+      name,
+      type: "expense",
+      color: "#95a5a6",
+      isDefault: false,
+      createdAt,
+    });
+  }
+
+  if (toAdd.length > 0) {
+    await firestoreApi.addCategoriesBulk(toAdd);
+  }
+  clearPersistedCategories(userId);
 }

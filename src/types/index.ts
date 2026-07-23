@@ -37,6 +37,10 @@ export interface Transaction {
   mode?: string;
   createdAt?: string;
   imported?: boolean;
+  /** Mark for tax / audit export. */
+  taxDeductible?: boolean;
+  /** Flag for shared / split expense flows. */
+  isShared?: boolean;
 }
 
 export interface Budget {
@@ -46,6 +50,10 @@ export interface Budget {
   limitAmount: number;
   currentAmount: number;
   period: BudgetPeriod;
+  /** When true, unused limit carries into the next month. */
+  rollover?: boolean;
+  /** Accumulated rollover credit from prior periods. */
+  rolloverBalance?: number;
   /** Legacy alias — mirrors `limitAmount`. */
   amount?: number;
   /** Legacy: month (1–12) for monthly budgets. */
@@ -53,6 +61,75 @@ export interface Budget {
   /** Legacy: year for period scoping. */
   year?: number;
   createdAt?: string;
+}
+
+/** User-scoped category catalog stored in Firestore (no static app lists). */
+export interface Category {
+  id: string;
+  userId: string;
+  name: string;
+  type: TransactionType;
+  color: string;
+  /** Seeded defaults vs user-created. */
+  isDefault?: boolean;
+  createdAt?: string;
+}
+
+/** IF/THEN auto-categorization rule. */
+export interface CategorizationRule {
+  id: string;
+  userId: string;
+  name: string;
+  /** Case-insensitive substring match against transaction title. */
+  matchContains: string;
+  category: string;
+  transactionType?: TransactionType | "any";
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export type DebtKind = "loan" | "credit_card" | "other";
+
+export interface Debt {
+  id: string;
+  userId: string;
+  title: string;
+  kind: DebtKind;
+  principal: number;
+  balance: number;
+  interestRate: number;
+  minimumPayment: number;
+  dueDay?: number;
+  createdAt?: string;
+}
+
+export type DebtStrategy = "snowball" | "avalanche";
+
+export interface SplitParticipant {
+  id: string;
+  userId: string;
+  name: string;
+}
+
+export interface SplitExpense {
+  id: string;
+  userId: string;
+  title: string;
+  amount: number;
+  date: string;
+  paidById: string;
+  participantIds: string[];
+  /** Optional link to a transaction id. */
+  transactionId?: string | null;
+  settled?: boolean;
+  createdAt?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  createdAt: string;
 }
 
 export interface Bill {
@@ -125,7 +202,10 @@ export type NavTab =
   | "profile"
   | "budgets"
   | "bills"
-  | "goals";
+  | "goals"
+  | "debt"
+  | "split"
+  | "rules";
 
 /** Transaction list filter pills (Transfer is UI-only; maps to transfer payment modes). */
 export type TransactionFilter = "all" | "income" | "expense" | "transfer";
@@ -133,6 +213,7 @@ export type TransactionFilter = "all" | "income" | "expense" | "transfer";
 /** Analytics segmented control (includes former Reports screen). */
 export type AnalyticsTab = "overview" | "income" | "outcome" | "budget" | "reports";
 
+/** @deprecated Prefer Firestore `Category` docs via categoriesSlice. */
 export interface CategoryState {
   income: string[];
   expense: string[];
@@ -146,5 +227,6 @@ export interface UiFiltersState {
   selectedYear: number;
   selectedCategory: string;
   searchQuery: string;
+  /** @deprecated Kept temporarily for import bulk helpers; prefer categoriesSlice. */
   categories: CategoryState;
 }

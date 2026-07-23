@@ -12,6 +12,9 @@ export const APP_ROUTES = {
   goals: "/goals",
   budgets: "/budgets",
   reports: "/reports",
+  debt: "/debt",
+  split: "/split",
+  rules: "/rules",
   login: "/login",
   register: "/register",
 } as const;
@@ -26,6 +29,9 @@ export const TAB_TO_PATH: Record<NavTab, string> = {
   budgets: APP_ROUTES.budgets,
   bills: APP_ROUTES.bills,
   goals: APP_ROUTES.goals,
+  debt: APP_ROUTES.debt,
+  split: APP_ROUTES.split,
+  rules: APP_ROUTES.rules,
 };
 
 /**
@@ -46,6 +52,9 @@ export function pathToTab(pathname: string | null | undefined): NavTab {
   if (path.startsWith("/budgets")) return "budgets";
   if (path.startsWith("/bills") || path === "/bill") return "bills";
   if (path.startsWith("/goals")) return "goals";
+  if (path.startsWith("/debt")) return "debt";
+  if (path.startsWith("/split")) return "split";
+  if (path.startsWith("/rules")) return "rules";
   return "overview";
 }
 

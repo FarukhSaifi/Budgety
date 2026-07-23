@@ -7,10 +7,13 @@ import {
   AccountBalanceWalletIcon,
   BarChartIcon,
   CalendarClockIcon,
+  CreditCardIcon,
   FlagIcon,
+  GroupIcon,
   HomeIcon,
   PersonIcon,
   ReceiptLongIcon,
+  TuneIcon,
 } from "@components/icons";
 
 import type { NavTab } from "@/types";
@@ -54,6 +57,9 @@ export const SECONDARY_NAV_ITEMS: NavItem[] = [
   },
   { id: "bills", label: UI_TEXT.BILLS, icon: CalendarClockIcon, href: TAB_TO_PATH.bills },
   { id: "goals", label: UI_TEXT.GOALS, icon: FlagIcon, href: TAB_TO_PATH.goals },
+  { id: "debt", label: UI_TEXT.DEBT_PAYOFF, icon: CreditCardIcon, href: TAB_TO_PATH.debt },
+  { id: "split", label: UI_TEXT.SPLIT_EXPENSES, icon: GroupIcon, href: TAB_TO_PATH.split },
+  { id: "rules", label: UI_TEXT.SMART_RULES, icon: TuneIcon, href: TAB_TO_PATH.rules },
 ];
 
 /** Full nav list for desktop sidebar (primary then secondary). */
@@ -67,6 +73,9 @@ export const TAB_TITLES: Record<NavTab, string> = {
   budgets: UI_TEXT.BUDGETS,
   bills: UI_TEXT.BILLS,
   goals: UI_TEXT.GOALS,
+  debt: UI_TEXT.DEBT_TRACKER,
+  split: UI_TEXT.SPLIT_TRACKER,
+  rules: UI_TEXT.RULES_TITLE,
 };
 
 /** Tabs that render their own mobile header (hide TopBar on small screens). */

@@ -21,8 +21,23 @@ import { FIRESTORE_COLLECTIONS, PAYMENT_MODES_LIST } from "@constants/firestore"
 import { toStorageDate, todayStorage } from "@utils/dateUtils";
 
 import { db } from "@/lib/firebase";
-import type { Bill, BillStatus, Budget, Goal, PaymentMode, RecurringTransaction, Transaction } from "@/types";
-
+import type {
+  Bill,
+  BillStatus,
+  Budget,
+  CategorizationRule,
+  Category,
+  Debt,
+  DebtKind,
+  Goal,
+  PaymentMode,
+  RecurringTransaction,
+  SplitExpense,
+  SplitParticipant,
+  Transaction,
+  TransactionType,
+} from "@/types";
+import { buildCategorySeedDocs, resolveCategoryColor } from "@/lib/categoryDefaults";
 
 function requireDb() {
   if (!db) {
@@ -73,6 +88,8 @@ export function mapTransactionDoc(id: string, data: DocumentData): Transaction {
     mode: paymentMode,
     createdAt: data.createdAt ? String(data.createdAt) : undefined,
     imported: Boolean(data.imported),
+    taxDeductible: Boolean(data.taxDeductible),
+    isShared: Boolean(data.isShared),
   };
 }
 
@@ -90,6 +107,8 @@ export function toTransactionWrite(tx: Partial<Transaction> & { userId: string }
     isRecurring: Boolean(tx.isRecurring),
     createdAt: tx.createdAt ?? new Date().toISOString(),
     imported: Boolean(tx.imported),
+    taxDeductible: Boolean(tx.taxDeductible),
+    isShared: Boolean(tx.isShared),
   };
 }
 
@@ -105,6 +124,8 @@ export function mapBudgetDoc(id: string, data: DocumentData): Budget {
     period: data.period === "yearly" ? "yearly" : "monthly",
     month: data.month != null ? Number(data.month) : undefined,
     year: data.year != null ? Number(data.year) : undefined,
+    rollover: Boolean(data.rollover),
+    rolloverBalance: Number(data.rolloverBalance) || 0,
     createdAt: data.createdAt ? String(data.createdAt) : undefined,
   };
 }
@@ -118,6 +139,8 @@ export function toBudgetWrite(b: Partial<Budget> & { userId: string }) {
     period: b.period === "yearly" ? "yearly" : "monthly",
     month: b.month ?? null,
     year: b.year ?? null,
+    rollover: Boolean(b.rollover),
+    rolloverBalance: Number(b.rolloverBalance) || 0,
     createdAt: b.createdAt ?? new Date().toISOString(),
   };
 }
@@ -222,6 +245,136 @@ export function toRecurringWrite(r: Partial<RecurringTransaction> & { userId: st
   };
 }
 
+export function mapCategoryDoc(id: string, data: DocumentData): Category {
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    name: String(data.name ?? "").trim(),
+    type: data.type === "income" ? "income" : "expense",
+    color: resolveCategoryColor(data.color),
+    isDefault: Boolean(data.isDefault),
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+  };
+}
+
+export function toCategoryWrite(c: Partial<Category> & { userId: string; name: string; type: TransactionType }) {
+  return {
+    userId: c.userId,
+    name: String(c.name ?? "").trim().replace(/\s+/g, " "),
+    type: c.type === "income" ? "income" : "expense",
+    color: resolveCategoryColor(c.color),
+    isDefault: Boolean(c.isDefault),
+    createdAt: c.createdAt ?? new Date().toISOString(),
+  };
+}
+
+export function mapRuleDoc(id: string, data: DocumentData): CategorizationRule {
+  const transactionType =
+    data.transactionType === "income" || data.transactionType === "expense"
+      ? data.transactionType
+      : "any";
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    name: String(data.name ?? ""),
+    matchContains: String(data.matchContains ?? ""),
+    category: String(data.category ?? ""),
+    transactionType,
+    isActive: data.isActive !== false,
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+  };
+}
+
+export function toRuleWrite(r: Partial<CategorizationRule> & { userId: string }) {
+  return {
+    userId: r.userId,
+    name: r.name ?? "",
+    matchContains: String(r.matchContains ?? "").trim(),
+    category: r.category ?? "",
+    transactionType: r.transactionType ?? "any",
+    isActive: r.isActive !== false,
+    createdAt: r.createdAt ?? new Date().toISOString(),
+  };
+}
+
+export function mapDebtDoc(id: string, data: DocumentData): Debt {
+  const kind = (["loan", "credit_card", "other"] as DebtKind[]).includes(data.kind)
+    ? (data.kind as DebtKind)
+    : "other";
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    title: String(data.title ?? ""),
+    kind,
+    principal: Number(data.principal) || 0,
+    balance: Number(data.balance) || 0,
+    interestRate: Number(data.interestRate) || 0,
+    minimumPayment: Number(data.minimumPayment) || 0,
+    dueDay: data.dueDay != null ? Number(data.dueDay) : undefined,
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+  };
+}
+
+export function toDebtWrite(d: Partial<Debt> & { userId: string }) {
+  return {
+    userId: d.userId,
+    title: d.title ?? "",
+    kind: d.kind ?? "other",
+    principal: Number(d.principal) || 0,
+    balance: Number(d.balance) || 0,
+    interestRate: Number(d.interestRate) || 0,
+    minimumPayment: Number(d.minimumPayment) || 0,
+    dueDay: d.dueDay ?? null,
+    createdAt: d.createdAt ?? new Date().toISOString(),
+  };
+}
+
+export function mapSplitParticipantDoc(id: string, data: DocumentData): SplitParticipant {
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    name: String(data.name ?? "").trim(),
+  };
+}
+
+export function toSplitParticipantWrite(p: Partial<SplitParticipant> & { userId: string; name: string }) {
+  return {
+    userId: p.userId,
+    name: String(p.name ?? "").trim(),
+  };
+}
+
+export function mapSplitExpenseDoc(id: string, data: DocumentData): SplitExpense {
+  return {
+    id,
+    userId: String(data.userId ?? ""),
+    title: String(data.title ?? ""),
+    amount: Number(data.amount) || 0,
+    date: normalizeTxDate(data.date),
+    paidById: String(data.paidById ?? ""),
+    participantIds: Array.isArray(data.participantIds)
+      ? data.participantIds.map((x: unknown) => String(x))
+      : [],
+    transactionId: data.transactionId ? String(data.transactionId) : null,
+    settled: Boolean(data.settled),
+    createdAt: data.createdAt ? String(data.createdAt) : undefined,
+  };
+}
+
+export function toSplitExpenseWrite(e: Partial<SplitExpense> & { userId: string }) {
+  return {
+    userId: e.userId,
+    title: e.title ?? "",
+    amount: Number(e.amount) || 0,
+    date: normalizeTxDate(e.date),
+    paidById: e.paidById ?? "",
+    participantIds: Array.isArray(e.participantIds) ? e.participantIds : [],
+    transactionId: e.transactionId ?? null,
+    settled: Boolean(e.settled),
+    createdAt: e.createdAt ?? new Date().toISOString(),
+  };
+}
+
 async function listByUserId<T>(
   collectionName: string,
   userId: string,
@@ -256,7 +409,7 @@ function subscribeByUserId<T>(
   );
 }
 
-/** Real-time subscription factory grouped by domain (used by AuthGuard). */
+/** Real-time subscription factory grouped by domain (used by AuthBootstrap). */
 export const firestoreListeners = {
   transactions: (userId: string, onData: (items: Transaction[]) => void, onError?: (e: Error) => void) =>
     subscribeByUserId(FIRESTORE_COLLECTIONS.TRANSACTIONS, userId, mapTransactionDoc, onData, onError),
@@ -268,6 +421,16 @@ export const firestoreListeners = {
     subscribeByUserId(FIRESTORE_COLLECTIONS.GOALS, userId, mapGoalDoc, onData, onError),
   recurring: (userId: string, onData: (items: RecurringTransaction[]) => void, onError?: (e: Error) => void) =>
     subscribeByUserId(FIRESTORE_COLLECTIONS.RECURRING, userId, mapRecurringDoc, onData, onError),
+  categories: (userId: string, onData: (items: Category[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.CATEGORIES, userId, mapCategoryDoc, onData, onError),
+  rules: (userId: string, onData: (items: CategorizationRule[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.RULES, userId, mapRuleDoc, onData, onError),
+  debts: (userId: string, onData: (items: Debt[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.DEBTS, userId, mapDebtDoc, onData, onError),
+  splitExpenses: (userId: string, onData: (items: SplitExpense[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.SPLIT_EXPENSES, userId, mapSplitExpenseDoc, onData, onError),
+  splitParticipants: (userId: string, onData: (items: SplitParticipant[]) => void, onError?: (e: Error) => void) =>
+    subscribeByUserId(FIRESTORE_COLLECTIONS.SPLIT_PARTICIPANTS, userId, mapSplitParticipantDoc, onData, onError),
 };
 
 export const firestoreApi = {
@@ -326,6 +489,8 @@ export const firestoreApi = {
     if (patch.date != null) payload.date = normalizeTxDate(patch.date);
     if (patch.isRecurring != null) payload.isRecurring = Boolean(patch.isRecurring);
     if (patch.imported != null) payload.imported = Boolean(patch.imported);
+    if (patch.taxDeductible != null) payload.taxDeductible = Boolean(patch.taxDeductible);
+    if (patch.isShared != null) payload.isShared = Boolean(patch.isShared);
     const ref = doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, id);
     await updateDoc(ref, payload);
     const snap = await getDoc(ref);
@@ -373,6 +538,8 @@ export const firestoreApi = {
     if (patch.period != null) payload.period = patch.period === "yearly" ? "yearly" : "monthly";
     if (patch.month !== undefined) payload.month = patch.month ?? null;
     if (patch.year !== undefined) payload.year = patch.year ?? null;
+    if (patch.rollover != null) payload.rollover = Boolean(patch.rollover);
+    if (patch.rolloverBalance != null) payload.rolloverBalance = Number(patch.rolloverBalance) || 0;
     const ref = doc(firestore, FIRESTORE_COLLECTIONS.BUDGETS, id);
     await updateDoc(ref, payload);
     const snap = await getDoc(ref);
@@ -492,5 +659,190 @@ export const firestoreApi = {
   deleteRecurring: async (id: string) => {
     const firestore = requireDb();
     await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.RECURRING, id));
+  },
+
+  fetchCategories: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.CATEGORIES, userId, mapCategoryDoc),
+
+  addCategory: async (c: Category) => {
+    const firestore = requireDb();
+    const payload = toCategoryWrite(c);
+    if (c.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.CATEGORIES, c.id), payload);
+      return mapCategoryDoc(c.id, payload);
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.CATEGORIES), payload);
+    return mapCategoryDoc(ref.id, payload);
+  },
+
+  addCategoriesBulk: async (items: Array<Omit<Category, "id"> & { id?: string }>) => {
+    const firestore = requireDb();
+    if (!items.length) return [];
+    const CHUNK = 400;
+    const results: Category[] = [];
+    for (let offset = 0; offset < items.length; offset += CHUNK) {
+      const chunk = items.slice(offset, offset + CHUNK);
+      const batch = writeBatch(firestore);
+      for (const item of chunk) {
+        const payload = toCategoryWrite({
+          userId: item.userId,
+          name: item.name,
+          type: item.type,
+          color: item.color,
+          isDefault: item.isDefault,
+          createdAt: item.createdAt,
+        });
+        const id = item.id || doc(collection(firestore, FIRESTORE_COLLECTIONS.CATEGORIES)).id;
+        batch.set(doc(firestore, FIRESTORE_COLLECTIONS.CATEGORIES, id), payload);
+        results.push(mapCategoryDoc(id, payload));
+      }
+      await batch.commit();
+    }
+    return results;
+  },
+
+  /** Seed defaults when the user has no categories yet. Returns existing if already seeded. */
+  ensureDefaultCategories: async (userId: string) => {
+    const existing = await listByUserId(FIRESTORE_COLLECTIONS.CATEGORIES, userId, mapCategoryDoc);
+    if (existing.length > 0) return existing;
+    const seeds = buildCategorySeedDocs(userId);
+    return firestoreApi.addCategoriesBulk(seeds);
+  },
+
+  updateCategory: async (id: string, userId: string, patch: Partial<Category>) => {
+    const firestore = requireDb();
+    const payload: DocumentData = { userId };
+    if (patch.name != null) payload.name = String(patch.name).trim().replace(/\s+/g, " ");
+    if (patch.type != null) payload.type = patch.type === "income" ? "income" : "expense";
+    if (patch.color != null) payload.color = resolveCategoryColor(patch.color);
+    if (patch.isDefault != null) payload.isDefault = Boolean(patch.isDefault);
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.CATEGORIES, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapCategoryDoc(id, snap.data() ?? payload);
+  },
+
+  deleteCategory: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.CATEGORIES, id));
+  },
+
+  fetchRules: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.RULES, userId, mapRuleDoc),
+
+  addRule: async (r: CategorizationRule) => {
+    const firestore = requireDb();
+    const payload = toRuleWrite(r);
+    if (r.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.RULES, r.id), payload);
+      return mapRuleDoc(r.id, payload);
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.RULES), payload);
+    return mapRuleDoc(ref.id, payload);
+  },
+
+  updateRule: async (id: string, userId: string, patch: Partial<CategorizationRule>) => {
+    const firestore = requireDb();
+    const payload: DocumentData = { userId };
+    if (patch.name != null) payload.name = patch.name;
+    if (patch.matchContains != null) payload.matchContains = String(patch.matchContains).trim();
+    if (patch.category != null) payload.category = patch.category;
+    if (patch.transactionType != null) payload.transactionType = patch.transactionType;
+    if (patch.isActive != null) payload.isActive = patch.isActive !== false;
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.RULES, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapRuleDoc(id, snap.data() ?? payload);
+  },
+
+  deleteRule: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.RULES, id));
+  },
+
+  fetchDebts: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.DEBTS, userId, mapDebtDoc),
+
+  addDebt: async (d: Debt) => {
+    const firestore = requireDb();
+    const payload = toDebtWrite(d);
+    if (d.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.DEBTS, d.id), payload);
+      return mapDebtDoc(d.id, payload);
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.DEBTS), payload);
+    return mapDebtDoc(ref.id, payload);
+  },
+
+  updateDebt: async (id: string, userId: string, patch: Partial<Debt>) => {
+    const firestore = requireDb();
+    const payload: DocumentData = { userId };
+    if (patch.title != null) payload.title = patch.title;
+    if (patch.kind != null) payload.kind = patch.kind;
+    if (patch.principal != null) payload.principal = Number(patch.principal) || 0;
+    if (patch.balance != null) payload.balance = Number(patch.balance) || 0;
+    if (patch.interestRate != null) payload.interestRate = Number(patch.interestRate) || 0;
+    if (patch.minimumPayment != null) payload.minimumPayment = Number(patch.minimumPayment) || 0;
+    if (patch.dueDay !== undefined) payload.dueDay = patch.dueDay ?? null;
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.DEBTS, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapDebtDoc(id, snap.data() ?? payload);
+  },
+
+  deleteDebt: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.DEBTS, id));
+  },
+
+  fetchSplitParticipants: (userId: string) =>
+    listByUserId(FIRESTORE_COLLECTIONS.SPLIT_PARTICIPANTS, userId, mapSplitParticipantDoc),
+
+  addSplitParticipant: async (p: SplitParticipant) => {
+    const firestore = requireDb();
+    const payload = toSplitParticipantWrite(p);
+    if (p.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.SPLIT_PARTICIPANTS, p.id), payload);
+      return mapSplitParticipantDoc(p.id, { ...payload, userId: p.userId });
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.SPLIT_PARTICIPANTS), payload);
+    return mapSplitParticipantDoc(ref.id, { ...payload, userId: p.userId });
+  },
+
+  deleteSplitParticipant: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.SPLIT_PARTICIPANTS, id));
+  },
+
+  fetchSplitExpenses: (userId: string) =>
+    listByUserId(FIRESTORE_COLLECTIONS.SPLIT_EXPENSES, userId, mapSplitExpenseDoc),
+
+  addSplitExpense: async (e: SplitExpense) => {
+    const firestore = requireDb();
+    const payload = toSplitExpenseWrite(e);
+    if (e.id) {
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.SPLIT_EXPENSES, e.id), payload);
+      return mapSplitExpenseDoc(e.id, payload);
+    }
+    const ref = await addDoc(collection(firestore, FIRESTORE_COLLECTIONS.SPLIT_EXPENSES), payload);
+    return mapSplitExpenseDoc(ref.id, payload);
+  },
+
+  updateSplitExpense: async (id: string, userId: string, patch: Partial<SplitExpense>) => {
+    const firestore = requireDb();
+    const payload: DocumentData = { userId };
+    if (patch.title != null) payload.title = patch.title;
+    if (patch.amount != null) payload.amount = Number(patch.amount) || 0;
+    if (patch.date != null) payload.date = normalizeTxDate(patch.date);
+    if (patch.paidById != null) payload.paidById = patch.paidById;
+    if (patch.participantIds != null) payload.participantIds = patch.participantIds;
+    if (patch.transactionId !== undefined) payload.transactionId = patch.transactionId ?? null;
+    if (patch.settled != null) payload.settled = Boolean(patch.settled);
+    const ref = doc(firestore, FIRESTORE_COLLECTIONS.SPLIT_EXPENSES, id);
+    await updateDoc(ref, payload);
+    const snap = await getDoc(ref);
+    return mapSplitExpenseDoc(id, snap.data() ?? payload);
+  },
+
+  deleteSplitExpense: async (id: string) => {
+    const firestore = requireDb();
+    await deleteDoc(doc(firestore, FIRESTORE_COLLECTIONS.SPLIT_EXPENSES, id));
   },
 };

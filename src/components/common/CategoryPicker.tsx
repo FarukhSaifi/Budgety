@@ -11,13 +11,14 @@ import { Modal } from "@components/common/Modal";
 import { AddIcon, BoltIcon } from "@components/icons";
 
 import { useCategories } from "@hooks/useCategories";
-import { useAppDispatch } from "@store/hooks";
-import { addCategory } from "@store/slices/uiSlice";
+import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { addCategoryDoc } from "@store/slices/categoriesSlice";
 import { cn } from "@utils/cn";
 import { requestCategorySuggestion } from "@utils/suggestCategoryClient";
 import { showError, showSuccess } from "@utils/toast";
 
 import type { TransactionType } from "@/types";
+import { DEFAULT_CATEGORY_COLOR } from "@constants/firestore";
 
 export interface CategoryPickerProps {
   value: string;
@@ -48,7 +49,7 @@ export interface CategoryPickerProps {
 
 /**
  * Shared category picker with searchable list, “Add category”, and optional AI suggest.
- * Persists custom names via Redux `addCategory` (localStorage per user).
+ * Persists new names to Firestore via categoriesSlice.
  */
 export function CategoryPicker({
   value,
@@ -67,6 +68,7 @@ export function CategoryPicker({
   compact = false,
 }: CategoryPickerProps) {
   const dispatch = useAppDispatch();
+  const userId = useAppSelector((s) => s.auth.user?.uid);
   const categories = useCategories();
   const selectId = useId();
   const resolvedId = id ?? selectId;
@@ -93,7 +95,7 @@ export function CategoryPicker({
     setModalError("");
   };
 
-  const commitCategory = (name: string, categoryType: TransactionType) => {
+  const commitCategory = async (name: string, categoryType: TransactionType) => {
     const trimmed = name.trim().replace(/\s+/g, " ");
     if (!trimmed) return;
 
@@ -102,8 +104,26 @@ export function CategoryPicker({
     const finalName = existing ?? trimmed;
 
     if (!existing) {
-      dispatch(addCategory({ name: finalName, type: categoryType }));
-      showSuccess(UI_TEXT.CATEGORY_CREATED.replace("{name}", finalName));
+      if (!userId) {
+        showError(UI_TEXT.SUGGEST_CATEGORY_FAILED);
+        return;
+      }
+      try {
+        await dispatch(
+          addCategoryDoc({
+            id: "",
+            userId,
+            name: finalName,
+            type: categoryType,
+            color: DEFAULT_CATEGORY_COLOR,
+            isDefault: false,
+          }),
+        ).unwrap();
+        showSuccess(UI_TEXT.CATEGORY_CREATED.replace("{name}", finalName));
+      } catch {
+        showError(UI_TEXT.SUGGEST_CATEGORY_FAILED);
+        return;
+      }
     }
 
     if (allowTypeChange && categoryType !== type) {
@@ -119,12 +139,12 @@ export function CategoryPicker({
       return;
     }
     const categoryType = allowTypeChange ? modalType : type;
-    commitCategory(trimmed, categoryType);
+    void commitCategory(trimmed, categoryType);
     closeAddModal();
   };
 
   const handleAddFromSearch = (name: string) => {
-    commitCategory(name, type);
+    void commitCategory(name, type);
   };
 
   const handleSuggest = async () => {
@@ -154,7 +174,7 @@ export function CategoryPicker({
       }
 
       const suggestedType = allowTypeChange ? result.data.type : type;
-      commitCategory(result.data.category, suggestedType);
+      await commitCategory(result.data.category, suggestedType);
       if (modalOpen) closeAddModal();
     } finally {
       setSuggesting(false);
