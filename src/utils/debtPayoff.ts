@@ -88,8 +88,26 @@ export function debtFreeDate(months: number): Date | null {
 }
 
 /** Format the debt-free date as a human-readable string (e.g. "Mar 2028"). */
-export function formatDebtFreeDate(months: number): string {
+export function formatDebtFreeDate(months: number, infinityLabel?: string): string {
   const date = debtFreeDate(months);
-  if (!date) return "Never (payments don't cover interest)";
+  if (!date) return infinityLabel ?? "Needs a higher payment";
   return date.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+}
+
+/** Side-by-side comparison of snowball vs avalanche for the same extra payment. */
+export function comparePayoffStrategies(
+  debts: Debt[],
+  extraPayment = 0,
+): {
+  snowballMonths: number;
+  avalancheMonths: number;
+  snowballOrder: Debt[];
+  avalancheOrder: Debt[];
+} {
+  return {
+    snowballMonths: estimateMonthsToPayoff(debts, "snowball", extraPayment),
+    avalancheMonths: estimateMonthsToPayoff(debts, "avalanche", extraPayment),
+    snowballOrder: sortDebts(debts, "snowball"),
+    avalancheOrder: sortDebts(debts, "avalanche"),
+  };
 }

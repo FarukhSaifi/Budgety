@@ -6,9 +6,12 @@ export interface PersistedUiPeriod {
   viewPeriod: ViewPeriod;
   selectedMonth: number;
   selectedYear: number;
+  rangeStart?: string;
+  rangeEnd?: string;
 }
 
 const VALID_PERIODS = new Set<string>(Object.values(VIEW_PERIODS));
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 function isValidMonth(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 12;
@@ -16,6 +19,10 @@ function isValidMonth(value: unknown): value is number {
 
 function isValidYear(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1970 && value <= 2100;
+}
+
+function isValidIsoDay(value: unknown): value is string {
+  return typeof value === "string" && ISO_DAY.test(value);
 }
 
 /** Read persisted period from localStorage. Returns null when missing/invalid/SSR. */
@@ -29,11 +36,14 @@ export function loadPersistedUiPeriod(): PersistedUiPeriod | null {
     const selectedMonth = Number(parsed.selectedMonth);
     const selectedYear = Number(parsed.selectedYear);
     if (!isValidMonth(selectedMonth) || !isValidYear(selectedYear)) return null;
-    return {
+    const result: PersistedUiPeriod = {
       viewPeriod: parsed.viewPeriod as ViewPeriod,
       selectedMonth,
       selectedYear,
     };
+    if (isValidIsoDay(parsed.rangeStart)) result.rangeStart = parsed.rangeStart;
+    if (isValidIsoDay(parsed.rangeEnd)) result.rangeEnd = parsed.rangeEnd;
+    return result;
   } catch {
     return null;
   }

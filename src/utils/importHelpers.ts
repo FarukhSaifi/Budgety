@@ -31,6 +31,8 @@ export interface StagingRow {
   paymentMode: PaymentMode;
   date: string;
   selected: boolean;
+  /** User edited fields in preview — skip AI/rule overwrite. */
+  userOverridden?: boolean;
 }
 
 export type ImportPreviewSortKey = (typeof IMPORT_PREVIEW_SORT_KEYS)[keyof typeof IMPORT_PREVIEW_SORT_KEYS];

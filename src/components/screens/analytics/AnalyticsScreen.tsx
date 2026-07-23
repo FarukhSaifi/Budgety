@@ -70,6 +70,7 @@ import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useUiPeriod } from "@hooks/useUiPeriod";
 import { useAppSelector } from "@store/hooks";
+import { buildCashFlowForecast, DEFAULT_FORECAST_MONTHS_AHEAD, projectCashByDate } from "@utils/cashFlowForecast";
 import { cn } from "@utils/cn";
 import { getCategoryChartColor } from "@utils/colorUtils";
 import { compareByDateThenCreatedAt } from "@utils/dateUtils";
@@ -97,15 +98,14 @@ export function AnalyticsScreen() {
   const transactions = useAppSelector((s) => s.transactions.items);
   const budgets = useAppSelector((s) => s.budgets.items);
   const goals = useAppSelector((s) => s.goals.items);
+  const bills = useAppSelector((s) => s.bills.items);
+  const recurring = useAppSelector((s) => s.recurring.items);
   const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
   const { formatCurrency, formatCurrencyForChart, formatCompactCurrency } = useCurrencyFormatter();
 
   const initialTab = (searchParams.get("tab") as AnalyticsTab | null) ?? "overview";
   const [tab, setTab] = useState<AnalyticsTab>(
-    initialTab === "income" ||
-      initialTab === "outcome" ||
-      initialTab === "budget" ||
-      initialTab === "reports"
+    initialTab === "income" || initialTab === "outcome" || initialTab === "budget" || initialTab === "reports"
       ? initialTab
       : "overview",
   );
@@ -162,10 +162,7 @@ export function AnalyticsScreen() {
     return allIncome - allExpense;
   }, [transactions]);
 
-  const savingsRate =
-    current.totalIncome > 0
-      ? (netSavings / current.totalIncome) * PERCENTAGE_THRESHOLDS.MAX
-      : null;
+  const savingsRate = current.totalIncome > 0 ? (netSavings / current.totalIncome) * PERCENTAGE_THRESHOLDS.MAX : null;
 
   const avgDailySpend = useMemo(() => {
     const days = daysElapsedInMonth(selectedMonth, selectedYear);
@@ -173,9 +170,7 @@ export function AnalyticsScreen() {
   }, [current.totalExpense, selectedMonth, selectedYear]);
 
   const spendOfIncome =
-    current.totalIncome > 0
-      ? (current.totalExpense / current.totalIncome) * PERCENTAGE_THRESHOLDS.MAX
-      : null;
+    current.totalIncome > 0 ? (current.totalExpense / current.totalIncome) * PERCENTAGE_THRESHOLDS.MAX : null;
 
   const largestTransactions = useMemo(() => {
     return [...current.filteredTransactions]
@@ -236,6 +231,22 @@ export function AnalyticsScreen() {
     });
     return history;
   }, [monthlyTrend]);
+
+  const cashFlowForecast = useMemo(
+    () => buildCashFlowForecast(transactions, 6, DEFAULT_FORECAST_MONTHS_AHEAD),
+    [transactions],
+  );
+
+  const nearTermCash = useMemo(
+    () =>
+      projectCashByDate({
+        currentBalance,
+        bills,
+        recurring,
+        daysAhead: DISPLAY_LIMITS.CASH_FLOW_NEAR_TERM_DAYS,
+      }),
+    [bills, currentBalance, recurring],
+  );
 
   const eoyForecast = useMemo(() => {
     const withData = monthlyTrend.filter((m) => m.income > 0 || m.expense > 0);
@@ -508,6 +519,96 @@ export function AnalyticsScreen() {
 
       {tab === "overview" && (
         <>
+          <article className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
+            <div className="mb-1 flex items-center gap-2">
+              <ShowChartIcon className="h-5 w-5 text-primary-main" />
+              <h3 className="text-base font-semibold text-brand-deep">{UI_TEXT.CASH_FLOW_FORECAST}</h3>
+            </div>
+            <p className="mb-4 text-sm text-gray-500">{UI_TEXT.CASH_FLOW_FORECAST_SUBTITLE}</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl bg-surface-low/80 px-3 py-2.5">
+                <p className="text-[11px] uppercase tracking-wide text-on-surface-variant">Avg income</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums text-income">
+                  {CURRENCY_SYMBOL}
+                  {formatCurrency(cashFlowForecast.avgIncome)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-surface-low/80 px-3 py-2.5">
+                <p className="text-[11px] uppercase tracking-wide text-on-surface-variant">Avg spend</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums text-expense">
+                  {CURRENCY_SYMBOL}
+                  {formatCurrency(cashFlowForecast.avgExpense)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-surface-low/80 px-3 py-2.5">
+                <p className="text-[11px] uppercase tracking-wide text-on-surface-variant">Avg net</p>
+                <p
+                  className={`mt-0.5 text-sm font-bold tabular-nums ${
+                    cashFlowForecast.avgNet >= 0 ? "text-income" : "text-expense"
+                  }`}
+                >
+                  {CURRENCY_SYMBOL}
+                  {formatCurrency(cashFlowForecast.avgNet)}
+                </p>
+              </div>
+            </div>
+            <ul className="mt-4 space-y-2">
+              {cashFlowForecast.outlook.map((point) => (
+                <li
+                  key={point.label}
+                  className="flex items-center justify-between rounded-xl bg-primary-soft/20 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium text-brand-deep">{point.label}</span>
+                  <span
+                    className={
+                      point.projectedNet >= 0
+                        ? "font-semibold tabular-nums text-income"
+                        : "font-semibold tabular-nums text-expense"
+                    }
+                  >
+                    {CURRENCY_SYMBOL}
+                    {formatCurrency(point.projectedNet)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-gray-400">
+              {UI_TEXT.CASH_FLOW_FORECAST_HINT.replace("{months}", String(DEFAULT_FORECAST_MONTHS_AHEAD))}
+            </p>
+
+            <div className="mt-5 border-t border-outline-variant/40 pt-4">
+              <p className="text-sm font-semibold text-brand-deep">{UI_TEXT.CASH_FLOW_NEAR_TERM}</p>
+              <p className="mt-1 text-xs text-on-surface-variant">
+                {UI_TEXT.CASH_FLOW_NEAR_TERM_HINT.replace("{date}", nearTermCash.asOfDate)}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl bg-surface-low/80 px-3 py-2.5">
+                  <p className="text-xs uppercase tracking-wide text-on-surface-variant">
+                    {UI_TEXT.CASH_FLOW_BILLS_DUE}
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold tabular-nums text-expense">
+                    {CURRENCY_SYMBOL}
+                    {formatCurrency(nearTermCash.upcomingBillsTotal)}
+                    <span className="ml-1 text-xs font-medium text-on-surface-variant">({nearTermCash.billCount})</span>
+                  </p>
+                </div>
+                <div className="rounded-xl bg-surface-low/80 px-3 py-2.5">
+                  <p className="text-xs uppercase tracking-wide text-on-surface-variant">
+                    {UI_TEXT.CASH_FLOW_PROJECTED_LEFT}
+                  </p>
+                  <p
+                    className={`mt-0.5 text-sm font-bold tabular-nums ${
+                      nearTermCash.projectedBalance >= 0 ? "text-income" : "text-expense"
+                    }`}
+                  >
+                    {CURRENCY_SYMBOL}
+                    {formatCurrency(nearTermCash.projectedBalance)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+
           {/* KPI row — balance + core period metrics */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
@@ -517,7 +618,7 @@ export function AnalyticsScreen() {
                 </span>
               </div>
               <p className="text-sm font-medium text-gray-500">{UI_TEXT.CURRENT_BALANCE}</p>
-              <p className="mt-1 text-2xl font-bold tracking-tight text-brand-deep md:text-[28px]">
+              <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-brand-deep md:text-[28px]">
                 {CURRENCY_SYMBOL}
                 {formatCurrency(currentBalance)}
               </p>
@@ -641,9 +742,7 @@ export function AnalyticsScreen() {
                 value={spendOfIncome == null ? 0 : Math.min(PERCENTAGE_THRESHOLDS.MAX, spendOfIncome)}
                 className="mt-2 h-1.5"
                 colorClassName={
-                  spendOfIncome != null && spendOfIncome > PERCENTAGE_THRESHOLDS.MAX
-                    ? "bg-expense"
-                    : "bg-primary-main"
+                  spendOfIncome != null && spendOfIncome > PERCENTAGE_THRESHOLDS.MAX ? "bg-expense" : "bg-primary-main"
                 }
                 trackClassName="bg-surface-high"
               />
@@ -901,7 +1000,8 @@ export function AnalyticsScreen() {
                       <span
                         className={cn(
                           "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-                          alert.tone === "danger" && "bg-red-100 text-expense",
+                          alert.tone === "danger" &&
+                            "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100",
                           alert.tone === "warning" && "bg-amber-100 text-amber-700 dark:text-amber-100",
                           alert.tone === "success" && "bg-green-100 text-income",
                         )}

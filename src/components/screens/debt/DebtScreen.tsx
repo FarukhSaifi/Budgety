@@ -33,6 +33,7 @@ import { cn } from "@utils/cn";
 import {
   estimateMonthsToPayoff,
   formatDebtFreeDate,
+  comparePayoffStrategies,
   sortDebts,
 } from "@utils/debtPayoff";
 import { showError, showSuccess } from "@utils/toast";
@@ -389,57 +390,135 @@ function PayoffCalculator({
 
   const extraNum = Math.max(0, Number(extra) || 0);
   const months = estimateMonthsToPayoff(debts, strategy, extraNum);
-  const dateStr = formatDebtFreeDate(months);
+  const comparison = comparePayoffStrategies(debts, extraNum);
+  const dateStr = formatDebtFreeDate(months, UI_TEXT.DEBT_INFINITY_HINT);
   const totalBalance = debts.reduce((s, d) => s + d.balance, 0);
+  const ordered = sortDebts(debts, strategy);
+  const finite = Number.isFinite(months);
 
   return (
-    <div className="rounded-card border border-primary-soft/40 bg-card p-4 shadow-card">
-      <div className="mb-4 flex items-center gap-2">
-        <TrendingDownIcon className="h-5 w-5 text-primary-main" />
-        <p className="text-sm font-semibold text-brand-deep">{UI_TEXT.PAYOFF_CALCULATOR}</p>
-      </div>
-
-      <div className="mb-4 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-surface-low p-3">
-          <p className="text-[11px] uppercase tracking-wide text-on-surface-variant">
-            {UI_TEXT.TOTAL_DEBT}
-          </p>
-          <p className="mt-1 text-lg font-bold text-expense">
-            {CURRENCY_SYMBOL}{formatCurrency(totalBalance)}
-          </p>
+    <div className="space-y-4">
+      <div className="rounded-card border border-primary-soft/40 bg-card p-4 shadow-card">
+        <div className="mb-4 flex items-center gap-2">
+          <TrendingDownIcon className="h-5 w-5 text-primary-main" />
+          <p className="text-sm font-semibold text-brand-deep">{UI_TEXT.PAYOFF_CALCULATOR}</p>
         </div>
-        <div className="rounded-xl bg-surface-low p-3">
-          <p className="text-[11px] uppercase tracking-wide text-on-surface-variant">
-            {UI_TEXT.MONTHS_TO_PAYOFF}
-          </p>
-          <p className="mt-1 text-lg font-bold text-brand-deep">
-            {Number.isFinite(months) ? months : "∞"}
-          </p>
+
+        <div className="mb-4 grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-surface-low p-3">
+            <p className="text-[11px] uppercase tracking-wide text-on-surface-variant">
+              {UI_TEXT.TOTAL_DEBT}
+            </p>
+            <p className="mt-1 text-lg font-bold text-expense">
+              {CURRENCY_SYMBOL}{formatCurrency(totalBalance)}
+            </p>
+          </div>
+          <div className="rounded-xl bg-surface-low p-3">
+            <p className="text-[11px] uppercase tracking-wide text-on-surface-variant">
+              {UI_TEXT.MONTHS_TO_PAYOFF}
+            </p>
+            <p className="mt-1 text-lg font-bold text-brand-deep">
+              {finite ? months : "—"}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <Field label={UI_TEXT.EXTRA_MONTHLY_PAYMENT}>
-        <Input
-          type="number"
-          inputMode="decimal"
-          step={NUMBER_FORMAT.STEP_VALUE}
-          min={0}
-          value={extra}
-          onChange={(e) => setExtra(e.target.value)}
-          placeholder="0.00"
-        />
-      </Field>
+        <Field label={UI_TEXT.EXTRA_MONTHLY_PAYMENT}>
+          <Input
+            type="number"
+            inputMode="decimal"
+            step={NUMBER_FORMAT.STEP_VALUE}
+            min={0}
+            value={extra}
+            onChange={(e) => setExtra(e.target.value)}
+            placeholder="0.00"
+          />
+        </Field>
 
-      <div className="mt-4 rounded-xl bg-primary-soft/40 px-4 py-3">
-        <p className="text-xs font-medium text-on-surface-variant">{UI_TEXT.ESTIMATED_DEBT_FREE}</p>
-        <p
+        <div
           className={cn(
-            "mt-0.5 text-base font-bold",
-            Number.isFinite(months) ? "text-income" : "text-expense",
+            "mt-4 rounded-xl px-4 py-3",
+            finite ? "bg-primary-soft/40" : "bg-amber-50 dark:bg-amber-500/10",
           )}
         >
-          {dateStr}
-        </p>
+          <p className="text-xs font-medium text-on-surface-variant">{UI_TEXT.ESTIMATED_DEBT_FREE}</p>
+          <p
+            className={cn(
+              "mt-0.5 text-base font-bold",
+              finite ? "text-income" : "text-amber-900 dark:text-amber-100",
+            )}
+          >
+            {finite ? dateStr : UI_TEXT.DEBT_INFINITY_HINT}
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-card border border-gray-100 bg-card p-4 shadow-card">
+        <p className="text-sm font-semibold text-brand-deep">{UI_TEXT.STRATEGY_COMPARE_TITLE}</p>
+        <p className="mt-0.5 text-xs text-on-surface-variant">{UI_TEXT.STRATEGY_COMPARE_SUBTITLE}</p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {(
+            [
+              {
+                key: "snowball" as const,
+                label: UI_TEXT.STRATEGY_SNOWBALL,
+                months: comparison.snowballMonths,
+              },
+              {
+                key: "avalanche" as const,
+                label: UI_TEXT.STRATEGY_AVALANCHE,
+                months: comparison.avalancheMonths,
+              },
+            ] as const
+          ).map((col) => {
+            const colFinite = Number.isFinite(col.months);
+            const active = strategy === col.key;
+            return (
+              <div
+                key={col.key}
+                className={cn(
+                  "rounded-xl border p-3",
+                  active ? "border-primary-main/40 bg-primary-soft/30" : "border-gray-100 bg-surface-low/60",
+                )}
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
+                  {col.label}
+                </p>
+                <p className="mt-1 text-lg font-bold text-brand-deep">
+                  {colFinite ? `${col.months} mo` : "—"}
+                </p>
+                <p className="mt-0.5 text-xs text-on-surface-variant">
+                  {colFinite
+                    ? formatDebtFreeDate(col.months)
+                    : UI_TEXT.DEBT_INFINITY_HINT}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-card border border-gray-100 bg-card p-4 shadow-card">
+        <p className="mb-3 text-sm font-semibold text-brand-deep">{UI_TEXT.PAYOFF_ORDER}</p>
+        <ol className="space-y-2">
+          {ordered.map((d, idx) => (
+            <li
+              key={d.id}
+              className="flex items-center gap-3 rounded-xl bg-surface-low/70 px-3 py-2.5"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-main">
+                {idx + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-brand-deep">{d.title}</p>
+                <p className="text-xs text-on-surface-variant">
+                  {CURRENCY_SYMBOL}
+                  {formatCurrency(d.balance)} · {d.interestRate}%
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   );

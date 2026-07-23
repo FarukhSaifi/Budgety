@@ -30,7 +30,12 @@ export function TransactionGroup({
   if (transactions.length === 0) return empty ? <>{empty}</> : null;
 
   return (
-    <section className={cn("space-y-1", className)}>
+    <section
+      className={cn(
+        "space-y-1 [content-visibility:auto] [contain-intrinsic-size:auto_8rem]",
+        className,
+      )}
+    >
       <h3 className="mb-3 text-xs font-bold text-gray-400">
         {dayNumber ? (
           <>

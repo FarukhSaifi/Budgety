@@ -82,7 +82,7 @@ export function SpendSummaryBar({
             <button
               type="button"
               onClick={() => onSelectCategory?.(null)}
-              className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary-main transition hover:opacity-90"
+              className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary-main transition hover:opacity-90"
             >
               {UI_TEXT.FILTER_BY_CATEGORY} {selectedCategory}
               <CloseIcon className="h-3 w-3" aria-hidden />

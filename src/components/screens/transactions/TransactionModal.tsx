@@ -4,23 +4,11 @@ import { useId, useState, type FormEvent } from "react";
 
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  CURRENCY_SYMBOL,
-  NUMBER_FORMAT,
-  TRANSACTION_TYPES,
-  UI_TEXT,
-} from "@constants";
+import { CURRENCY_SYMBOL, NUMBER_FORMAT, TRANSACTION_TYPES, UI_TEXT } from "@constants";
 
 import { PAYMENT_MODES_LIST } from "@constants/firestore";
 
-import {
-  Button,
-  CategoryPicker,
-  Field,
-  Input,
-  Modal,
-  SegmentedPill,
-} from "@common";
+import { Button, CategoryPicker, Field, Input, Modal, SegmentedPill } from "@common";
 
 import { CheckIcon, DeleteIcon } from "@components/icons";
 
@@ -130,11 +118,10 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
     e.preventDefault();
     if (!userId) return;
     const amount = Number(form.amount);
-    const ruled =
-      form.category.trim() ||
-      applyCategorizationRules(form.description.trim(), form.type, rules) ||
-      "";
-    if (!form.description.trim() || !ruled) {
+    const ruled = applyCategorizationRules(form.description.trim(), form.type, rules);
+    const category = form.category.trim() || ruled?.category || "";
+    const paymentMode = form.paymentMode || ruled?.paymentMode || "Cash";
+    if (!form.description.trim() || !category) {
       showError(UI_TEXT.PLEASE_FILL_ALL_FIELDS);
       return;
     }
@@ -146,6 +133,7 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
     setSubmitting(true);
     const dateIso = new Date(form.date).toISOString();
     const title = form.description.trim();
+    const mode = paymentMode as Transaction["paymentMode"];
     try {
       if (isEdit && transaction) {
         await dispatch(
@@ -157,9 +145,9 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
               description: title,
               amount,
               type: form.type,
-              category: ruled,
-              paymentMode: form.paymentMode,
-              mode: form.paymentMode,
+              category,
+              paymentMode: mode,
+              mode,
               date: dateIso,
               isRecurring: form.isRecurring,
               taxDeductible: form.taxDeductible,
@@ -176,9 +164,9 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
           description: title,
           amount,
           type: form.type,
-          category: ruled,
-          paymentMode: form.paymentMode,
-          mode: form.paymentMode,
+          category,
+          paymentMode: mode,
+          mode,
           date: dateIso,
           isRecurring: form.isRecurring,
           taxDeductible: form.taxDeductible,
@@ -220,12 +208,7 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
             </Button>
           ) : null}
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={submitting}
-              className="min-w-20 sm:min-w-24"
-            >
+            <Button variant="outline" onClick={onClose} disabled={submitting} className="min-w-20 sm:min-w-24">
               {UI_TEXT.CANCEL}
             </Button>
             <Button
@@ -256,9 +239,7 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
         <div
           className={cn(
             "rounded-2xl p-3.5 ring-1 transition-colors",
-            isIncome
-              ? "bg-income-soft/40 ring-income/20"
-              : "bg-expense-soft/40 ring-expense/20",
+            isIncome ? "bg-income-soft/40 ring-income/20" : "bg-expense-soft/40 ring-expense/20",
           )}
         >
           <Field label={UI_TEXT.AMOUNT} htmlFor={amountId} required className="space-y-2">
@@ -284,9 +265,7 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
                 className={cn(
                   "h-14 border-transparent bg-card/90 pl-9 text-2xl font-bold tabular-nums tracking-tight shadow-sm",
                   "placeholder:font-medium placeholder:text-outline",
-                  isIncome
-                    ? "focus:border-income focus:ring-income/25"
-                    : "focus:border-expense focus:ring-expense/25",
+                  isIncome ? "focus:border-income focus:ring-income/25" : "focus:border-expense focus:ring-expense/25",
                 )}
               />
             </div>
@@ -317,11 +296,7 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
         </div>
 
         <Field label={UI_TEXT.MODE_LABEL}>
-          <div
-            role="radiogroup"
-            aria-label={UI_TEXT.MODE_LABEL}
-            className="flex flex-wrap gap-2"
-          >
+          <div role="radiogroup" aria-label={UI_TEXT.MODE_LABEL} className="flex flex-wrap gap-2">
             {PAYMENT_MODES_LIST.map((mode) => {
               const active = form.paymentMode === mode;
               return (
@@ -348,12 +323,7 @@ export function TransactionModal({ open, onClose, transaction }: TransactionModa
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={UI_TEXT.DATE_PLACEHOLDER} htmlFor={dateId} required>
-            <Input
-              id={dateId}
-              type="date"
-              value={form.date}
-              onChange={(e) => update("date", e.target.value)}
-            />
+            <Input id={dateId} type="date" value={form.date} onChange={(e) => update("date", e.target.value)} />
           </Field>
 
           <Field label={UI_TEXT.RECURRING} htmlFor={recurringId}>

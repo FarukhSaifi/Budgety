@@ -1,17 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CURRENCY_SYMBOL, PERCENTAGE_THRESHOLDS, UI_TEXT } from "@constants";
 
 import { Badge, Button, ConfirmDialog, EmptyState, ProgressBar, StatCard } from "@common";
 
-import { EditIcon, AddIcon, FlagIcon, DeleteIcon } from "@components/icons";
+import { AddIcon, DeleteIcon, EditIcon, FlagIcon } from "@components/icons";
 
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { deleteGoal } from "@store/slices/goalsSlice";
+import { cn } from "@utils/cn";
+import { hapticTap } from "@utils/feedback";
 import { showSuccess } from "@utils/toast";
 
 import type { Goal } from "@/types";
@@ -28,6 +30,8 @@ export function GoalsScreen() {
   const [editing, setEditing] = useState<Goal | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Goal | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pulseGoalId, setPulseGoalId] = useState<string | null>(null);
+  const achievedRef = useRef<Record<string, boolean>>({});
 
   const totals = useMemo(
     () =>
@@ -40,6 +44,32 @@ export function GoalsScreen() {
       ),
     [goals],
   );
+
+  useEffect(() => {
+    const timers: number[] = [];
+    goals.forEach((g) => {
+      const percent = g.targetAmount > 0 ? (g.savedAmount / g.targetAmount) * 100 : 0;
+      const achieved = percent >= PERCENTAGE_THRESHOLDS.MAX;
+      const prev = achievedRef.current[g.id];
+      if (prev === undefined) {
+        achievedRef.current[g.id] = achieved;
+        return;
+      }
+      if (!prev && achieved) {
+        setPulseGoalId(g.id);
+        hapticTap();
+        timers.push(
+          window.setTimeout(() => {
+            setPulseGoalId((current) => (current === g.id ? null : current));
+          }, 900),
+        );
+      }
+      achievedRef.current[g.id] = achieved;
+    });
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [goals]);
 
   const openAdd = () => {
     setEditing(null);
@@ -77,10 +107,7 @@ export function GoalsScreen() {
       {goals.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <StatCard label={UI_TEXT.TOTAL_GOALS} value={goals.length} tone="brand" />
-          <StatCard
-            label={UI_TEXT.TOTAL_TARGET}
-            value={`${CURRENCY_SYMBOL}${formatCurrency(totals.target)}`}
-          />
+          <StatCard label={UI_TEXT.TOTAL_TARGET} value={`${CURRENCY_SYMBOL}${formatCurrency(totals.target)}`} />
           <StatCard
             label={UI_TEXT.TOTAL_SAVED}
             value={`${CURRENCY_SYMBOL}${formatCurrency(totals.saved)}`}
@@ -98,11 +125,17 @@ export function GoalsScreen() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {goals.map((g) => {
-            const percent =
-              g.targetAmount > 0 ? (g.savedAmount / g.targetAmount) * 100 : 0;
+            const percent = g.targetAmount > 0 ? (g.savedAmount / g.targetAmount) * 100 : 0;
             const achieved = percent >= PERCENTAGE_THRESHOLDS.MAX;
+            const pulsing = pulseGoalId === g.id;
             return (
-              <div key={g.id} className="rounded-card border border-gray-100 bg-white p-4 shadow-card">
+              <div
+                key={g.id}
+                className={cn(
+                  "rounded-card border border-gray-100 bg-white p-4 shadow-card",
+                  pulsing && "motion-goal-pulse",
+                )}
+              >
                 <div className="mb-3 flex items-start justify-between">
                   <div>
                     <p className="text-sm font-semibold text-brand-deep">{g.title}</p>
@@ -131,26 +164,27 @@ export function GoalsScreen() {
                 </div>
 
                 <div className="mb-2 flex items-end justify-between">
-                  <p className="text-lg font-semibold text-gray-900">
+                  <p className="text-lg font-semibold tabular-nums text-gray-900">
                     {CURRENCY_SYMBOL}
                     {formatCurrency(g.savedAmount)}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm tabular-nums text-gray-500">
                     / {CURRENCY_SYMBOL}
                     {formatCurrency(g.targetAmount)}
                   </p>
                 </div>
 
-                <ProgressBar
-                  value={percent}
-                  colorClassName={achieved ? "bg-income" : "bg-primary-main"}
-                />
+                <ProgressBar value={percent} colorClassName={achieved ? "bg-income" : "bg-primary-main"} />
 
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-500">
+                  <span className="text-xs font-medium tabular-nums text-gray-500">
                     {UI_TEXT.PROGRESS}: {percent.toFixed(0)}%
                   </span>
-                  {achieved && <Badge tone="success">{UI_TEXT.GOAL_ACHIEVED}</Badge>}
+                  {achieved && (
+                    <Badge tone="success" className={cn(pulsing && "motion-goal-pulse")}>
+                      {UI_TEXT.GOAL_COMPLETE_BADGE}
+                    </Badge>
+                  )}
                 </div>
               </div>
             );

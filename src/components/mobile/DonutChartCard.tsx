@@ -95,26 +95,30 @@ export function DonutChartCard({
               innerRadius={CHART_CONFIG.PIE_INNER_RADIUS}
               outerRadius={CHART_CONFIG.PIE_OUTER_RADIUS - 12}
               paddingAngle={2}
-              strokeWidth={0}
+              strokeWidth={1}
               label={exteriorPercentLabel}
               labelLine={false}
             >
               {data.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
+                <Cell
+                  key={entry.name}
+                  fill={entry.color}
+                  stroke={CHART_THEME_COLORS.SEGMENT_STROKE}
+                />
               ))}
             </Pie>
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          <p className="text-2xl font-bold tracking-tight text-brand-deep">{pct}%</p>
-          <p className="mt-0.5 text-[11px] font-medium text-gray-400">
+          <p className="text-2xl font-bold tabular-nums tracking-tight text-brand-deep">{pct}%</p>
+          <p className="mt-0.5 text-xs font-medium text-gray-400">
             {UI_TEXT.YOUVE_SPENT}
           </p>
-          <p className="mt-0.5 text-lg font-bold tracking-tight text-brand-deep">
+          <p className="mt-0.5 text-lg font-bold tabular-nums tracking-tight text-brand-deep">
             {CURRENCY_SYMBOL}
             {formatCurrency(spent)}
           </p>
-          <p className="text-[11px] text-gray-400">
+          <p className="text-xs text-gray-400">
             {UI_TEXT.OF} {CURRENCY_SYMBOL}
             {formatCurrency(limit)}
           </p>

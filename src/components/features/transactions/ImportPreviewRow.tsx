@@ -11,7 +11,7 @@ import {
   UI_TEXT,
 } from "@constants";
 
-import { CategoryPicker } from "@common";
+import { CategoryPicker, Input, Select } from "@common";
 
 import { CheckCircleIcon, WarningIcon } from "@components/icons";
 
@@ -21,6 +21,8 @@ import { parseDate } from "@utils/dateUtils";
 import type { DuplicateReason } from "@utils/duplicateDetection";
 import { stagingRowNeedsReview, type StagingRow } from "@utils/importHelpers";
 
+import type { TransactionType } from "@/types";
+
 export interface ImportPreviewRowProps {
   row: StagingRow;
   isDuplicate: boolean;
@@ -28,6 +30,7 @@ export interface ImportPreviewRowProps {
   variant: "table" | "card";
   onToggle: (key: string, selected: boolean) => void;
   onCategoryChange: (key: string, category: string) => void;
+  onFieldChange: (key: string, patch: Partial<StagingRow>) => void;
 }
 
 function formatPreviewDate(date: string): string {
@@ -49,6 +52,7 @@ function ImportPreviewRowInner({
   variant,
   onToggle,
   onCategoryChange,
+  onFieldChange,
 }: ImportPreviewRowProps) {
   const { formatCurrency } = useCurrencyFormatter();
   const isIncome = row.type === TRANSACTION_TYPES.INCOME;
@@ -83,7 +87,7 @@ function ImportPreviewRowInner({
       {UI_TEXT.IMPORT_STATUS_DUPLICATE}
     </span>
   ) : needsFieldsReview ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-expense dark:bg-expense/10">
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
       <WarningIcon className="h-3 w-3" />
       {UI_TEXT.IMPORT_STATUS_REVIEW}
     </span>
@@ -107,6 +111,51 @@ function ImportPreviewRowInner({
     />
   );
 
+  const titleInput = (
+    <Input
+      value={row.title}
+      onChange={(e) => onFieldChange(row.key, { title: e.target.value })}
+      aria-label={UI_TEXT.IMPORT_EDIT_TITLE}
+      className="!py-1.5 text-sm"
+      placeholder={UI_TEXT.NO_DESCRIPTION}
+    />
+  );
+
+  const dateInput = (
+    <Input
+      type="date"
+      value={row.date?.slice(0, 10) || ""}
+      onChange={(e) => onFieldChange(row.key, { date: e.target.value })}
+      aria-label={UI_TEXT.IMPORT_EDIT_DATE}
+      className="!py-1.5 text-sm tabular-nums"
+    />
+  );
+
+  const amountInput = (
+    <Input
+      type="number"
+      inputMode="decimal"
+      step={NUMBER_FORMAT.STEP_VALUE}
+      min={0}
+      value={Number.isFinite(row.amount) ? row.amount : ""}
+      onChange={(e) => onFieldChange(row.key, { amount: Math.abs(Number(e.target.value) || 0) })}
+      aria-label={UI_TEXT.IMPORT_EDIT_AMOUNT}
+      className="!py-1.5 text-sm tabular-nums"
+    />
+  );
+
+  const typeSelect = (
+    <Select
+      value={row.type}
+      onChange={(e) => onFieldChange(row.key, { type: e.target.value as TransactionType })}
+      aria-label={UI_TEXT.IMPORT_EDIT_TYPE}
+      className="!py-1.5 text-xs"
+    >
+      <option value={TRANSACTION_TYPES.EXPENSE}>{UI_TEXT.EXPENSE}</option>
+      <option value={TRANSACTION_TYPES.INCOME}>{UI_TEXT.INCOME}</option>
+    </Select>
+  );
+
   if (variant === "card") {
     return (
       <div
@@ -115,7 +164,7 @@ function ImportPreviewRowInner({
           isDuplicate
             ? "border-amber-200 bg-amber-50/50 dark:border-amber-500/40 dark:bg-amber-500/10"
             : needsFieldsReview
-              ? "border-red-100 bg-red-50/40 dark:border-expense/30 dark:bg-expense/5"
+              ? "border-amber-200/80 bg-amber-50/30 dark:border-amber-500/30 dark:bg-amber-500/5"
               : row.selected
                 ? "border-primary-main/20 bg-white dark:bg-card"
                 : "border-gray-200 bg-gray-50 dark:border-outline-variant dark:bg-surface-low",
@@ -130,18 +179,20 @@ function ImportPreviewRowInner({
             className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-main focus:ring-primary-main"
             aria-label={`Select ${titleHint || UI_TEXT.NO_DESCRIPTION}`}
           />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-on-surface-variant">{prettyDate}</p>
-            <p className="mt-0.5 line-clamp-2 text-sm font-semibold text-brand-deep">
-              {row.title || UI_TEXT.NO_DESCRIPTION}
-            </p>
+          <div className="min-w-0 flex-1 space-y-2">
+            {dateInput}
+            {titleInput}
+            <div className="grid grid-cols-2 gap-2">
+              {amountInput}
+              {typeSelect}
+            </div>
             <p
               className={cn(
-                "mt-0.5 text-xs font-medium",
+                "text-xs font-medium",
                 isDuplicate
                   ? "text-amber-800 dark:text-amber-200"
                   : review && !row.category
-                    ? "text-expense"
+                    ? "text-amber-800 dark:text-amber-200"
                     : "text-on-surface-variant",
               )}
             >
@@ -166,7 +217,7 @@ function ImportPreviewRowInner({
       className={cn(
         "group transition-colors hover:bg-primary-main/5",
         isDuplicate && "bg-amber-50/60 dark:bg-amber-500/10",
-        !isDuplicate && needsFieldsReview && "bg-red-50/30 dark:bg-expense/5",
+        !isDuplicate && needsFieldsReview && "bg-amber-50/40 dark:bg-amber-500/5",
         !row.selected && "opacity-60",
       )}
     >
@@ -179,17 +230,18 @@ function ImportPreviewRowInner({
           aria-label={`Select ${titleHint || UI_TEXT.NO_DESCRIPTION}`}
         />
       </td>
-      <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-brand-deep sm:px-6">{prettyDate}</td>
-      <td className="max-w-[240px] px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-medium text-brand-deep">{row.title || UI_TEXT.NO_DESCRIPTION}</span>
+      <td className="whitespace-nowrap px-4 py-3 sm:px-6">{dateInput}</td>
+      <td className="max-w-[280px] px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          {titleInput}
+          <div className="w-28">{typeSelect}</div>
           <span
             className={cn(
               "truncate text-xs font-medium",
               isDuplicate
                 ? "text-amber-800 dark:text-amber-200"
                 : review && !row.category
-                  ? "text-expense"
+                  ? "text-amber-800 dark:text-amber-200"
                   : "text-on-surface-variant",
             )}
           >
@@ -198,13 +250,11 @@ function ImportPreviewRowInner({
         </div>
       </td>
       <td className="px-4 py-3 sm:px-6">{categorySelect}</td>
-      <td
-        className={cn(
-          "whitespace-nowrap px-4 py-3 text-sm font-bold tabular-nums sm:px-6",
-          isIncome ? "text-income" : "text-expense",
-        )}
-      >
-        {amountLabel}
+      <td className="whitespace-nowrap px-4 py-3 sm:px-6">
+        <div className="w-28">{amountInput}</div>
+        <p className={cn("mt-1 text-xs font-semibold tabular-nums", isIncome ? "text-income" : "text-expense")}>
+          {prettyDate ? amountLabel : null}
+        </p>
       </td>
       <td className="px-4 py-3 sm:px-6">{statusBadge}</td>
     </tr>

@@ -124,58 +124,20 @@ function normalizeSuggestion(raw: unknown, typeHint?: TransactionType): SuggestC
   };
 }
 
-async function suggestWithGoogle(prompt: string, apiKey: string): Promise<unknown> {
-  const model = STATEMENT_IMPORT.GEMINI_MODEL;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            category: { type: "STRING" },
-            type: { type: "STRING" },
-            confidence: { type: "NUMBER" },
-          },
-          required: ["category", "type", "confidence"],
-        },
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    let detail = `HTTP ${response.status}`;
-    try {
-      const errBody = (await response.json()) as { error?: { message?: string } };
-      if (errBody?.error?.message) detail = errBody.error.message;
-    } catch {
-      // ignore
-    }
+async function suggestWithGoogle(prompt: string): Promise<unknown> {
+  const { generateGeminiJson } = await import("@/lib/ai/geminiClient");
+  try {
+    return await generateGeminiJson({
+      prompt,
+      temperature: 0.2,
+      json: true,
+      dedupeKey: `suggest-category:${prompt.slice(0, 280)}`,
+      timeoutMs: 20_000,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "unknown error";
     throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail));
   }
-
-  const data = (await response.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const content = data.candidates?.[0]?.content?.parts
-    ?.map((p) => p.text ?? "")
-    .join("")
-    .trim();
-
-  if (!content) {
-    throw new Error(ERROR_MESSAGES.AI_PARSE_EMPTY_RESPONSE);
-  }
-
-  return extractJsonPayload(content);
 }
 
 async function suggestWithOpenAi(prompt: string, apiKey: string): Promise<unknown> {
@@ -249,7 +211,7 @@ export async function suggestCategoryWithAi(input: SuggestCategoryRequest): Prom
   const prompt = buildPrompt({ ...input, title });
   const raw =
     resolved.provider === "google"
-      ? await suggestWithGoogle(prompt, resolved.apiKey)
+      ? await suggestWithGoogle(prompt)
       : await suggestWithOpenAi(prompt, resolved.apiKey);
 
   const suggestion = normalizeSuggestion(raw, input.typeHint);

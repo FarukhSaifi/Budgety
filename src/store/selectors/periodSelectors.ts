@@ -7,15 +7,27 @@ const selectTransactions = (state: RootState) => state.transactions.items;
 const selectViewPeriod = (state: RootState) => state.ui.viewPeriod;
 const selectSelectedMonth = (state: RootState) => state.ui.selectedMonth;
 const selectSelectedYear = (state: RootState) => state.ui.selectedYear;
+const selectRangeStart = (state: RootState) => state.ui.rangeStart;
+const selectRangeEnd = (state: RootState) => state.ui.rangeEnd;
 
 /**
  * Memoized period aggregates shared by AppShell, TopBar, and any screen
  * that does not apply a search query. Recomputes only when txs/period change.
  */
 export const selectPeriodAggregates = createSelector(
-  [selectTransactions, selectViewPeriod, selectSelectedMonth, selectSelectedYear],
-  (transactions, viewPeriod, selectedMonth, selectedYear) =>
-    computePeriodAggregates(transactions, viewPeriod, selectedMonth, selectedYear),
+  [
+    selectTransactions,
+    selectViewPeriod,
+    selectSelectedMonth,
+    selectSelectedYear,
+    selectRangeStart,
+    selectRangeEnd,
+  ],
+  (transactions, viewPeriod, selectedMonth, selectedYear, rangeStart, rangeEnd) =>
+    computePeriodAggregates(transactions, viewPeriod, selectedMonth, selectedYear, {
+      rangeStart,
+      rangeEnd,
+    }),
 );
 
 export const selectPeriodTotalExpense = createSelector([selectPeriodAggregates], (agg) => agg.totalExpense);

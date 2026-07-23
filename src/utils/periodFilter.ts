@@ -1,6 +1,6 @@
 import { DEFAULT_VALUES, MONTHS, TRANSACTION_TYPES, VIEW_PERIODS } from "@constants";
 
-import { getMonthYear, type MonthYear } from "@utils/dateUtils";
+import { getMonthYear, toStorageDate, type MonthYear } from "@utils/dateUtils";
 
 import type { Transaction, ViewPeriod } from "@/types";
 
@@ -28,6 +28,30 @@ export interface RollingMonthPoint {
   Expense: number;
 }
 
+export interface PeriodFilterOptions {
+  rangeStart?: string | null;
+  rangeEnd?: string | null;
+}
+
+/** Inclusive date-range filter (ISO / storage dates). Empty bounds are ignored. */
+export function filterTransactionsByDateRange(
+  transactions: Transaction[],
+  rangeStart?: string | null,
+  rangeEnd?: string | null,
+): Transaction[] {
+  const start = toStorageDate(rangeStart || "");
+  const end = toStorageDate(rangeEnd || "");
+  if (!start && !end) return transactions;
+
+  return transactions.filter((transaction) => {
+    const day = toStorageDate(transaction.date);
+    if (!day) return false;
+    if (start && day < start) return false;
+    if (end && day > end) return false;
+    return true;
+  });
+}
+
 /** Whether a parsed month/year falls inside the active UI period. */
 export function matchesPeriod(
   monthYear: MonthYear,
@@ -35,7 +59,7 @@ export function matchesPeriod(
   selectedMonth: number,
   selectedYear: number,
 ): boolean {
-  if (viewPeriod === VIEW_PERIODS.ALL) return true;
+  if (viewPeriod === VIEW_PERIODS.ALL || viewPeriod === VIEW_PERIODS.RANGE) return true;
   if (viewPeriod === VIEW_PERIODS.MONTHLY) {
     return monthYear.month === selectedMonth && monthYear.year === selectedYear;
   }
@@ -45,15 +69,21 @@ export function matchesPeriod(
   return true;
 }
 
-/** Filter transactions by Redux UI period (monthly / yearly / all). */
+/** Filter transactions by Redux UI period (monthly / yearly / all / custom range). */
 export function filterTransactionsByPeriod(
   transactions: Transaction[],
   viewPeriod: ViewPeriod,
   selectedMonth: number,
   selectedYear: number,
+  options: PeriodFilterOptions = {},
 ): Transaction[] {
-  if (viewPeriod === VIEW_PERIODS.ALL) return transactions;
   if (!transactions.length) return transactions;
+
+  if (viewPeriod === VIEW_PERIODS.RANGE) {
+    return filterTransactionsByDateRange(transactions, options.rangeStart, options.rangeEnd);
+  }
+
+  if (viewPeriod === VIEW_PERIODS.ALL) return transactions;
 
   return transactions.filter((transaction) => {
     const monthYear = getMonthYear(transaction.date);
@@ -81,7 +111,7 @@ export function getPreviousPeriod(
       selectedYear: selectedYear - 1,
     };
   }
-  if (viewPeriod === VIEW_PERIODS.ALL) {
+  if (viewPeriod === VIEW_PERIODS.ALL || viewPeriod === VIEW_PERIODS.RANGE) {
     return { viewPeriod, selectedMonth, selectedYear };
   }
   const prev = shiftMonthYear(selectedMonth, selectedYear, -1);
@@ -179,9 +209,19 @@ export function computePeriodAggregates(
   viewPeriod: ViewPeriod,
   selectedMonth: number,
   selectedYear: number,
+  options: PeriodFilterOptions = {},
 ): PeriodAggregates {
-  const filteredTransactions = filterTransactionsByPeriod(transactions, viewPeriod, selectedMonth, selectedYear);
-  const includeMonthlyBreakdown = viewPeriod === VIEW_PERIODS.YEARLY || viewPeriod === VIEW_PERIODS.ALL;
+  const filteredTransactions = filterTransactionsByPeriod(
+    transactions,
+    viewPeriod,
+    selectedMonth,
+    selectedYear,
+    options,
+  );
+  const includeMonthlyBreakdown =
+    viewPeriod === VIEW_PERIODS.YEARLY ||
+    viewPeriod === VIEW_PERIODS.ALL ||
+    viewPeriod === VIEW_PERIODS.RANGE;
 
   const aggregates = aggregateTransactions(filteredTransactions, {
     includeMonthlyBreakdown,

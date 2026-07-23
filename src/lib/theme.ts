@@ -28,6 +28,8 @@ export const CHART_THEME_COLORS = {
   TERTIARY: "var(--color-tertiary)",
   DOT_STROKE: "var(--color-card)",
   MUTED_BAR: "var(--color-surface-high)",
+  /** Visible stroke on soft chart fills for WCAG graphical contrast. */
+  SEGMENT_STROKE: "var(--color-outline-variant)",
 } as const;
 
 export function resolveThemePreference(

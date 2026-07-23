@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import { CURRENCY_SYMBOL, DEFAULT_VALUES, DISPLAY_LIMITS, TRANSACTION_TYPES, UI_TEXT } from "@constants";
+import { CURRENCY_SYMBOL, DISPLAY_LIMITS, UI_TEXT } from "@constants";
 
 import CategoryBreakdownChart from "@components/features/dashboard/CategoryBreakdownChart";
 import MonthlyTrendChart from "@components/features/dashboard/MonthlyTrendChart";
-import { NetWorthWidget } from "@components/features/dashboard/NetWorthWidget";
+import { NetWorthManageModal, NetWorthWidget } from "@components/features/dashboard/NetWorthWidget";
 import { RecentTransactionsCard } from "@components/features/dashboard/RecentTransactionsCard";
 import { SafeToSpendWidget } from "@components/features/dashboard/SafeToSpendWidget";
 import { SubscriptionAlertWidget } from "@components/features/dashboard/SubscriptionAlertWidget";
@@ -38,28 +38,18 @@ function formatDueShort(dueDate: string): string {
 export function DashboardScreen() {
   const navigateToTab = useAppNavigation();
   const user = useAppSelector((s) => s.auth.user);
-  const transactions = useAppSelector((s) => s.transactions.items);
   const budgets = useAppSelector((s) => s.budgets.items);
   const bills = useAppSelector((s) => s.bills.items);
   const goals = useAppSelector((s) => s.goals.items);
   const debts = useAppSelector((s) => s.debt.items);
+  const netWorthItems = useAppSelector((s) => s.netWorth.items);
   const current = useAppSelector(selectPeriodAggregates);
   const { formatCurrency } = useCurrencyFormatter();
+  const [netWorthModalOpen, setNetWorthModalOpen] = useState(false);
 
-  const totalBalance = useMemo(() => {
-    const allIncome = transactions
-      .filter((t) => t.type === TRANSACTION_TYPES.INCOME)
-      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
-    const allExpense = transactions
-      .filter((t) => t.type === TRANSACTION_TYPES.EXPENSE)
-      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
-    return allIncome - allExpense;
-  }, [transactions]);
+  const totalAssets = useMemo(() => netWorthItems.reduce((sum, i) => sum + (i.balance || 0), 0), [netWorthItems]);
 
-  const totalDebt = useMemo(
-    () => debts.reduce((sum, d) => sum + (d.balance || 0), 0),
-    [debts],
-  );
+  const totalDebt = useMemo(() => debts.reduce((sum, d) => sum + (d.balance || 0), 0), [debts]);
 
   const safeToSpend = useMemo(() => {
     const now = new Date();
@@ -69,11 +59,7 @@ export function DashboardScreen() {
       .filter((b) => !b.isPaid && b.status !== "paid")
       .filter((b) => {
         const due = new Date(b.dueDate);
-        return (
-          due.getMonth() === now.getMonth() &&
-          due.getFullYear() === now.getFullYear() &&
-          due >= now
-        );
+        return due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear() && due >= now;
       })
       .reduce((sum, b) => sum + (b.amount || 0), 0);
     const remainingGoalTarget = goals.reduce(
@@ -144,7 +130,7 @@ export function DashboardScreen() {
         <PeriodPicker />
       </div>
 
-      <SummaryCards totalIncome={current.totalIncome} totalExpense={current.totalExpense} balance={totalBalance} />
+      <SummaryCards totalIncome={current.totalIncome} totalExpense={current.totalExpense} balance={current.balance} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <SafeToSpendWidget
@@ -152,8 +138,10 @@ export function DashboardScreen() {
           daysLeft={safeToSpend.daysLeft}
           dailyAmount={safeToSpend.dailyAmount}
         />
-        <NetWorthWidget assets={totalBalance} debt={totalDebt} />
+        <NetWorthWidget assets={totalAssets} debt={totalDebt} onManage={() => setNetWorthModalOpen(true)} />
       </div>
+
+      <NetWorthManageModal open={netWorthModalOpen} onClose={() => setNetWorthModalOpen(false)} />
 
       <SubscriptionAlertWidget />
 

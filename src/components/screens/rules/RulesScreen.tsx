@@ -1,21 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { v4 as uuidv4 } from "uuid";
 
-import { UI_TEXT } from "@constants";
+import { PRIMARY_PAYMENT_MODES, UI_TEXT } from "@constants";
 
 import { Badge, Button, CategoryPicker, ConfirmDialog, EmptyState, Field, Input, Modal, Select } from "@common";
 
-import {
-  AddIcon,
-  AutoAwesomeIcon,
-  DeleteIcon,
-  EditIcon,
-  MoreVertIcon,
-  TuneIcon,
-} from "@components/icons";
+import { AddIcon, AutoAwesomeIcon, DeleteIcon, EditIcon, MoreVertIcon, TuneIcon } from "@components/icons";
 
 import { useResetOnOpen } from "@hooks/useResetOnOpen";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
@@ -23,19 +16,32 @@ import { addRule, deleteRule, fetchRules, updateRule } from "@store/slices/rules
 import { cn } from "@utils/cn";
 import { showSuccess } from "@utils/toast";
 
-import type { CategorizationRule } from "@/types";
+import type { CategorizationRule, PaymentMode } from "@/types";
+
+function needlesFromInput(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function needlesDisplay(rule: CategorizationRule): string[] {
+  const list = (rule.matchContainsAny ?? []).map((s) => s.trim()).filter(Boolean);
+  if (list.length > 0) return list;
+  const single = String(rule.matchContains ?? "").trim();
+  return single ? [single] : [];
+}
+
+function formatNeedlesPreview(needles: string[]): string {
+  if (needles.length === 0) return "…";
+  return needles.map((n) => `“${n}”`).join(", ");
+}
 
 // ---------------------------------------------------------------------------
 // Rule card context menu
 // ---------------------------------------------------------------------------
 
-function RuleCardMenu({
-  onEdit,
-  onDelete,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
+function RuleCardMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -113,30 +119,36 @@ function RuleModal({ open, onClose, rule }: RuleModalProps) {
   const userId = useAppSelector((s) => s.auth.user?.uid);
 
   const [name, setName] = useState("");
-  const [matchContains, setMatchContains] = useState("");
+  const [matchInput, setMatchInput] = useState("");
   const [category, setCategory] = useState("");
+  const [paymentMode, setPaymentMode] = useState<"" | PaymentMode>("");
   const [transactionType, setTransactionType] = useState<"any" | "income" | "expense">("any");
   const [isActive, setIsActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useResetOnOpen(open, rule?.id, () => {
     setName(rule?.name ?? "");
-    setMatchContains(rule?.matchContains ?? "");
+    setMatchInput(needlesDisplay(rule ?? ({ matchContains: "" } as CategorizationRule)).join(", "));
     setCategory(rule?.category ?? "");
+    setPaymentMode((rule?.paymentMode as PaymentMode | undefined) ?? "");
     setTransactionType((rule?.transactionType as "any" | "income" | "expense") ?? "any");
     setIsActive(rule?.isActive ?? true);
   });
+
+  const needles = useMemo(() => needlesFromInput(matchInput), [matchInput]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!userId) return;
 
-    if (!name.trim() || !matchContains.trim() || !category) {
-      import("@utils/toast").then(({ showError }) =>
-        showError(UI_TEXT.PLEASE_FILL_ALL_FIELDS),
-      );
+    if (!name.trim() || needles.length === 0 || !category) {
+      import("@utils/toast").then(({ showError }) => showError(UI_TEXT.PLEASE_FILL_ALL_FIELDS));
       return;
     }
+
+    const matchContains = needles[0];
+    const matchContainsAny = needles;
+    const modePatch = paymentMode || undefined;
 
     setSubmitting(true);
     try {
@@ -147,8 +159,10 @@ function RuleModal({ open, onClose, rule }: RuleModalProps) {
             userId,
             patch: {
               name: name.trim(),
-              matchContains: matchContains.trim(),
+              matchContains,
+              matchContainsAny,
               category,
+              paymentMode: modePatch,
               transactionType,
               isActive,
             },
@@ -160,8 +174,10 @@ function RuleModal({ open, onClose, rule }: RuleModalProps) {
           id: uuidv4(),
           userId,
           name: name.trim(),
-          matchContains: matchContains.trim(),
+          matchContains,
+          matchContainsAny,
           category,
+          ...(modePatch ? { paymentMode: modePatch } : {}),
           transactionType,
           isActive,
           createdAt: new Date().toISOString(),
@@ -195,11 +211,7 @@ function RuleModal({ open, onClose, rule }: RuleModalProps) {
     >
       <form id="rule-form" onSubmit={handleSubmit} className="space-y-4">
         <Field label={UI_TEXT.RULE_NAME} required>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., Swiggy → Dining Out"
-          />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Swiggy → Dining Out" />
         </Field>
 
         <Field label={UI_TEXT.RULE_TRANSACTION_TYPE}>
@@ -213,12 +225,13 @@ function RuleModal({ open, onClose, rule }: RuleModalProps) {
           </Select>
         </Field>
 
-        <Field label={UI_TEXT.RULE_MATCH_CONTAINS} required>
+        <Field label={UI_TEXT.RULE_MATCH_CONTAINS_ANY} required>
           <Input
-            value={matchContains}
-            onChange={(e) => setMatchContains(e.target.value)}
-            placeholder='e.g., "swiggy" or "netflix"'
+            value={matchInput}
+            onChange={(e) => setMatchInput(e.target.value)}
+            placeholder={UI_TEXT.RULE_MATCH_HINT}
           />
+          <p className="text-xs text-on-surface-variant">{UI_TEXT.RULE_MATCH_HINT}</p>
         </Field>
 
         <Field label={UI_TEXT.RULE_CATEGORY} required>
@@ -230,6 +243,37 @@ function RuleModal({ open, onClose, rule }: RuleModalProps) {
             placeholder="Select category"
           />
         </Field>
+
+        <Field label={UI_TEXT.RULE_PAYMENT_MODE}>
+          <Select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as "" | PaymentMode)}>
+            <option value="">{UI_TEXT.RULE_PAYMENT_MODE_NONE}</option>
+            {PRIMARY_PAYMENT_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <div className="rounded-xl bg-surface-low/70 px-3.5 py-2.5 text-sm">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant">
+            {UI_TEXT.RULE_PREVIEW}
+          </p>
+          <p>
+            <span className="text-on-surface-variant">
+              {needles.length > 1 ? UI_TEXT.RULE_PREVIEW_CONTAINS_ANY : UI_TEXT.RULE_PREVIEW_CONTAINS}{" "}
+            </span>
+            <span className="font-mono font-semibold text-primary-main">{formatNeedlesPreview(needles)}</span>
+            <span className="text-on-surface-variant"> {UI_TEXT.RULE_PREVIEW_THEN} </span>
+            <span className="font-semibold text-brand-deep">{category || "…"}</span>
+            {paymentMode ? (
+              <>
+                <span className="text-on-surface-variant"> {UI_TEXT.RULE_PREVIEW_AND_MODE} </span>
+                <span className="font-semibold text-brand-deep">{paymentMode}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
 
         <Field label={UI_TEXT.RULE_IS_ACTIVE}>
           <label className="flex cursor-pointer items-center gap-2.5">
@@ -256,9 +300,7 @@ function RuleModal({ open, onClose, rule }: RuleModalProps) {
                 )}
               />
             </div>
-            <span className="text-sm text-brand-deep">
-              {isActive ? UI_TEXT.RULE_IS_ACTIVE : UI_TEXT.RULE_INACTIVE}
-            </span>
+            <span className="text-sm text-brand-deep">{isActive ? UI_TEXT.RULE_IS_ACTIVE : UI_TEXT.RULE_INACTIVE}</span>
           </label>
         </Field>
       </form>
@@ -314,17 +356,10 @@ export function RulesScreen() {
     <div className="mx-auto max-w-lg space-y-5 pb-4 md:max-w-2xl">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-brand-deep">
-            {UI_TEXT.RULES_TITLE}
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-brand-deep">{UI_TEXT.RULES_TITLE}</h1>
           <p className="mt-1 text-sm text-on-surface-variant">{UI_TEXT.RULES_SUBTITLE}</p>
         </div>
-        <Button
-          variant="primary"
-          size="sm"
-          leftIcon={<AddIcon className="h-4 w-4" />}
-          onClick={openAdd}
-        >
+        <Button variant="primary" size="sm" leftIcon={<AddIcon className="h-4 w-4" />} onClick={openAdd}>
           {UI_TEXT.ADD_RULE}
         </Button>
       </header>
@@ -348,24 +383,14 @@ export function RulesScreen() {
             title={UI_TEXT.NO_RULES}
             description={UI_TEXT.NO_RULES_HINT}
             action={
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<AddIcon className="h-4 w-4" />}
-                onClick={openAdd}
-              >
+              <Button variant="primary" size="sm" leftIcon={<AddIcon className="h-4 w-4" />} onClick={openAdd}>
                 {UI_TEXT.ADD_RULE}
               </Button>
             }
           />
         ) : (
           rules.map((rule) => (
-            <RuleCard
-              key={rule.id}
-              rule={rule}
-              onEdit={() => openEdit(rule)}
-              onDelete={() => setPendingDelete(rule)}
-            />
+            <RuleCard key={rule.id} rule={rule} onEdit={() => openEdit(rule)} onDelete={() => setPendingDelete(rule)} />
           ))
         )}
 
@@ -402,20 +427,13 @@ export function RulesScreen() {
 // Rule card
 // ---------------------------------------------------------------------------
 
-function RuleCard({
-  rule,
-  onEdit,
-  onDelete,
-}: {
-  rule: CategorizationRule;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
+function RuleCard({ rule, onEdit, onDelete }: { rule: CategorizationRule; onEdit: () => void; onDelete: () => void }) {
   const typeLabels: Record<string, string> = {
     any: UI_TEXT.RULE_TYPE_ANY,
     income: UI_TEXT.RULE_TYPE_INCOME,
     expense: UI_TEXT.RULE_TYPE_EXPENSE,
   };
+  const needles = needlesDisplay(rule);
 
   return (
     <article
@@ -438,6 +456,7 @@ function RuleCard({
               {rule.transactionType && rule.transactionType !== "any" && (
                 <Badge tone="info">{typeLabels[rule.transactionType]}</Badge>
               )}
+              {rule.paymentMode ? <Badge tone="neutral">{rule.paymentMode}</Badge> : null}
             </div>
           </div>
         </div>
@@ -445,12 +464,18 @@ function RuleCard({
       </div>
 
       <div className="mt-3 rounded-xl bg-surface-low/70 px-3.5 py-2.5 text-sm">
-        <span className="text-on-surface-variant">IF title contains </span>
-        <span className="font-mono font-semibold text-primary-main">
-          &ldquo;{rule.matchContains}&rdquo;
+        <span className="text-on-surface-variant">
+          {needles.length > 1 ? UI_TEXT.RULE_PREVIEW_CONTAINS_ANY : UI_TEXT.RULE_PREVIEW_CONTAINS}{" "}
         </span>
-        <span className="text-on-surface-variant"> → </span>
+        <span className="font-mono font-semibold text-primary-main">{formatNeedlesPreview(needles)}</span>
+        <span className="text-on-surface-variant"> {UI_TEXT.RULE_PREVIEW_THEN} </span>
         <span className="font-semibold text-brand-deep">{rule.category}</span>
+        {rule.paymentMode ? (
+          <>
+            <span className="text-on-surface-variant"> {UI_TEXT.RULE_PREVIEW_AND_MODE} </span>
+            <span className="font-semibold text-brand-deep">{rule.paymentMode}</span>
+          </>
+        ) : null}
       </div>
     </article>
   );

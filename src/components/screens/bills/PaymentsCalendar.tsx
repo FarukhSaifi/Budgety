@@ -9,6 +9,8 @@ import { daysInMonth, getMonthYear, startOfMonthDayOfWeek } from "@utils/dateUti
 
 import type { Bill } from "@/types";
 
+import { isBillPaid } from "./billHelpers";
+
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export interface PaymentsCalendarProps {
@@ -64,16 +66,14 @@ export function PaymentsCalendar({ bills, month, year }: PaymentsCalendarProps) 
                   key={b.id}
                   className={
                     "mt-0.5 truncate rounded px-1 py-0.5 text-[10px] font-medium " +
-                    (b.isPaid ? "bg-green-50 text-income" : "bg-primary-soft text-primary-main")
+                    (isBillPaid(b) ? "bg-green-50 text-income" : "bg-primary-soft text-primary-main")
                   }
                   title={`${b.title} · ${CURRENCY_SYMBOL}${formatCurrency(b.amount)}`}
                 >
                   {b.title}
                 </div>
               ))}
-              {items.length > 2 && (
-                <span className="block px-1 text-[10px] text-gray-400">+{items.length - 2}</span>
-              )}
+              {items.length > 2 && <span className="block px-1 text-[10px] text-gray-400">+{items.length - 2}</span>}
             </div>
           );
         })}

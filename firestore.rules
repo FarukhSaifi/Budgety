@@ -65,6 +65,11 @@ service cloud.firestore {
       allow create: if createsOwnDoc();
     }
 
+    match /netWorthItems/{docId} {
+      allow read, update, delete: if ownsDoc();
+      allow create: if createsOwnDoc();
+    }
+
     match /splitExpenses/{docId} {
       allow read, update, delete: if ownsDoc();
       allow create: if createsOwnDoc();

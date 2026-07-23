@@ -8,6 +8,7 @@ export const FIRESTORE_COLLECTIONS = {
   CATEGORIES: "categories",
   RULES: "rules",
   DEBTS: "debts",
+  NET_WORTH: "netWorthItems",
   SPLIT_EXPENSES: "splitExpenses",
   SPLIT_PARTICIPANTS: "splitParticipants",
 } as const;
@@ -29,3 +30,8 @@ export const PAYMENT_MODES_LIST = [
 
 /** Fallback tag color when a category document has no color. */
 export const DEFAULT_CATEGORY_COLOR = "#f2f2f2";
+
+/** Windowed transaction sync — recent page size for listeners + load-older. */
+export const FIRESTORE_QUERY = {
+  TRANSACTIONS_PAGE_SIZE: 250,
+} as const;

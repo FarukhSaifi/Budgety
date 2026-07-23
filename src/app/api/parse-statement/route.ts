@@ -5,18 +5,12 @@ import { ERROR_MESSAGES, STATEMENT_IMPORT } from "@constants";
 import { collectNovelCategories } from "@utils/categoryNormalize";
 
 import { parseStatementWithAi } from "@/lib/statement/aiParse";
-import {
-  extractPdfText,
-  normalizeStatementText,
-} from "@/lib/statement/extractText";
-import type {
-  ParseStatementError,
-  ParseStatementSuccess,
-  StatementFileKind,
-} from "@/lib/statement/types";
+import { extractPdfText, normalizeStatementText } from "@/lib/statement/extractText";
+import type { ParseStatementError, ParseStatementSuccess, StatementFileKind } from "@/lib/statement/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function jsonError(message: string, status: number) {
   const body: ParseStatementError = { error: message };
@@ -27,12 +21,7 @@ function detectKind(file: File): StatementFileKind | null {
   const name = file.name.toLowerCase();
   const type = (file.type || "").toLowerCase();
   if (name.endsWith(".pdf") || type === "application/pdf") return "pdf";
-  if (
-    name.endsWith(".csv") ||
-    type === "text/csv" ||
-    type === "text/plain" ||
-    type === "application/vnd.ms-excel"
-  ) {
+  if (name.endsWith(".csv") || type === "text/csv" || type === "text/plain" || type === "application/vnd.ms-excel") {
     return "csv";
   }
   return null;
@@ -59,10 +48,7 @@ export async function POST(request: Request) {
 
     if (entry.size > STATEMENT_IMPORT.MAX_FILE_BYTES) {
       const maxMb = Math.round(STATEMENT_IMPORT.MAX_FILE_BYTES / (1024 * 1024));
-      return jsonError(
-        ERROR_MESSAGES.STATEMENT_FILE_TOO_LARGE.replace("{maxMb}", String(maxMb)),
-        413,
-      );
+      return jsonError(ERROR_MESSAGES.STATEMENT_FILE_TOO_LARGE.replace("{maxMb}", String(maxMb)), 413);
     }
 
     const kind = detectKind(entry);
@@ -100,16 +86,8 @@ export async function POST(request: Request) {
     };
     return NextResponse.json(body);
   } catch (err) {
-    const message =
-      err instanceof Error && err.message
-        ? err.message
-        : ERROR_MESSAGES.PARSE_STATEMENT_FAILED;
-    const status =
-      message === ERROR_MESSAGES.AI_API_KEY_MISSING
-        ? 503
-        : message.includes("AI")
-          ? 502
-          : 500;
+    const message = err instanceof Error && err.message ? err.message : ERROR_MESSAGES.PARSE_STATEMENT_FAILED;
+    const status = message === ERROR_MESSAGES.AI_API_KEY_MISSING ? 503 : message.includes("AI") ? 502 : 500;
     return jsonError(message, status);
   }
 }

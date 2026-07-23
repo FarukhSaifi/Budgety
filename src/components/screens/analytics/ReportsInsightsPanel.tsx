@@ -563,7 +563,7 @@ export function ReportsInsightsPanel() {
                   <span
                     className={cn(
                       "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-                      insight.tone === "danger" && "bg-red-100 text-expense",
+                      insight.tone === "danger" && "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100",
                       insight.tone === "success" && "bg-green-100 text-income",
                       insight.tone === "info" && "bg-primary-soft text-primary-main",
                       insight.tone === "neutral" && "bg-surface-high text-on-surface-variant",

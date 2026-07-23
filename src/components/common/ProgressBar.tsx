@@ -32,7 +32,7 @@ export function ProgressBar({
     <div className={cn("h-2 w-full overflow-hidden rounded-full bg-gray-100", trackClassName, className)}>
       <div
         className={cn(
-          "h-full rounded-full transition-all",
+          "motion-progress-fill h-full rounded-full",
           fillColor ? undefined : (colorClassName ?? derived),
         )}
         style={{

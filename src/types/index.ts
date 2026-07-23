@@ -80,11 +80,28 @@ export interface CategorizationRule {
   id: string;
   userId: string;
   name: string;
-  /** Case-insensitive substring match against transaction title. */
+  /** Legacy single needle (case-insensitive substring). Prefer matchContainsAny. */
   matchContains: string;
+  /** OR list of substrings; if set/non-empty, used instead of matchContains alone. */
+  matchContainsAny?: string[];
   category: string;
+  /** Optional THEN payment mode. */
+  paymentMode?: PaymentMode;
   transactionType?: TransactionType | "any";
   isActive: boolean;
+  createdAt?: string;
+}
+
+/** Manual net-worth holding (bank, investment, asset). */
+export type NetWorthKind = "bank" | "cash" | "investment" | "property" | "vehicle" | "other_asset";
+
+export interface NetWorthItem {
+  id: string;
+  userId: string;
+  name: string;
+  kind: NetWorthKind;
+  balance: number;
+  updatedAt?: string;
   createdAt?: string;
 }
 
@@ -186,7 +203,7 @@ export interface AuthUser {
   photoURL: string | null;
 }
 
-export type ViewPeriod = "monthly" | "yearly" | "all";
+export type ViewPeriod = "monthly" | "yearly" | "all" | "range";
 export type ViewType = "list" | "calendar";
 
 /**
@@ -225,8 +242,14 @@ export interface UiFiltersState {
   viewType: ViewType;
   selectedMonth: number;
   selectedYear: number;
+  /** Inclusive ISO date (YYYY-MM-DD) when viewPeriod is `range`. */
+  rangeStart: string;
+  /** Inclusive ISO date (YYYY-MM-DD) when viewPeriod is `range`. */
+  rangeEnd: string;
   selectedCategory: string;
   searchQuery: string;
+  /** Transactions type filter pills (persists across remounts). */
+  typeFilter: TransactionFilter;
   /** @deprecated Kept temporarily for import bulk helpers; prefer categoriesSlice. */
   categories: CategoryState;
 }

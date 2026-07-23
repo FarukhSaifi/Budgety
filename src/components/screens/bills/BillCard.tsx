@@ -6,6 +6,7 @@ import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
 
 import {
   AutorenewIcon,
+  CheckIcon,
   DeleteIcon,
   EditIcon,
   MoreVertIcon,
@@ -14,6 +15,7 @@ import {
 } from "@components/icons";
 
 import { cn } from "@utils/cn";
+import { flashSuccess, hapticTap } from "@utils/feedback";
 
 import type { Bill } from "@/types";
 
@@ -42,6 +44,7 @@ function StatusIcon({ status }: { status: BillDisplayStatus }) {
   const cls = "h-3 w-3";
   if (status === "overdue") return <WarningIcon className={cls} />;
   if (status === "auto_pay") return <AutorenewIcon className={cls} />;
+  if (status === "paid") return <CheckIcon className={cn(cls, "motion-check-draw")} />;
   return <ScheduleIcon className={cls} />;
 }
 
@@ -71,6 +74,21 @@ function statusLabel(status: BillDisplayStatus): string {
   }
 }
 
+function usePaidFlash(paid: boolean) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const prevPaid = useRef(paid);
+
+  useEffect(() => {
+    if (!prevPaid.current && paid) {
+      flashSuccess(cardRef.current);
+      hapticTap();
+    }
+    prevPaid.current = paid;
+  }, [paid]);
+
+  return cardRef;
+}
+
 function BillActionsMenu({
   onEdit,
   onDelete,
@@ -98,26 +116,23 @@ function BillActionsMenu({
     <div className="relative" ref={ref}>
       <button
         type="button"
-        className="rounded-lg p-1.5 text-gray-400 hover:bg-surface-low hover:text-brand-deep"
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-brand-deep"
         aria-label={UI_TEXT.MORE_OPTIONS}
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
+        aria-expanded={open}
       >
         <MoreVertIcon className="h-4 w-4" />
       </button>
       {open && (
-        <div className="absolute right-0 top-8 z-20 min-w-[120px] overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-elevated">
+        <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-xl border border-outline-variant/60 bg-card shadow-elevated">
           {onEdit && (
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-brand-deep hover:bg-surface-low"
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
                 setOpen(false);
                 onEdit();
               }}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-brand-deep hover:bg-surface-low"
             >
               <EditIcon className="h-4 w-4" />
               {UI_TEXT.EDIT}
@@ -126,12 +141,11 @@ function BillActionsMenu({
           {onDelete && (
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-expense hover:bg-rose-50"
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
                 setOpen(false);
                 onDelete();
               }}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-expense hover:bg-expense-soft"
             >
               <DeleteIcon className="h-4 w-4" />
               {UI_TEXT.DELETE}
@@ -160,6 +174,7 @@ function MobileBillCard({
   const { Icon, wrap } = resolveBillIcon(title, bill.category);
   const dueText = formatDueRelative(bill.dueDate);
   const showPay = !paid;
+  const cardRef = usePaidFlash(paid);
 
   return (
     <div className={cn("flex gap-3", className)}>
@@ -173,6 +188,7 @@ function MobileBillCard({
       </span>
 
       <div
+        ref={cardRef}
         className={cn(
           "relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/50 bg-white/80 p-4 shadow-card backdrop-blur-sm",
           overdue && "pl-5",
@@ -193,7 +209,7 @@ function MobileBillCard({
             <p className="mt-0.5 truncate text-xs text-gray-500">{vendor}</p>
           </div>
           <div className="flex shrink-0 items-start gap-1">
-            <p className="text-lg font-bold text-brand-deep">
+            <p className="text-lg font-bold tabular-nums text-brand-deep">
               {CURRENCY_SYMBOL}
               {formatCurrency(bill.amount)}
             </p>
@@ -207,7 +223,7 @@ function MobileBillCard({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest",
+              "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-widest",
               statusBadgeClass(display),
             )}
           >
@@ -251,9 +267,11 @@ function DesktopBillCard({
   const { Icon, wrap } = resolveBillIcon(title, bill.category);
   const dueText = formatDueRelative(bill.dueDate);
   const showPay = !paid;
+  const cardRef = usePaidFlash(paid);
 
   return (
     <div
+      ref={cardRef}
       className={cn(
         "flex flex-col justify-between rounded-xl border border-white/60 bg-white/90 p-4 shadow-card",
         className,
@@ -277,7 +295,7 @@ function DesktopBillCard({
           </div>
         </div>
         <div className="flex shrink-0 items-start gap-1">
-          <span className="text-sm font-bold text-brand-deep">
+          <span className="text-sm font-bold tabular-nums text-brand-deep">
             {CURRENCY_SYMBOL}
             {formatCurrency(bill.amount)}
           </span>
@@ -291,7 +309,7 @@ function DesktopBillCard({
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
         <span
           className={cn(
-            "inline-flex max-w-full items-center gap-1 truncate rounded px-2 py-1 text-[11px] font-semibold uppercase tracking-wide",
+            "inline-flex max-w-full items-center gap-1 truncate rounded px-2 py-1 text-xs font-semibold uppercase tracking-wide",
             overdue
               ? "bg-rose-100 text-expense"
               : paid
@@ -300,6 +318,7 @@ function DesktopBillCard({
           )}
         >
           {overdue && <WarningIcon className="h-3.5 w-3.5 shrink-0" />}
+          {paid && <CheckIcon className="motion-check-draw h-3.5 w-3.5 shrink-0" />}
           {statusLabel(display)}
           {" — "}
           {dueText}

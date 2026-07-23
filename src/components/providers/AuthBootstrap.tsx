@@ -18,15 +18,12 @@ import {
 import { clearChat } from "@store/slices/chatSlice";
 import { clearDebts, markDebtsLoadFailed, setDebts } from "@store/slices/debtSlice";
 import { clearGoals, markGoalsLoadFailed, setGoals } from "@store/slices/goalsSlice";
+import { clearNetWorth, markNetWorthLoadFailed, setNetWorthItems } from "@store/slices/netWorthSlice";
 import { clearRecurring, markRecurringLoadFailed, setRecurring } from "@store/slices/recurringSlice";
 import { clearRules, markRulesLoadFailed, setRules } from "@store/slices/rulesSlice";
-import {
-  clearSplit,
-  markSplitLoadFailed,
-  setSplitExpenses,
-  setSplitParticipants,
-} from "@store/slices/splitSlice";
+import { clearSplit, markSplitLoadFailed, setSplitExpenses, setSplitParticipants } from "@store/slices/splitSlice";
 import { clearTransactions, markTransactionsLoadFailed, setTransactions } from "@store/slices/transactionsSlice";
+import { fetchUserData } from "@store/thunks/fetchUserData";
 import { migrateLocalCategoriesToFirestore } from "@utils/categoryStorage";
 import { showError } from "@utils/toast";
 
@@ -61,6 +58,7 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
       dispatch(clearCategories());
       dispatch(clearRules());
       dispatch(clearDebts());
+      dispatch(clearNetWorth());
       dispatch(clearSplit());
       dispatch(clearChat());
       return undefined;
@@ -85,6 +83,9 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
         // Listener still hydrates; seed failure is non-fatal.
       }
     })();
+
+    // Priority bootstrap (recent txs + budgets first), then secondary collections.
+    void dispatch(fetchUserData(uid));
 
     const unsubs = [
       firestoreListeners.transactions(
@@ -126,6 +127,11 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
         uid,
         (items) => dispatch(setDebts(items)),
         makeOnError((message) => dispatch(markDebtsLoadFailed(message))),
+      ),
+      firestoreListeners.netWorthItems(
+        uid,
+        (items) => dispatch(setNetWorthItems(items)),
+        makeOnError((message) => dispatch(markNetWorthLoadFailed(message))),
       ),
       firestoreListeners.splitParticipants(
         uid,

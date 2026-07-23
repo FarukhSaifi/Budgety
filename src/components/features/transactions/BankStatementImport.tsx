@@ -42,14 +42,18 @@ import { TransactionModal } from "@components/screens/transactions/TransactionMo
 import { useDuplicateKeys } from "@hooks/useDuplicateKeys";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addCategoriesBulk } from "@store/slices/categoriesSlice";
-import { addTransactionsBulk, deleteImportedTransactions } from "@store/slices/transactionsSlice";
+import {
+  addTransactionsBulk,
+  deleteImportedTransactions,
+  deleteTransactionsByIds,
+} from "@store/slices/transactionsSlice";
 import { setSearchQuery, setSelectedCategory, setViewPeriod } from "@store/slices/uiSlice";
 import { detectColumnMapping, extractTransactionData } from "@utils/bankStatementParser";
 import { collectNovelCategories } from "@utils/categoryNormalize";
 import { cn } from "@utils/cn";
 import { getMonthYear } from "@utils/dateUtils";
 import { filterDuplicates } from "@utils/duplicateDetection";
-import { enrichStagingCategoriesWithAi } from "@utils/enrichStagingCategories";
+import { applySmartRulesToStaging, enrichStagingCategoriesWithAi } from "@utils/enrichStagingCategories";
 import {
   prepareRowForDuplicateCheck,
   rawRowsToStaging,
@@ -113,6 +117,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   const userId = useAppSelector((s) => s.auth.user?.uid);
   const transactions = useAppSelector((s) => s.transactions.items);
   const catalog = useAppSelector((s) => s.categories.items);
+  const rules = useAppSelector((s) => s.rules.items);
 
   const [file, setFile] = useState<File | null>(null);
   const [staging, setStaging] = useState<StagingRow[]>([]);
@@ -120,11 +125,15 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   const [importing, setImporting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
+  const [lastImportBatchIds, setLastImportBatchIds] = useState<string[]>([]);
+  const [parseError, setParseError] = useState<string | null>(null);
   const [showCleanupDialog, setShowCleanupDialog] = useState(false);
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
   const [sortKey, setSortKey] = useState<ImportPreviewSortKey>(IMPORT_PREVIEW_SORT.DEFAULT_KEY);
   const [sortDirection, setSortDirection] = useState<SortDirection>(IMPORT_PREVIEW_SORT.DEFAULT_DIRECTION);
+  const [canRetryParse, setCanRetryParse] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastFailedFileRef = useRef<File | null>(null);
 
   const duplicateKeys = useDuplicateKeys(staging, transactions);
 
@@ -213,6 +222,9 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     setFile(null);
     setParsing(false);
     setImporting(false);
+    setParseError(null);
+    lastFailedFileRef.current = null;
+    setCanRetryParse(false);
     if (inputRef.current) inputRef.current.value = "";
   }, []);
 
@@ -255,7 +267,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         throw new Error(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS);
       }
 
-      const rows = parsedToStaging(data.transactions);
+      const rows = applySmartRulesToStaging(parsedToStaging(data.transactions), rules);
       const discovered =
         data.meta?.discoveredCategories ??
         collectNovelCategories(rows, {
@@ -264,7 +276,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         });
       return { rows, discovered };
     },
-    [catalogLists.expense, catalogLists.income],
+    [catalogLists.expense, catalogLists.income, rules],
   );
 
   const parseExcelClient = useCallback(
@@ -323,9 +335,9 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         income: catalogLists.income,
         expense: catalogLists.expense,
       };
-      return enrichStagingCategoriesWithAi(stagingRows, existing);
+      return enrichStagingCategoriesWithAi(stagingRows, existing, rules);
     },
-    [catalogLists.expense, catalogLists.income],
+    [catalogLists.expense, catalogLists.income, rules],
   );
 
   const handleFile = useCallback(
@@ -343,6 +355,9 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       setFile(selected);
       setParsing(true);
       setStaging([]);
+      setParseError(null);
+      lastFailedFileRef.current = selected;
+      setCanRetryParse(true);
 
       try {
         const name = selected.name.toLowerCase();
@@ -365,8 +380,11 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
         persistDiscoveredCategories(discovered);
         applyStaging(rows);
+        lastFailedFileRef.current = null;
+        setCanRetryParse(false);
       } catch (err) {
         const message = err instanceof Error && err.message ? err.message : ERROR_MESSAGES.PARSE_STATEMENT_FAILED;
+        setParseError(message);
         showError(message);
         setFile(null);
       } finally {
@@ -393,7 +411,11 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   }, []);
 
   const handleCategoryChange = useCallback((key: string, category: string) => {
-    setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, category } : row)));
+    setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, category, userOverridden: true } : row)));
+  }, []);
+
+  const handleFieldChange = useCallback((key: string, patch: Partial<StagingRow>) => {
+    setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch, userOverridden: true } : row)));
   }, []);
 
   const focusUiOnImported = useCallback(
@@ -448,6 +470,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       const saved = await dispatch(addTransactionsBulk(prepared)).unwrap();
       const count = saved.length;
       setImportedCount(count);
+      setLastImportBatchIds(saved.map((t) => t.id));
       focusUiOnImported(saved);
       resetImport();
 
@@ -462,7 +485,6 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         showSuccess(UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(count)));
       }
       setTimeout(() => setImportedCount(0), TIMEOUTS.IMPORT_SUCCESS);
-      onClose?.();
     } catch (err) {
       const raw =
         typeof err === "string"
@@ -484,11 +506,24 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     const count = importedTransactionsCount;
     try {
       await dispatch(deleteImportedTransactions(userId)).unwrap();
+      setLastImportBatchIds([]);
       showSuccess(UI_TEXT.CLEANUP_SUCCESS.replace("{count}", count.toString()));
     } catch {
       showError(ERROR_MESSAGES.SAVE_FAILED);
     } finally {
       setShowCleanupDialog(false);
+    }
+  };
+
+  const handleUndoLastImport = async () => {
+    if (!lastImportBatchIds.length) return;
+    try {
+      const removed = await dispatch(deleteTransactionsByIds(lastImportBatchIds)).unwrap();
+      setLastImportBatchIds([]);
+      setImportedCount(0);
+      showSuccess(UI_TEXT.IMPORT_UNDO_SUCCESS.replace("{count}", String(removed.length)));
+    } catch {
+      showError(ERROR_MESSAGES.SAVE_FAILED);
     }
   };
 
@@ -573,8 +608,60 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       <ImportStepper activeStep={activeStep} />
 
       {importedCount > 0 && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 dark:text-income">
-          {UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(importedCount))}
+        <div className="flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 dark:text-income sm:flex-row sm:items-center sm:justify-between">
+          <span>{UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(importedCount))}</span>
+          <div className="flex flex-wrap gap-2">
+            {lastImportBatchIds.length > 0 && (
+              <Button type="button" variant="outline" size="sm" onClick={() => void handleUndoLastImport()}>
+                {UI_TEXT.IMPORT_UNDO_LAST}
+              </Button>
+            )}
+            {onClose && (
+              <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+                {UI_TEXT.DONE}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {parseError && !parsing && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100 sm:flex-row sm:items-start sm:justify-between"
+        >
+          <div className="flex items-start gap-3">
+            <WarningIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
+            <div>
+              <p className="font-semibold">{UI_TEXT.IMPORT_PARSE_ERROR_TITLE}</p>
+              <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">{parseError}</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!canRetryParse}
+              onClick={() => {
+                const retry = lastFailedFileRef.current;
+                if (retry) void handleFile(retry);
+              }}
+            >
+              {UI_TEXT.IMPORT_PARSE_RETRY}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setParseError(null);
+                inputRef.current?.click();
+              }}
+            >
+              {UI_TEXT.IMPORT_PARSE_CHOOSE_ANOTHER}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -742,6 +829,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                     duplicateReason={duplicateKeys.get(row.key)}
                     onToggle={handleToggle}
                     onCategoryChange={handleCategoryChange}
+                    onFieldChange={handleFieldChange}
                     variant="table"
                   />
                 ))}
@@ -758,6 +846,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                 duplicateReason={duplicateKeys.get(row.key)}
                 onToggle={handleToggle}
                 onCategoryChange={handleCategoryChange}
+                onFieldChange={handleFieldChange}
                 variant="card"
               />
             ))}

@@ -7,6 +7,7 @@ import categoriesReducer from "./slices/categoriesSlice";
 import chatReducer from "./slices/chatSlice";
 import debtReducer from "./slices/debtSlice";
 import goalsReducer from "./slices/goalsSlice";
+import netWorthReducer from "./slices/netWorthSlice";
 import recurringReducer from "./slices/recurringSlice";
 import rulesReducer from "./slices/rulesSlice";
 import splitReducer from "./slices/splitSlice";
@@ -25,6 +26,7 @@ export const makeStore = () =>
       categories: categoriesReducer,
       rules: rulesReducer,
       debt: debtReducer,
+      netWorth: netWorthReducer,
       split: splitReducer,
       chat: chatReducer,
       ui: uiReducer,

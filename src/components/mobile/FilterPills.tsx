@@ -91,7 +91,7 @@ export function FilterPills<T extends string = string>({
             aria-checked={active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "min-h-10 min-w-0 flex-1 basis-0 truncate rounded-full px-1.5 py-2 text-center text-xs font-semibold transition-all sm:px-2 sm:text-sm",
+              "min-h-10 min-w-0 flex-1 basis-0 truncate rounded-full px-1.5 py-2 text-center text-xs font-semibold transition-all duration-[160ms] ease-out sm:px-2 sm:text-sm",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring) focus-visible:ring-offset-1",
               active
                 ? ACTIVE_TONE[tone]

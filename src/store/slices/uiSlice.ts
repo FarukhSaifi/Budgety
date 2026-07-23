@@ -2,9 +2,12 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 import { VIEW_PERIODS, VIEW_TYPES } from "@constants";
 
-import type { CategoryState, NavTab, UiFiltersState, ViewPeriod, ViewType } from "@/types";
+import { todayStorage } from "@utils/dateUtils";
+
+import type { CategoryState, NavTab, TransactionFilter, UiFiltersState, ViewPeriod, ViewType } from "@/types";
 
 const now = new Date();
+const today = todayStorage();
 
 const initialState: UiFiltersState = {
   activeTab: "overview",
@@ -12,8 +15,11 @@ const initialState: UiFiltersState = {
   viewType: VIEW_TYPES.LIST as ViewType,
   selectedMonth: now.getMonth() + 1,
   selectedYear: now.getFullYear(),
+  rangeStart: today,
+  rangeEnd: today,
   selectedCategory: "",
   searchQuery: "",
+  typeFilter: "all",
   categories: { income: [], expense: [] },
 };
 
@@ -36,6 +42,8 @@ const uiSlice = createSlice({
         viewPeriod: ViewPeriod;
         selectedMonth?: number;
         selectedYear?: number;
+        rangeStart?: string;
+        rangeEnd?: string;
       }>,
     ) {
       state.viewPeriod = action.payload.viewPeriod;
@@ -45,6 +53,17 @@ const uiSlice = createSlice({
       if (action.payload.selectedYear != null) {
         state.selectedYear = action.payload.selectedYear;
       }
+      if (action.payload.rangeStart != null) {
+        state.rangeStart = action.payload.rangeStart;
+      }
+      if (action.payload.rangeEnd != null) {
+        state.rangeEnd = action.payload.rangeEnd;
+      }
+    },
+    setDateRange(state, action: PayloadAction<{ rangeStart: string; rangeEnd: string }>) {
+      state.viewPeriod = VIEW_PERIODS.RANGE as ViewPeriod;
+      state.rangeStart = action.payload.rangeStart;
+      state.rangeEnd = action.payload.rangeEnd;
     },
     setViewType(state, action: PayloadAction<ViewType>) {
       state.viewType = action.payload;
@@ -55,10 +74,10 @@ const uiSlice = createSlice({
     setSearchQuery(state, action: PayloadAction<string>) {
       state.searchQuery = action.payload;
     },
-    addCategory(
-      state,
-      action: PayloadAction<{ name: string; type: "income" | "expense" }>,
-    ) {
+    setTypeFilter(state, action: PayloadAction<TransactionFilter>) {
+      state.typeFilter = action.payload;
+    },
+    addCategory(state, action: PayloadAction<{ name: string; type: "income" | "expense" }>) {
       const trimmed = action.payload.name.trim().replace(/\s+/g, " ");
       if (!trimmed) return;
       const list = state.categories[action.payload.type];
@@ -76,7 +95,9 @@ const uiSlice = createSlice({
     ) {
       const pushUnique = (list: string[], names: string[] | undefined) => {
         (names ?? []).forEach((name) => {
-          const trimmed = String(name ?? "").trim().replace(/\s+/g, " ");
+          const trimmed = String(name ?? "")
+            .trim()
+            .replace(/\s+/g, " ");
           if (!trimmed) return;
           if (!list.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
             list.push(trimmed);
@@ -93,9 +114,11 @@ export const {
   setActiveTab,
   setCategories,
   setViewPeriod,
+  setDateRange,
   setViewType,
   setSelectedCategory,
   setSearchQuery,
+  setTypeFilter,
   addCategory,
   addCategoriesBulk,
 } = uiSlice.actions;

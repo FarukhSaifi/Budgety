@@ -38,13 +38,13 @@ function markHydrated() {
 }
 
 /**
- * Hydrates viewPeriod/month/year from localStorage, persists changes, and
+ * Hydrates viewPeriod/month/year/range from localStorage, persists changes, and
  * one-shot auto-adjusts when the active filter hides all loaded transactions
  * (typical after import into a non-current statement month + refresh).
  */
 export function useUiPeriodSync(): void {
   const dispatch = useAppDispatch();
-  const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
+  const { viewPeriod, selectedMonth, selectedYear, rangeStart, rangeEnd } = useAppSelector((s) => s.ui);
   const transactions = useAppSelector((s) => s.transactions.items);
   const txStatus = useAppSelector((s) => s.transactions.status);
 
@@ -62,6 +62,8 @@ export function useUiPeriodSync(): void {
           viewPeriod: persisted.viewPeriod,
           selectedMonth: persisted.selectedMonth,
           selectedYear: persisted.selectedYear,
+          rangeStart: persisted.rangeStart,
+          rangeEnd: persisted.rangeEnd,
         }),
       );
     }
@@ -71,8 +73,14 @@ export function useUiPeriodSync(): void {
   // Persist after hydration so SSR defaults cannot overwrite a stored import month.
   useEffect(() => {
     if (!hydrated) return;
-    savePersistedUiPeriod({ viewPeriod, selectedMonth, selectedYear });
-  }, [hydrated, viewPeriod, selectedMonth, selectedYear]);
+    savePersistedUiPeriod({
+      viewPeriod,
+      selectedMonth,
+      selectedYear,
+      rangeStart,
+      rangeEnd,
+    });
+  }, [hydrated, viewPeriod, selectedMonth, selectedYear, rangeStart, rangeEnd]);
 
   // After Firestore data arrives: if filter shows nothing but data exists,
   // jump to the most recent transaction month (once per mount).
@@ -85,7 +93,14 @@ export function useUiPeriodSync(): void {
       return;
     }
 
-    const filtered = filterTransactionsByPeriod(transactions, viewPeriod, selectedMonth, selectedYear);
+    const periodOptions = { rangeStart, rangeEnd };
+    const filtered = filterTransactionsByPeriod(
+      transactions,
+      viewPeriod,
+      selectedMonth,
+      selectedYear,
+      periodOptions,
+    );
     if (filtered.length > 0) {
       didAutoAdjustRef.current = true;
       return;
@@ -100,6 +115,7 @@ export function useUiPeriodSync(): void {
           persisted.viewPeriod,
           persisted.selectedMonth,
           persisted.selectedYear,
+          { rangeStart: persisted.rangeStart, rangeEnd: persisted.rangeEnd },
         );
         if (persistedFiltered.length > 0) {
           didAutoAdjustRef.current = true;
@@ -108,6 +124,8 @@ export function useUiPeriodSync(): void {
               viewPeriod: persisted.viewPeriod,
               selectedMonth: persisted.selectedMonth,
               selectedYear: persisted.selectedYear,
+              rangeStart: persisted.rangeStart,
+              rangeEnd: persisted.rangeEnd,
             }),
           );
           return;
@@ -130,5 +148,15 @@ export function useUiPeriodSync(): void {
         selectedYear: recent.year,
       }),
     );
-  }, [hydrated, dispatch, transactions, txStatus, viewPeriod, selectedMonth, selectedYear]);
+  }, [
+    hydrated,
+    dispatch,
+    transactions,
+    txStatus,
+    viewPeriod,
+    selectedMonth,
+    selectedYear,
+    rangeStart,
+    rangeEnd,
+  ]);
 }

@@ -13,6 +13,8 @@ import { useAppSelector } from "@store/hooks";
 import { selectSpendingByCategory } from "@store/selectors/periodSelectors";
 import { exportChartData } from "@utils/exportUtils";
 
+import { CHART_THEME_COLORS } from "@/lib/theme";
+
 type ChartDatum = {
   name: string;
   value: number;
@@ -94,10 +96,14 @@ export default function CategoryBreakdownChart({ className = "" }: CategoryBreak
                   innerRadius={CHART_CONFIG.PIE_INNER_RADIUS}
                   outerRadius={CHART_CONFIG.PIE_OUTER_RADIUS}
                   paddingAngle={2}
-                  strokeWidth={0}
+                  strokeWidth={1}
                 >
                   {chartData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
+                    <Cell
+                      key={entry.name}
+                      fill={entry.color}
+                      stroke={CHART_THEME_COLORS.SEGMENT_STROKE}
+                    />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />

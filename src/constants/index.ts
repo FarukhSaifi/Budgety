@@ -228,7 +228,7 @@ export const CATEGORY_COLORS = {
   [EXPENSE_CATEGORIES.MISC_EXPENSES]: "#95a5a6",
   [EXPENSE_CATEGORIES.MUTUAL_FUNDS]: "#2980b9",
   [EXPENSE_CATEGORIES.NPS]: "#1abc9c",
-  [EXPENSE_CATEGORIES.OTHER]: "#d2d2d2",
+  [EXPENSE_CATEGORIES.OTHER]: "#6B7280",
   [EXPENSE_CATEGORIES.PERSONAL_CARE]: "#ff9800",
   [EXPENSE_CATEGORIES.PPF]: "#16a085",
   [EXPENSE_CATEGORIES.REIT]: "#27ae60",
@@ -246,17 +246,20 @@ export const CATEGORY_COLORS = {
 };
 
 // Fallback for category tags when category is not in CATEGORY_COLORS (e.g. user-added)
-export const DEFAULT_CATEGORY_TAG_COLOR = "#f2f2f2";
+export const DEFAULT_CATEGORY_TAG_COLOR = "#6B7280";
 
 // View Periods
 export const VIEW_PERIODS = {
   MONTHLY: "monthly",
   YEARLY: "yearly",
   ALL: "all",
+  RANGE: "range",
 } as const;
 
-/** localStorage key for dashboard period (viewPeriod / month / year). */
+/** localStorage key for dashboard period (viewPeriod / month / year / range). */
 export const UI_PERIOD_STORAGE_KEY = "budgety.ui.period";
+/** localStorage key for Ask Budgety AI consent. */
+export const ASSISTANT_CONSENT_STORAGE_KEY = "budgety.assistant.consent.v1";
 
 /** Sentinel value in category selects for opening the “add category” flow. */
 export const ADD_CATEGORY_OPTION_VALUE = "__ADD_NEW_CATEGORY__";
@@ -266,6 +269,7 @@ export const VIEW_PERIOD_LABELS = {
   [VIEW_PERIODS.MONTHLY]: "Monthly",
   [VIEW_PERIODS.YEARLY]: "Yearly",
   [VIEW_PERIODS.ALL]: "All Time",
+  [VIEW_PERIODS.RANGE]: "Custom Range",
 };
 
 // View Types
@@ -278,6 +282,12 @@ export const VIEW_TYPES = {
 export const VIEW_TYPE_LABELS = {
   [VIEW_TYPES.LIST]: "List View",
   [VIEW_TYPES.CALENDAR]: "Calendar View",
+};
+
+/** Compact labels for List | Calendar segmented control. */
+export const VIEW_TYPE_SHORT_LABELS = {
+  [VIEW_TYPES.LIST]: "List",
+  [VIEW_TYPES.CALENDAR]: "Calendar",
 };
 
 // View control variants (which section is using the controls)
@@ -486,6 +496,15 @@ export const UI_TEXT = {
   CLEANUP_IMPORTED_TITLE: "Delete All Imported Transactions",
   NO_IMPORTED_TRANSACTIONS: "No imported transactions found.",
   CLEANUP_SUCCESS: "Successfully deleted {count} imported transaction(s).",
+  IMPORT_UNDO_LAST: "Undo last import",
+  IMPORT_UNDO_SUCCESS: "Undid last import ({count} transaction(s) removed).",
+  IMPORT_PARSE_ERROR_TITLE: "Couldn’t read this statement",
+  IMPORT_PARSE_RETRY: "Retry",
+  IMPORT_PARSE_CHOOSE_ANOTHER: "Choose another file",
+  IMPORT_EDIT_TITLE: "Description",
+  IMPORT_EDIT_AMOUNT: "Amount",
+  IMPORT_EDIT_DATE: "Date",
+  IMPORT_EDIT_TYPE: "Type",
   GOAL_ACHIEVED: "Goal Achieved! 🎉",
   UPDATE_AMOUNT: "Update amount",
   NO_END_DATE: "No end date",
@@ -502,6 +521,17 @@ export const UI_TEXT = {
   FILTER_BY_CATEGORY: "Filter by Category:",
   ALL_CATEGORIES: "All Categories",
   CLEAR_FILTER: "Clear Filter",
+  CLEAR_ALL_FILTERS: "Clear",
+  SEARCHING_ALL_TRANSACTIONS: "Searching all transactions",
+  CATEGORY_FILTER_LABEL: "Category",
+  ACTIVE_FILTERS_LABEL: "Active filters",
+  RANGE_START_LABEL: "From",
+  RANGE_END_LABEL: "To",
+  CUSTOM_RANGE: "Custom Range",
+  CALENDAR_DAY_TRANSACTIONS: "Day transactions",
+  PREVIOUS_CALENDAR_MONTH: "Previous month",
+  NEXT_CALENDAR_MONTH: "Next month",
+  GOAL_COMPLETE_BADGE: "Complete",
   SEARCH_PLACEHOLDER: "Search transactions, categories, amounts...",
   SEARCH_LABEL: "Search",
   CLEAR_SEARCH: "Clear",
@@ -798,14 +828,66 @@ export const UI_TEXT = {
   STRATEGY_AVALANCHE: "Avalanche",
   STRATEGY_SNOWBALL_HINT: "Pay off smallest balances first for quick wins.",
   STRATEGY_AVALANCHE_HINT: "Pay off highest interest rates first to save more.",
+  STRATEGY_COMPARE_TITLE: "Snowball vs Avalanche",
+  STRATEGY_COMPARE_SUBTITLE: "Same extra payment, two payoff paths.",
+  PAYOFF_ORDER: "Payoff order",
   PAYOFF_CALCULATOR: "Payoff Calculator",
   EXTRA_MONTHLY_PAYMENT: "Extra Monthly Payment",
   ESTIMATED_DEBT_FREE: "Estimated Debt-Free Date",
   MONTHS_TO_PAYOFF: "Months to Debt-Free",
   TOTAL_DEBT: "Total Debt",
+  DEBT_INFINITY_HINT:
+    "Minimum payments don’t cover interest yet. Raise the extra payment or rates may keep balances growing.",
   SUCCESS_DEBT_ADDED: "Debt added successfully!",
   SUCCESS_DEBT_UPDATED: "Debt updated successfully!",
   SUCCESS_DEBT_DELETED: "Debt deleted successfully",
+
+  // Net worth
+  NET_WORTH_ASSETS: "Assets",
+  NET_WORTH_DEBT: "Debt",
+  NET_WORTH_MANAGE: "Manage assets",
+  NET_WORTH_ADD: "Add asset",
+  NET_WORTH_EDIT: "Edit asset",
+  NET_WORTH_DELETE_TITLE: "Delete asset",
+  NET_WORTH_CONFIRM_DELETE: "Remove this asset from your net worth?",
+  NET_WORTH_NAME: "Asset name",
+  NET_WORTH_KIND: "Type",
+  NET_WORTH_BALANCE: "Balance",
+  NET_WORTH_EMPTY: "Add bank, cash, or investment balances to see true net worth.",
+  NET_WORTH_SHOW_BREAKDOWN: "Show breakdown",
+  NET_WORTH_HIDE_BREAKDOWN: "Hide breakdown",
+  SUCCESS_NET_WORTH_ADDED: "Asset added!",
+  SUCCESS_NET_WORTH_UPDATED: "Asset updated!",
+  SUCCESS_NET_WORTH_DELETED: "Asset removed",
+  NET_WORTH_KIND_BANK: "Bank",
+  NET_WORTH_KIND_CASH: "Cash",
+  NET_WORTH_KIND_INVESTMENT: "Investment",
+  NET_WORTH_KIND_PROPERTY: "Property",
+  NET_WORTH_KIND_VEHICLE: "Vehicle",
+  NET_WORTH_KIND_OTHER: "Other",
+
+  // Forecast
+  CASH_FLOW_FORECAST: "Cash flow outlook",
+  CASH_FLOW_FORECAST_SUBTITLE: "Calm projection from recent monthly pace — not a promise.",
+  CASH_FLOW_FORECAST_HINT: "Next {months} months assume recent average income and spend.",
+  CASH_FLOW_NEAR_TERM: "Near-term cash (bills)",
+  CASH_FLOW_NEAR_TERM_HINT: "Current balance minus unpaid bills and recurring due by {date}.",
+  CASH_FLOW_BILLS_DUE: "Bills due",
+  CASH_FLOW_PROJECTED_LEFT: "Projected left",
+  LOAD_OLDER_TRANSACTIONS: "Load older transactions",
+  LOADING_OLDER_TRANSACTIONS: "Loading older…",
+
+  // Assistant
+  ASSISTANT_CONSENT_TITLE: "Ask Budgety with your numbers",
+  ASSISTANT_CONSENT_BODY:
+    "Answers use a summary of your balances, budgets, and recent spend. Nothing is sold or used to train public models beyond this request.",
+  ASSISTANT_CONSENT_ACCEPT: "Continue",
+  ASSISTANT_SUGGESTED_PROMPTS: "Try asking",
+  ASSISTANT_PLACEHOLDER: "Ask about spending, safe-to-spend, or goals…",
+  ASSISTANT_EMPTY_HINT: "Ask about spending, safe-to-spend, or goals.",
+  ASSISTANT_SEND: "Send",
+  ASSISTANT_ERROR: "Couldn’t get an answer. Try again in a moment.",
+  ASSISTANT_DISCLAIMER: "AI can be wrong — double-check important numbers in Transactions.",
 
   // Split screen
   SPLIT_TRACKER: "Split Expenses",
@@ -846,6 +928,12 @@ export const UI_TEXT = {
   CONFIRM_DELETE_RULE: "Are you sure you want to delete this rule?",
   RULE_NAME: "Rule Name",
   RULE_MATCH_CONTAINS: "If title contains",
+  RULE_MATCH_CONTAINS_ANY: "If title contains any of (OR)",
+  RULE_MATCH_HINT: "Comma-separated, e.g. Uber, Lyft, ola",
+  RULE_PAYMENT_MODE: "Then set payment mode",
+  RULE_PAYMENT_MODE_NONE: "Leave unchanged",
+  RULE_PREVIEW: "Preview",
+  OR: "OR",
   RULE_CATEGORY: "Then assign category",
   RULE_TRANSACTION_TYPE: "Transaction Type",
   RULE_IS_ACTIVE: "Active",
@@ -858,11 +946,23 @@ export const UI_TEXT = {
   SUCCESS_RULE_ADDED: "Rule added successfully!",
   SUCCESS_RULE_UPDATED: "Rule updated successfully!",
   SUCCESS_RULE_DELETED: "Rule deleted successfully",
+  RULE_PREVIEW_CONTAINS: "IF title contains",
+  RULE_PREVIEW_CONTAINS_ANY: "IF title contains any of",
+  RULE_PREVIEW_THEN: "→",
+  RULE_PREVIEW_AND_MODE: "and set mode",
 };
 
 // User-facing error messages (for API, loading, import/export)
 export const ERROR_MESSAGES = {
   REQUEST_FAILED: "Request failed",
+  ASSISTANT_BAD_REQUEST: "Invalid assistant request.",
+  ASSISTANT_CONSENT_REQUIRED: "Please accept AI data use to chat with Budgety Assistant.",
+  ASSISTANT_EMPTY_MESSAGE: "Type a question first.",
+  ASSISTANT_MESSAGE_TOO_LONG: "Message is too long. Please shorten it.",
+  ASSISTANT_EMPTY_REPLY: "The assistant returned an empty reply. Try again.",
+  ASSISTANT_TIMEOUT: "The assistant took too long. Please try again.",
+  ASSISTANT_FAILED: "Could not reach the assistant. Please try again.",
+  AI_NOT_CONFIGURED: "AI is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY) on the server.",
   LOAD_DATA_FAILED: "Could not refresh data from the server. Showing your last loaded data.",
   SAVE_FAILED: "Failed to save",
   SERVER_ERROR: "An error occurred. Please try again.",
@@ -1053,17 +1153,29 @@ export const STITCH_DARK_COLORS = {
   FAB: "#5D5FEF",
 };
 
-/** Category colors for spend bars / donuts (Stitch multi-color palette). */
+/**
+ * Category colors for spend bars / donuts.
+ * Tuned for ≥3:1 contrast on light and dark chart surfaces (WCAG 1.4.11).
+ */
 export const STITCH_CHART_COLORS = [
-  "#4A6CFF",
-  "#22C55E",
-  "#FBBF24",
-  "#F97316",
-  "#06B6D4",
-  "#9CA3AF",
-  "#EC4899",
-  "#8B5CF6",
+  "#3B5BDB",
+  "#0F9F6E",
+  "#D97706",
+  "#EA580C",
+  "#0891B2",
+  "#6B7280",
+  "#DB2777",
+  "#7C3AED",
 ];
+
+/** Debounce / motion timing used by Transactions search and microinteractions. */
+export const UI_MOTION = {
+  SEARCH_DEBOUNCE_MS: 180,
+  FILTER_TRANSITION_MS: 160,
+  SUCCESS_FLASH_MS: 650,
+  GOAL_PULSE_MS: 900,
+  HAPTIC_MS: 12,
+} as const;
 
 // Currency Symbol
 export const CURRENCY_SYMBOL = "₹";
@@ -1096,20 +1208,20 @@ export const MONTHS = [
 // Chart Configuration
 export const CHART_CONFIG = {
   COLORS: [
-    "#4A6CFF",
-    "#22C55E",
-    "#FBBF24",
-    "#F97316",
-    "#06B6D4",
-    "#9CA3AF",
-    "#EC4899",
-    "#8B5CF6",
-    "#e74c3c",
-    "#3498db",
-    "#2ecc71",
-    "#f39c12",
-    "#9b59b6",
-    "#1abc9c",
+    "#3B5BDB",
+    "#0F9F6E",
+    "#D97706",
+    "#EA580C",
+    "#0891B2",
+    "#6B7280",
+    "#DB2777",
+    "#7C3AED",
+    "#DC2626",
+    "#2563EB",
+    "#059669",
+    "#CA8A04",
+    "#7C3AED",
+    "#0D9488",
   ],
   HEIGHT: 300,
   MARGIN: { top: 20, right: 30, left: 20, bottom: 20 },
@@ -1147,6 +1259,8 @@ export const DISPLAY_LIMITS = {
   FORECAST_MONTHS: 3,
   SAMPLE_ROWS: 3,
   DESCRIPTION_LENGTH: 45,
+  ASSISTANT_MAX_MESSAGE_CHARS: 2000,
+  CASH_FLOW_NEAR_TERM_DAYS: 14,
 };
 
 // Timeout Values (in milliseconds)
@@ -1157,6 +1271,8 @@ export const TIMEOUTS = {
   TOAST_INFO: 3000,
   TOAST_DETAILS: 8000,
   IMPORT_SUCCESS: 5000,
+  SEARCH_DEBOUNCE: 180,
+  SUCCESS_FLASH: 650,
 };
 
 // Percentage Thresholds
@@ -1222,12 +1338,7 @@ export const KNOWN_UPI_PAYEE_OVERRIDES = [
   {
     label: "Mohammad Sameer",
     category: EXPENSE_CATEGORIES.HOME_EXPENSE,
-    matchers: [
-      "9013411448@axl",
-      "mohammad sameer",
-      "mohammad s/",
-      "sameer",
-    ],
+    matchers: ["9013411448@axl", "mohammad sameer", "mohammad s/", "sameer"],
   },
 ] as const;
 

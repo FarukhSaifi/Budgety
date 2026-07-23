@@ -6,7 +6,7 @@ const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ["pdfjs-dist"],
   experimental: {
-    optimizePackageImports: ["recharts", "dayjs"],
+    optimizePackageImports: ["recharts", "dayjs", "@reduxjs/toolkit", "react-redux"],
   },
   turbopack: {
     resolveExtensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
@@ -31,6 +31,28 @@ const nextConfig = {
       {
         source: "/__/auth/:path*",
         destination: `https://${firebaseProjectId}.firebaseapp.com/__/auth/:path*`,
+      },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: "/api/suggest-category",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "private, max-age=60",
+          },
+        ],
+      },
+      {
+        source: "/icons/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
       },
     ];
   },
