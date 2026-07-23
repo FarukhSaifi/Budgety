@@ -25,13 +25,13 @@ export const TAB_TO_PATH: Record<NavTab, string> = {
   profile: APP_ROUTES.profile,
   budgets: APP_ROUTES.budgets,
   bills: APP_ROUTES.bills,
-  reports: APP_ROUTES.reports,
   goals: APP_ROUTES.goals,
 };
 
 /**
  * Resolve Redux `activeTab` from a pathname.
  * Longer prefixes (e.g. `/transactions/import`) map to the parent tab.
+ * Legacy `/reports` and `/report` map to the unified Analytics page.
  */
 export function pathToTab(pathname: string | null | undefined): NavTab {
   if (!pathname) return "overview";
@@ -39,11 +39,12 @@ export function pathToTab(pathname: string | null | undefined): NavTab {
 
   if (path === "/" || path === "/dashboard") return "overview";
   if (path.startsWith("/transactions")) return "transactions";
-  if (path.startsWith("/analytics")) return "analytics";
+  if (path.startsWith("/analytics") || path.startsWith("/reports") || path === "/report") {
+    return "analytics";
+  }
   if (path.startsWith("/profile")) return "profile";
   if (path.startsWith("/budgets")) return "budgets";
   if (path.startsWith("/bills") || path === "/bill") return "bills";
-  if (path.startsWith("/reports") || path === "/report") return "reports";
   if (path.startsWith("/goals")) return "goals";
   return "overview";
 }
@@ -62,7 +63,7 @@ export function isPrimaryNavPathActive(
 ): boolean {
   const tab = pathToTab(pathname);
   if (primaryId === "analytics") {
-    return tab === "analytics" || tab === "budgets" || tab === "reports";
+    return tab === "analytics" || tab === "budgets";
   }
   if (primaryId === "profile") {
     return tab === "profile" || tab === "goals";

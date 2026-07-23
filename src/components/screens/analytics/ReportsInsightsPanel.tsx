@@ -1,50 +1,8 @@
 "use client";
 
-import {
-  CHART_CONFIG,
-  CURRENCY_SYMBOL,
-  DATE_CONSTANTS,
-  DISPLAY_LIMITS,
-  MONTHS,
-  PERCENTAGE_THRESHOLDS,
-  STITCH_COLORS,
-  UI_TEXT,
-  VIEW_PERIODS,
-} from "@constants";
-import { CHART_THEME_COLORS } from "@/lib/theme";
-import { APP_ROUTES } from "@constants/routes";
-import { Badge, Button, EmptyState, ProgressBar } from "@common";
-import {
-  ArrowDownwardIcon,
-  ArrowForwardIcon,
-  ArrowUpwardIcon,
-  BarChartIcon,
-  CheckCircleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  DownloadIcon,
-  HealthAndSafetyIcon,
-  InsightsIcon,
-  LightbulbIcon,
-  RefreshIcon,
-  SavingsIcon,
-  ShoppingCartIcon,
-  TrendingUpIcon,
-  WarningIcon,
-} from "@components/icons";
-import { useAppNavigation } from "@hooks/useAppNavigation";
-import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
-import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
-import { useAppDispatch, useAppSelector } from "@store/hooks";
-import { setViewPeriod } from "@store/slices/uiSlice";
-import { cn } from "@utils/cn";
-import { getCategoryChartColor } from "@utils/colorUtils";
-import { getMonthYear } from "@utils/dateUtils";
-import { exportChartData } from "@utils/exportUtils";
-import { percentChange } from "@utils/transactionFilters";
-import type { ViewPeriod } from "@/types";
-import Link from "next/link";
 import { useMemo, useState } from "react";
+
+import Link from "next/link";
 import {
   Area,
   AreaChart,
@@ -58,6 +16,51 @@ import {
   YAxis,
 } from "recharts";
 
+import {
+  CHART_CONFIG,
+  CURRENCY_SYMBOL,
+  DATE_CONSTANTS,
+  DISPLAY_LIMITS,
+  MONTHS,
+  PERCENTAGE_THRESHOLDS,
+  STITCH_COLORS,
+  UI_TEXT,
+  VIEW_PERIODS,
+} from "@constants";
+
+import { APP_ROUTES } from "@constants/routes";
+
+import { Badge, Button, EmptyState, PeriodShiftPill, ProgressBar } from "@common";
+
+import {
+  ArrowForwardIcon,
+  CheckCircleIcon,
+  DownloadIcon,
+  HealthAndSafetyIcon,
+  InsightsIcon,
+  LightbulbIcon,
+  RefreshIcon,
+  TrendingUpIcon,
+  WarningIcon,
+} from "@components/icons";
+
+import { useAppNavigation } from "@hooks/useAppNavigation";
+import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
+import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { useUiPeriod } from "@hooks/useUiPeriod";
+import { useAppSelector } from "@store/hooks";
+import { cn } from "@utils/cn";
+import { getCategoryChartColor } from "@utils/colorUtils";
+import { getMonthYear } from "@utils/dateUtils";
+import { exportChartData } from "@utils/exportUtils";
+import { buildRollingMonthTrend, shiftMonthYear } from "@utils/periodFilter";
+import { percentChange } from "@utils/transactionFilters";
+
+import { CHART_THEME_COLORS } from "@/lib/theme";
+import type { ViewPeriod } from "@/types";
+
+import { formatDelta, isCurrentCalendarMonth } from "./analyticsHelpers";
+
 type InsightTone = "danger" | "success" | "info" | "neutral";
 
 type SmartInsight = {
@@ -69,41 +72,26 @@ type SmartInsight = {
   actionLabel?: string;
 };
 
-function formatDelta(delta: number | null): string | null {
-  if (delta == null) return null;
-  const sign = delta >= 0 ? "+" : "";
-  return `${sign}${Math.abs(delta).toFixed(1)}%`;
-}
-
-function isCurrentCalendarMonth(month: number, year: number): boolean {
-  const now = new Date();
-  return month === now.getMonth() + 1 && year === now.getFullYear();
-}
-
-export function ReportsScreen() {
+/**
+ * Reports & Analysis panel — formerly ReportsScreen.
+ * Mounted as the "Reports" tab on the unified Analytics page.
+ */
+export function ReportsInsightsPanel() {
   const navigateToTab = useAppNavigation();
-  const dispatch = useAppDispatch();
   const transactions = useAppSelector((state) => state.transactions.items);
   const budgets = useAppSelector((state) => state.budgets.items);
-  const { selectedMonth, selectedYear } = useAppSelector((state) => state.ui);
-  const { formatCurrency, formatCurrencyForChart, formatCompactCurrency } =
-    useCurrencyFormatter();
+  const { selectedMonth, selectedYear, shiftMonth } = useUiPeriod();
+  const { formatCurrency, formatCurrencyForChart, formatCompactCurrency } = useCurrencyFormatter();
   const [insightKey, setInsightKey] = useState(0);
 
-  const current = useBudgetCalculations(
-    transactions,
-    VIEW_PERIODS.MONTHLY as ViewPeriod,
-    selectedMonth,
-    selectedYear,
-  );
+  const current = useBudgetCalculations(transactions, VIEW_PERIODS.MONTHLY as ViewPeriod, selectedMonth, selectedYear);
 
-  const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
-  const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+  const previousMonth = useMemo(() => shiftMonthYear(selectedMonth, selectedYear, -1), [selectedMonth, selectedYear]);
   const previous = useBudgetCalculations(
     transactions,
     VIEW_PERIODS.MONTHLY as ViewPeriod,
-    prevMonth,
-    prevYear,
+    previousMonth.month,
+    previousMonth.year,
   );
 
   const periodLabel = isCurrentCalendarMonth(selectedMonth, selectedYear)
@@ -111,21 +99,15 @@ export function ReportsScreen() {
     : `${MONTHS[selectedMonth - 1]?.slice(0, 3) ?? ""} ${selectedYear}`;
 
   const netSavings = current.totalIncome - current.totalExpense;
-  const prevNetSavings = previous.totalIncome - previous.totalExpense;
-  const netDelta = percentChange(netSavings, prevNetSavings);
   const spendDelta = percentChange(current.totalExpense, previous.totalExpense);
 
   const budgetLimit = useMemo(
-    () =>
-      budgets
-        .filter((b) => b.period === "monthly")
-        .reduce((sum, b) => sum + (b.limitAmount || 0), 0),
+    () => budgets.filter((b) => b.period === "monthly").reduce((sum, b) => sum + (b.limitAmount || 0), 0),
     [budgets],
   );
 
   const remaining = Math.max(0, budgetLimit - current.totalExpense);
 
-  /** Honest adherence score from spend vs total monthly budget limits. */
   const adherenceScore = useMemo(() => {
     if (budgetLimit <= 0) return PERCENTAGE_THRESHOLDS.MAX;
     const used = current.totalExpense / budgetLimit;
@@ -137,79 +119,49 @@ export function ReportsScreen() {
 
   const budgetHealthStatus = useMemo(() => {
     if (budgetLimit <= 0) return UI_TEXT.ON_TRACK;
-    const used =
-      (current.totalExpense / budgetLimit) * PERCENTAGE_THRESHOLDS.MAX;
+    const used = (current.totalExpense / budgetLimit) * PERCENTAGE_THRESHOLDS.MAX;
     if (used >= PERCENTAGE_THRESHOLDS.MAX) return UI_TEXT.AT_RISK;
     if (used >= PERCENTAGE_THRESHOLDS.WARNING) return UI_TEXT.WATCH;
     return UI_TEXT.ON_TRACK;
   }, [budgetLimit, current.totalExpense]);
 
-  const incomeExpenseTrend = useMemo(() => {
-    const months: {
-      key: string;
-      label: string;
-      income: number;
-      expense: number;
-    }[] = [];
-    const base = new Date(selectedYear, selectedMonth - 1, 1);
-    for (let i = DISPLAY_LIMITS.TREND_MONTHS - 1; i >= 0; i -= 1) {
-      const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
-      months.push({
-        key: `${d.getFullYear()}-${d.getMonth() + 1}`,
-        label: MONTHS[d.getMonth()].slice(0, 3),
-        income: 0,
-        expense: 0,
-      });
-    }
-    const index = new Map(months.map((m) => [m.key, m]));
-    transactions.forEach((t) => {
-      const my = getMonthYear(t.date);
-      if (!my) return;
-      const entry = index.get(`${my.year}-${my.month}`);
-      if (!entry) return;
-      if (t.type === "income") entry.income += t.amount || 0;
-      else entry.expense += t.amount || 0;
-    });
-    return months;
-  }, [transactions, selectedMonth, selectedYear]);
+  const incomeExpenseTrend = useMemo(
+    () =>
+      buildRollingMonthTrend(transactions, selectedMonth, selectedYear, DISPLAY_LIMITS.TREND_MONTHS).map(
+        ({ key, label, Income, Expense }) => ({
+          key,
+          label,
+          income: Income,
+          expense: Expense,
+        }),
+      ),
+    [transactions, selectedMonth, selectedYear],
+  );
 
   const spendingTrendDaily = useMemo(() => {
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-    const checkpoints = [1, 8, 15, 22, daysInMonth].filter(
-      (d, i, arr) => arr.indexOf(d) === i && d <= daysInMonth,
-    );
-    return checkpoints.map((day) => {
-      const spent = current.filteredTransactions
-        .filter((t) => {
-          if (t.type !== "expense") return false;
-          const my = getMonthYear(t.date);
-          if (!my) return false;
-          const date = new Date(t.date);
-          return (
-            !Number.isNaN(date.getTime()) &&
-            date.getDate() <= day &&
-            my.month === selectedMonth &&
-            my.year === selectedYear
-          );
-        })
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
-      return {
-        label:
-          day === 1
-            ? "1st"
-            : day === 2
-              ? "2nd"
-              : day === 3
-                ? "3rd"
-                : `${day}th`,
-        spent,
-      };
-    });
-  }, [
-    current.filteredTransactions,
-    selectedMonth,
-    selectedYear,
-  ]);
+    const checkpoints = [1, 8, 15, 22, daysInMonth].filter((d, i, arr) => arr.indexOf(d) === i && d <= daysInMonth);
+    const cumulative = new Map<number, number>();
+    for (const day of checkpoints) cumulative.set(day, 0);
+
+    for (const t of current.filteredTransactions) {
+      if (t.type !== "expense") continue;
+      const my = getMonthYear(t.date);
+      if (!my || my.month !== selectedMonth || my.year !== selectedYear) continue;
+      const dayNum = Number(String(t.date).slice(8, 10)) || new Date(t.date).getDate();
+      if (!Number.isFinite(dayNum)) continue;
+      for (const checkpoint of checkpoints) {
+        if (dayNum <= checkpoint) {
+          cumulative.set(checkpoint, (cumulative.get(checkpoint) || 0) + (t.amount || 0));
+        }
+      }
+    }
+
+    return checkpoints.map((day) => ({
+      label: day === 1 ? "1st" : day === 2 ? "2nd" : day === 3 ? "3rd" : `${day}th`,
+      spent: cumulative.get(day) || 0,
+    }));
+  }, [current.filteredTransactions, selectedMonth, selectedYear]);
 
   const categoryLimits = useMemo(() => {
     return budgets
@@ -217,8 +169,7 @@ export function ReportsScreen() {
       .map((b, i) => {
         const spent = current.spendingByCategory[b.category] ?? 0;
         const limit = b.limitAmount || 0;
-        const pct =
-          limit > 0 ? (spent / limit) * PERCENTAGE_THRESHOLDS.MAX : 0;
+        const pct = limit > 0 ? (spent / limit) * PERCENTAGE_THRESHOLDS.MAX : 0;
         return {
           category: b.category,
           spent,
@@ -249,10 +200,7 @@ export function ReportsScreen() {
 
   const expenseForecast = useMemo(() => {
     const withSpend = incomeExpenseTrend.filter((m) => m.expense > 0);
-    const avg =
-      withSpend.length > 0
-        ? withSpend.reduce((s, m) => s + m.expense, 0) / withSpend.length
-        : 0;
+    const avg = withSpend.length > 0 ? withSpend.reduce((s, m) => s + m.expense, 0) / withSpend.length : 0;
     const history = incomeExpenseTrend.map((m) => ({
       label: m.label,
       expense: m.expense,
@@ -294,8 +242,7 @@ export function ReportsScreen() {
     }
 
     if (netSavings > 0 && current.totalIncome > 0) {
-      const rate =
-        (netSavings / current.totalIncome) * PERCENTAGE_THRESHOLDS.MAX;
+      const rate = (netSavings / current.totalIncome) * PERCENTAGE_THRESHOLDS.MAX;
       insights.push({
         id: "savings",
         title: UI_TEXT.INSIGHT_SAVINGS_TITLE,
@@ -362,17 +309,6 @@ export function ReportsScreen() {
 
   const mobileInsight = smartInsights[0];
 
-  const shiftMonth = (delta: number) => {
-    const d = new Date(selectedYear, selectedMonth - 1 + delta, 1);
-    dispatch(
-      setViewPeriod({
-        viewPeriod: VIEW_PERIODS.MONTHLY as ViewPeriod,
-        selectedMonth: d.getMonth() + 1,
-        selectedYear: d.getFullYear(),
-      }),
-    );
-  };
-
   const handleExport = () => {
     if (categorySpendFallback.length > 0) {
       exportChartData(
@@ -381,12 +317,7 @@ export function ReportsScreen() {
           Spent: r.spent,
           Limit: r.limit || "",
           "Percent Used": r.limit > 0 ? Math.round(r.pct) : "",
-          Status:
-            r.limit > 0
-              ? r.over
-                ? UI_TEXT.OVER_BUDGET
-                : UI_TEXT.WITHIN_BUDGET
-              : "",
+          Status: r.limit > 0 ? (r.over ? UI_TEXT.OVER_BUDGET : UI_TEXT.WITHIN_BUDGET) : "",
           Period: periodLabel,
           Income: current.totalIncome,
           Expense: current.totalExpense,
@@ -407,91 +338,43 @@ export function ReportsScreen() {
     );
   };
 
-  const hasData = transactions.length > 0;
-
-  if (!hasData) {
-    return (
-      <EmptyState
-        icon={<BarChartIcon className="h-5 w-5" />}
-        title={UI_TEXT.NO_DATA_AVAILABLE}
-        description={UI_TEXT.REPORTS_SUBTITLE}
-        action={
-          <Button size="sm" onClick={() => navigateToTab("transactions")}>
-            {UI_TEXT.VIEW_TRANSACTIONS}
-          </Button>
-        }
-      />
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-2xl space-y-4 pb-6 md:max-w-6xl md:space-y-5 lg:max-w-7xl">
-      {/* Desktop header */}
-      <div className="hidden items-start justify-between gap-4 md:flex">
+    <div className="space-y-4 md:space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-brand-deep lg:text-[32px] lg:leading-10">
-            {UI_TEXT.ANALYTICS_AND_REPORTS}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 md:text-base">
-            {UI_TEXT.REPORTS_SUBTITLE}
-          </p>
+          <h2 className="text-lg font-semibold tracking-tight text-brand-deep md:text-xl">{UI_TEXT.REPORTS}</h2>
+          <p className="mt-0.5 text-sm text-gray-500">{UI_TEXT.REPORTS_SUBTITLE}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-1 py-1 shadow-sm">
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => shiftMonth(-1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-surface-low"
-            >
-              <ChevronLeftIcon className="h-4 w-4" />
-            </button>
-            <span className="min-w-[6.5rem] text-center text-sm font-medium text-brand-deep">
-              {periodLabel}
-            </span>
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => shiftMonth(1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-surface-low"
-            >
-              <ChevronRightIcon className="h-4 w-4" />
-            </button>
-          </div>
-          <Button
-            size="sm"
-            leftIcon={<DownloadIcon className="h-4 w-4" />}
-            onClick={handleExport}
-          >
+          <PeriodShiftPill
+            label={periodLabel}
+            onPrev={() => shiftMonth(-1)}
+            onNext={() => shiftMonth(1)}
+            prevLabel={UI_TEXT.PREVIOUS_MONTH}
+            nextLabel={UI_TEXT.NEXT_MONTH}
+          />
+          <Button size="sm" leftIcon={<DownloadIcon className="h-4 w-4" />} onClick={handleExport}>
             {UI_TEXT.EXPORT_CSV}
           </Button>
         </div>
       </div>
 
-      {/* Mobile summary chips */}
-      <div className="grid grid-cols-2 gap-3 md:hidden">
-        <article className="rounded-2xl border border-white/60 bg-white p-4 shadow-card">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-            {UI_TEXT.TOTAL_SPENT}
-          </p>
-          <p className="mt-1 text-xl font-bold text-brand-deep">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <article className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card md:p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{UI_TEXT.TOTAL_SPENT}</p>
+          <p className="mt-1 text-xl font-bold text-brand-deep md:text-2xl">
             {CURRENCY_SYMBOL}
             {formatCurrency(current.totalExpense)}
           </p>
           {formatDelta(spendDelta) && (
-            <Badge
-              tone={spendDelta != null && spendDelta > 0 ? "danger" : "success"}
-              className="mt-2 rounded-md"
-            >
+            <Badge tone={spendDelta != null && spendDelta > 0 ? "danger" : "success"} className="mt-2 rounded-md">
               {formatDelta(spendDelta)}
             </Badge>
           )}
         </article>
-        <article className="rounded-2xl border border-white/60 bg-white p-4 shadow-card">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-            {UI_TEXT.REMAINING}
-          </p>
-          <p className="mt-1 text-xl font-bold text-brand-deep">
+        <article className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card md:p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{UI_TEXT.REMAINING}</p>
+          <p className="mt-1 text-xl font-bold text-brand-deep md:text-2xl">
             {CURRENCY_SYMBOL}
             {formatCurrency(budgetLimit > 0 ? remaining : netSavings)}
           </p>
@@ -508,59 +391,8 @@ export function ReportsScreen() {
             {budgetHealthStatus}
           </Badge>
         </article>
-      </div>
-
-      {/* Desktop KPI cards */}
-      <div className="hidden grid-cols-1 gap-3 md:grid md:grid-cols-3">
-        <article className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
-          <div className="mb-3 flex items-start justify-between">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary/10 text-tertiary">
-              <SavingsIcon className="h-5 w-5" />
-            </span>
-            {formatDelta(netDelta) && (
-              <Badge
-                tone={netDelta != null && netDelta >= 0 ? "success" : "danger"}
-                className="rounded-md"
-              >
-                {netDelta != null && netDelta >= 0 ? (
-                  <ArrowUpwardIcon className="h-3 w-3" />
-                ) : (
-                  <ArrowDownwardIcon className="h-3 w-3" />
-                )}
-                {formatDelta(netDelta)}
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm font-medium text-gray-500">{UI_TEXT.NET_SAVINGS}</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-brand-deep md:text-[28px]">
-            {CURRENCY_SYMBOL}
-            {formatCurrency(netSavings)}
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
-          <div className="mb-3 flex items-start justify-between">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-expense/10 text-expense">
-              <ShoppingCartIcon className="h-5 w-5" />
-            </span>
-            {formatDelta(spendDelta) && (
-              <Badge
-                tone={spendDelta != null && spendDelta <= 0 ? "success" : "danger"}
-                className="rounded-md"
-              >
-                {formatDelta(spendDelta)}
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm font-medium text-gray-500">{UI_TEXT.MONTHLY_SPEND}</p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-brand-deep md:text-[28px]">
-            {CURRENCY_SYMBOL}
-            {formatCurrency(current.totalExpense)}
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
-          <div className="mb-3 flex items-start justify-between">
+        <article className="col-span-2 rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card md:col-span-1 md:p-5">
+          <div className="mb-2 flex items-start justify-between">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary-main">
               <HealthAndSafetyIcon className="h-5 w-5" />
             </span>
@@ -577,10 +409,8 @@ export function ReportsScreen() {
               {budgetHealthStatus}
             </Badge>
           </div>
-          <p className="text-sm font-medium text-gray-500">
-            {UI_TEXT.BUDGET_ADHERENCE}
-          </p>
-          <p className="mt-1 text-2xl font-bold tracking-tight text-brand-deep md:text-[28px]">
+          <p className="text-sm font-medium text-gray-500">{UI_TEXT.BUDGET_ADHERENCE}</p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-brand-deep">
             {UI_TEXT.ADHERENCE_SCORE.replace("{score}", String(adherenceScore))}
           </p>
           <ProgressBar
@@ -592,31 +422,17 @@ export function ReportsScreen() {
         </article>
       </div>
 
-      {/* Mobile: Spending Trends area chart */}
-      <section className="rounded-2xl border border-white/60 bg-white p-4 shadow-card md:hidden">
+      <section className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card md:hidden md:p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-brand-deep">
-            {UI_TEXT.SPENDING_TRENDS}
-          </h2>
-          <div className="inline-flex items-center gap-0.5 rounded-full border border-gray-200 px-1 py-0.5 text-xs font-medium text-gray-600">
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => shiftMonth(-1)}
-              className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-surface-low"
-            >
-              <ChevronLeftIcon className="h-3.5 w-3.5" />
-            </button>
-            <span className="px-1">{periodLabel}</span>
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => shiftMonth(1)}
-              className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-surface-low"
-            >
-              <ChevronRightIcon className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          <h3 className="text-base font-semibold text-brand-deep">{UI_TEXT.SPENDING_TRENDS}</h3>
+          <PeriodShiftPill
+            size="sm"
+            label={periodLabel}
+            onPrev={() => shiftMonth(-1)}
+            onNext={() => shiftMonth(1)}
+            prevLabel={UI_TEXT.PREVIOUS_MONTH}
+            nextLabel={UI_TEXT.NEXT_MONTH}
+          />
         </div>
         <div className="h-44 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -635,11 +451,7 @@ export function ReportsScreen() {
               />
               <YAxis hide />
               <Tooltip
-                formatter={(value) =>
-                  formatCurrencyForChart(
-                    typeof value === "number" ? value : Number(value) || 0,
-                  )
-                }
+                formatter={(value) => formatCurrencyForChart(typeof value === "number" ? value : Number(value) || 0)}
               />
               <Area
                 type="monotone"
@@ -654,7 +466,6 @@ export function ReportsScreen() {
         </div>
       </section>
 
-      {/* Mobile: Smart Insights CTA */}
       <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-primary-main to-primary-container p-4 text-white shadow-card md:hidden">
         <div className="mb-2 flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
@@ -664,9 +475,7 @@ export function ReportsScreen() {
             {UI_TEXT.SMART_INSIGHTS_BETA}
           </span>
         </div>
-        <p className="text-sm leading-relaxed text-white/95">
-          {mobileInsight?.message}
-        </p>
+        <p className="text-sm leading-relaxed text-white/95">{mobileInsight?.message}</p>
         {mobileInsight?.href ? (
           <Link
             href={mobileInsight.href}
@@ -688,28 +497,16 @@ export function ReportsScreen() {
         )}
       </section>
 
-      {/* Desktop mid row: Income vs Expenses + Smart Insights */}
       <div className="hidden gap-4 md:grid md:grid-cols-1 xl:grid-cols-3">
-        <section className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5 xl:col-span-2">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-brand-deep md:text-lg">
-                {UI_TEXT.INCOME_VS_EXPENSES}
-              </h2>
-              <p className="text-sm text-gray-500">{UI_TEXT.MONTHLY_TREND}</p>
-            </div>
+        <section className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card backdrop-blur-sm md:p-5 xl:col-span-2">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-brand-deep md:text-lg">{UI_TEXT.INCOME_VS_EXPENSES}</h3>
+            <p className="text-sm text-gray-500">{UI_TEXT.MONTHLY_TREND}</p>
           </div>
           <div className="h-64 w-full md:h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={incomeExpenseTrend}
-                margin={{ ...CHART_CONFIG.MARGIN, left: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={CHART_THEME_COLORS.GRID}
-                  vertical={false}
-                />
+              <LineChart data={incomeExpenseTrend} margin={{ ...CHART_CONFIG.MARGIN, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME_COLORS.GRID} vertical={false} />
                 <XAxis
                   dataKey="label"
                   tick={{ fontSize: 12, fill: CHART_THEME_COLORS.TICK }}
@@ -721,16 +518,10 @@ export function ReportsScreen() {
                   width={48}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v) =>
-                    `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`
-                  }
+                  tickFormatter={(v) => `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`}
                 />
                 <Tooltip
-                  formatter={(value) =>
-                    formatCurrencyForChart(
-                      typeof value === "number" ? value : Number(value) || 0,
-                    )
-                  }
+                  formatter={(value) => formatCurrencyForChart(typeof value === "number" ? value : Number(value) || 0)}
                 />
                 <Legend />
                 <Line
@@ -756,12 +547,10 @@ export function ReportsScreen() {
           </div>
         </section>
 
-        <section className="flex flex-col rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
+        <section className="flex flex-col rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card backdrop-blur-sm md:p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-brand-deep md:text-lg">
-                {UI_TEXT.SMART_INSIGHTS}
-              </h2>
+              <h3 className="text-base font-semibold text-brand-deep md:text-lg">{UI_TEXT.SMART_INSIGHTS}</h3>
               <Badge tone="info" className="rounded-md text-[10px]">
                 {UI_TEXT.SMART_INSIGHTS_BETA}
               </Badge>
@@ -769,10 +558,7 @@ export function ReportsScreen() {
           </div>
           <ul className="flex-1 space-y-3">
             {smartInsights.map((insight) => (
-              <li
-                key={insight.id}
-                className="rounded-xl border border-gray-100 bg-surface-low/60 p-3"
-              >
+              <li key={insight.id} className="rounded-xl border border-outline-variant/40 bg-surface-low/60 p-3">
                 <div className="flex gap-3">
                   <span
                     className={cn(
@@ -792,12 +578,8 @@ export function ReportsScreen() {
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold text-brand-deep">
-                      {insight.title}
-                    </h3>
-                    <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                      {insight.message}
-                    </p>
+                    <h4 className="text-sm font-bold text-brand-deep">{insight.title}</h4>
+                    <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{insight.message}</p>
                     {insight.href && insight.actionLabel && (
                       <Link
                         href={insight.href}
@@ -823,14 +605,13 @@ export function ReportsScreen() {
         </section>
       </div>
 
-      {/* Bottom: Category Limits + Expense Forecast (desktop) / Category Spend (mobile) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <section className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5 lg:col-span-2">
+        <section className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card backdrop-blur-sm md:p-5 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-brand-deep md:text-lg">
+            <h3 className="text-base font-semibold text-brand-deep md:text-lg">
               <span className="md:hidden">{UI_TEXT.CATEGORY_SPEND}</span>
               <span className="hidden md:inline">{UI_TEXT.CATEGORY_LIMITS}</span>
-            </h2>
+            </h3>
             <button
               type="button"
               className="text-sm font-semibold text-primary-main hover:underline"
@@ -863,9 +644,7 @@ export function ReportsScreen() {
                         <TrendingUpIcon className="h-4 w-4" />
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-brand-deep">
-                          {item.category}
-                        </p>
+                        <p className="truncate text-sm font-semibold text-brand-deep">{item.category}</p>
                         {item.limit > 0 && (
                           <p className="text-xs text-gray-500">
                             {CURRENCY_SYMBOL}
@@ -878,12 +657,7 @@ export function ReportsScreen() {
                     <div className="text-right">
                       {item.limit > 0 ? (
                         <>
-                          <p
-                            className={cn(
-                              "text-sm font-bold",
-                              item.over ? "text-expense" : "text-brand-deep",
-                            )}
-                          >
+                          <p className={cn("text-sm font-bold", item.over ? "text-expense" : "text-brand-deep")}>
                             {Math.round(item.pct)}%
                           </p>
                           <p
@@ -915,19 +689,12 @@ export function ReportsScreen() {
           )}
         </section>
 
-        <section className="hidden flex-col rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:flex md:p-5">
-          <h2 className="text-base font-semibold text-brand-deep md:text-lg">
-            {UI_TEXT.EXPENSE_FORECAST}
-          </h2>
-          <p className="mb-3 text-sm text-gray-500">
-            {UI_TEXT.NEXT_3_MONTHS_PROJECTED}
-          </p>
+        <section className="flex flex-col rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card backdrop-blur-sm md:p-5">
+          <h3 className="text-base font-semibold text-brand-deep md:text-lg">{UI_TEXT.EXPENSE_FORECAST}</h3>
+          <p className="mb-3 text-sm text-gray-500">{UI_TEXT.NEXT_3_MONTHS_PROJECTED}</p>
           <div className="min-h-[160px] flex-1">
             <ResponsiveContainer width="100%" height={160}>
-              <AreaChart
-                data={expenseForecast.series}
-                margin={{ top: 12, right: 8, left: 0, bottom: 0 }}
-              >
+              <AreaChart data={expenseForecast.series} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="reportsForecastFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={CHART_THEME_COLORS.PRIMARY} stopOpacity={0.25} />
@@ -943,11 +710,7 @@ export function ReportsScreen() {
                 />
                 <YAxis hide />
                 <Tooltip
-                  formatter={(value) =>
-                    formatCurrencyForChart(
-                      typeof value === "number" ? value : Number(value) || 0,
-                    )
-                  }
+                  formatter={(value) => formatCurrencyForChart(typeof value === "number" ? value : Number(value) || 0)}
                 />
                 <Area
                   type="monotone"
@@ -956,7 +719,6 @@ export function ReportsScreen() {
                   stroke={CHART_THEME_COLORS.PRIMARY}
                   strokeWidth={2.5}
                   fill="url(#reportsForecastFill)"
-                  strokeDasharray="0"
                   dot={(props) => {
                     const { cx, cy, payload, index } = props;
                     if (cx == null || cy == null || !payload?.projected) return null;
@@ -976,7 +738,7 @@ export function ReportsScreen() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-2 space-y-1 border-t border-gray-100 pt-3 text-xs text-gray-500">
+          <div className="mt-2 space-y-1 border-t border-outline-variant/40 pt-3 text-xs text-gray-500">
             <p>
               {UI_TEXT.AVERAGE_MONTHLY_EXPENSE}:{" "}
               <span className="font-semibold text-brand-deep">

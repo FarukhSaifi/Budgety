@@ -1,10 +1,14 @@
 "use client";
 
-import { UI_TEXT } from "@constants";
-import { Spinner } from "@common";
-import { useAppSelector } from "@store/hooks";
-import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
+
+import { useRouter } from "next/navigation";
+
+import { UI_TEXT } from "@constants";
+
+import { Spinner } from "@common";
+
+import { useAppSelector } from "@store/hooks";
 
 export interface AuthGuardProps {
   children: ReactNode;

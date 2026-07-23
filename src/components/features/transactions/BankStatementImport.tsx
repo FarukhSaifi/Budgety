@@ -1,18 +1,29 @@
 "use client";
 
-import type { ParsedStatementTransaction } from "@/lib/statement/types";
-import type { Transaction, ViewPeriod } from "@/types";
+import { useCallback, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
+
+import readXlsxFile from "read-excel-file/browser";
+
+import {
+  ERROR_MESSAGES,
+  IMPORT_PREVIEW_SORT,
+  IMPORT_PREVIEW_SORT_KEYS,
+  SORT_DIRECTIONS,
+  STATEMENT_IMPORT,
+  TIMEOUTS,
+  UI_TEXT,
+  VIEW_PERIODS,
+} from "@constants";
+
 import { Button } from "@components/common/Button";
 import { ConfirmDialog } from "@components/common/ConfirmDialog";
 import { Spinner } from "@components/common/Spinner";
 import ImportPreviewRow from "@components/features/transactions/ImportPreviewRow";
-import {
-  ImportStepper,
-  type ImportStep,
-} from "@components/features/transactions/ImportStepper";
-import { TransactionModal } from "@components/screens/transactions/TransactionModal";
+import { ImportStepper, type ImportStep } from "@components/features/transactions/ImportStepper";
 import {
   AddIcon,
+  ArrowDownwardIcon,
+  ArrowUpwardIcon,
   BoltIcon,
   CloseIcon,
   CloudUploadIcon,
@@ -22,34 +33,34 @@ import {
   HelpOutlineIcon,
   ListAltIcon,
   VisibilityIcon,
+  WarningIcon,
 } from "@components/icons";
-import { ERROR_MESSAGES, STATEMENT_IMPORT, TIMEOUTS, UI_TEXT, VIEW_PERIODS } from "@constants";
-import { useDuplicateIndices } from "@hooks/useDuplicateIndices";
+import { TransactionModal } from "@components/screens/transactions/TransactionModal";
+
+import { useDuplicateKeys } from "@hooks/useDuplicateKeys";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addTransactionsBulk, deleteImportedTransactions } from "@store/slices/transactionsSlice";
-import { setSearchQuery, setSelectedCategory, setViewPeriod } from "@store/slices/uiSlice";
+import { addCategoriesBulk, setSearchQuery, setSelectedCategory, setViewPeriod } from "@store/slices/uiSlice";
 import { detectColumnMapping, extractTransactionData } from "@utils/bankStatementParser";
+import { collectNovelCategories } from "@utils/categoryNormalize";
 import { cn } from "@utils/cn";
 import { getMonthYear } from "@utils/dateUtils";
 import { filterDuplicates } from "@utils/duplicateDetection";
+import { enrichStagingCategoriesWithAi } from "@utils/enrichStagingCategories";
 import {
   prepareRowForDuplicateCheck,
   rawRowsToStaging,
+  sortStagingRows,
   stagingToTransactions,
   validateColumnMapping,
+  type ImportPreviewSortKey,
+  type SortDirection,
   type StagingRow,
 } from "@utils/importHelpers";
-import { showError, showInfo, showSuccess, showWarning } from "@utils/toast";
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-  type ReactNode,
-} from "react";
-import readXlsxFile from "read-excel-file/browser";
+import { showError, showInfo, showSuccess } from "@utils/toast";
+
+import type { DiscoveredCategories, ParsedStatementTransaction } from "@/lib/statement/types";
+import type { Transaction, ViewPeriod } from "@/types";
 
 export interface BankStatementImportProps {
   onClose?: () => void;
@@ -81,30 +92,24 @@ function maxFileMb(): number {
 }
 
 /** Uncheck rows that duplicate existing transactions (or earlier rows in-batch). */
-function withDuplicatesUnchecked(
-  rows: StagingRow[],
-  existing: Transaction[],
-): StagingRow[] {
+function withDuplicatesUnchecked(rows: StagingRow[], existing: Transaction[]): StagingRow[] {
   if (!rows.length) return rows;
 
-  const withIndex = rows
-    .map((row, i) => ({ prep: prepareRowForDuplicateCheck(row), i }))
-    .filter((x) => x.prep != null);
+  const withIndex = rows.map((row, i) => ({ prep: prepareRowForDuplicateCheck(row), i })).filter((x) => x.prep != null);
 
   const prepared = withIndex.map((x) => x.prep!);
   const { duplicates } = filterDuplicates(prepared, existing);
   const dupSet = new Set(duplicates.map((d) => withIndex[d.index].i));
 
   if (dupSet.size === 0) return rows;
-  return rows.map((row, i) =>
-    dupSet.has(i) ? { ...row, selected: false } : row,
-  );
+  return rows.map((row, i) => (dupSet.has(i) ? { ...row, selected: false } : row));
 }
 
 export default function BankStatementImport({ onClose }: BankStatementImportProps) {
   const dispatch = useAppDispatch();
   const userId = useAppSelector((s) => s.auth.user?.uid);
   const transactions = useAppSelector((s) => s.transactions.items);
+  const userCategories = useAppSelector((s) => s.ui.categories);
 
   const [file, setFile] = useState<File | null>(null);
   const [staging, setStaging] = useState<StagingRow[]>([]);
@@ -114,9 +119,16 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   const [importedCount, setImportedCount] = useState(0);
   const [showCleanupDialog, setShowCleanupDialog] = useState(false);
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<ImportPreviewSortKey>(IMPORT_PREVIEW_SORT.DEFAULT_KEY);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(IMPORT_PREVIEW_SORT.DEFAULT_DIRECTION);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const duplicateIndices = useDuplicateIndices(staging, transactions);
+  const duplicateKeys = useDuplicateKeys(staging, transactions);
+
+  const sortedStaging = useMemo(
+    () => sortStagingRows(staging, sortKey, sortDirection, duplicateKeys),
+    [staging, sortKey, sortDirection, duplicateKeys],
+  );
 
   const importedTransactionsCount = useMemo(
     () => transactions.filter((t) => t.imported === true).length,
@@ -125,6 +137,12 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
   const selectedCount = useMemo(() => staging.filter((r) => r.selected).length, [staging]);
 
+  const duplicateCount = duplicateKeys.size;
+  const selectedDuplicateCount = useMemo(
+    () => staging.filter((r) => r.selected && duplicateKeys.has(r.key)).length,
+    [staging, duplicateKeys],
+  );
+
   const categorizedPct = useMemo(() => {
     if (!staging.length) return 0;
     const withCat = staging.filter((r) => Boolean(r.category)).length;
@@ -132,6 +150,34 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   }, [staging]);
 
   const activeStep: ImportStep = importing || importedCount > 0 ? 3 : staging.length > 0 ? 2 : 1;
+
+  const persistDiscoveredCategories = useCallback(
+    (discovered: DiscoveredCategories | undefined) => {
+      const income = discovered?.income ?? [];
+      const expense = discovered?.expense ?? [];
+      const count = income.length + expense.length;
+      if (count === 0) return;
+      dispatch(addCategoriesBulk({ income, expense }));
+      showInfo(UI_TEXT.IMPORT_NEW_CATEGORIES_ADDED.replace("{count}", String(count)));
+    },
+    [dispatch],
+  );
+
+  const handleSort = useCallback(
+    (key: ImportPreviewSortKey) => {
+      if (key === sortKey) {
+        setSortDirection((prevDir) => (prevDir === SORT_DIRECTIONS.ASC ? SORT_DIRECTIONS.DESC : SORT_DIRECTIONS.ASC));
+        return;
+      }
+      setSortKey(key);
+      setSortDirection(
+        key === IMPORT_PREVIEW_SORT_KEYS.DATE || key === IMPORT_PREVIEW_SORT_KEYS.AMOUNT
+          ? SORT_DIRECTIONS.DESC
+          : SORT_DIRECTIONS.ASC,
+      );
+    },
+    [sortKey],
+  );
 
   const resetImport = useCallback(() => {
     setStaging([]);
@@ -146,85 +192,104 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       setStaging(withDuplicatesUnchecked(rows, transactions));
     },
     [transactions],
-  )
+  );
 
-  const parseViaApi = useCallback(async (selected: File) => {
-    const form = new FormData();
-    form.append(STATEMENT_IMPORT.FIELD_NAME, selected);
+  const parseViaApi = useCallback(
+    async (selected: File) => {
+      const form = new FormData();
+      form.append(STATEMENT_IMPORT.FIELD_NAME, selected);
 
-    const res = await fetch("/api/parse-statement", {
-      method: "POST",
-      body: form,
-    });
-
-    const data = (await res.json()) as {
-      transactions?: ParsedStatementTransaction[];
-      error?: string;
-    };
-
-    if (!res.ok) {
-      throw new Error(data.error || ERROR_MESSAGES.PARSE_STATEMENT_FAILED);
-    }
-
-    if (!data.transactions?.length) {
-      throw new Error(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS);
-    }
-
-    return parsedToStaging(data.transactions);
-  }, []);
-
-  const parseExcelClient = useCallback(async (selected: File) => {
-    const sheets = await readXlsxFile(selected);
-    if (!sheets || sheets.length === 0) {
-      throw new Error(ERROR_MESSAGES.EXCEL_NO_SHEETS);
-    }
-
-    const first = sheets[0] as { data?: unknown[][] } | unknown[];
-    const rows: unknown[][] =
-      Array.isArray(first) && !("data" in (first as object))
-        ? (first as unknown[][])
-        : ((first as { data?: unknown[][] }).data ?? []);
-
-    if (!rows || rows.length < 2) {
-      throw new Error(ERROR_MESSAGES.EXCEL_EMPTY);
-    }
-
-    const headers = rows[0].map((h) => String(h ?? "").trim());
-    if (headers.length === 0 || headers.every((h) => !h)) {
-      throw new Error(ERROR_MESSAGES.EXCEL_NO_HEADERS);
-    }
-
-    const mapping = detectColumnMapping(headers);
-    const validation = validateColumnMapping(mapping);
-    if (!validation.valid) {
-      throw new Error(
-        ERROR_MESSAGES.EXCEL_MISSING_COLUMNS.replace(
-          "{missing}",
-          (validation.missingColumns ?? []).join(", "),
-        ).replace("{found}", headers.join(", ")),
-      );
-    }
-
-    const parsed = [];
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!Array.isArray(row) || row.length === 0) continue;
-      const values = row.map((cell) => {
-        if (cell === null || cell === undefined) return "";
-        if (typeof cell === "number") return String(cell);
-        if (cell instanceof Date) return cell.toISOString().slice(0, 10);
-        return String(cell || "").trim();
+      const res = await fetch("/api/parse-statement", {
+        method: "POST",
+        body: form,
       });
-      if (values.every((v) => !v || v === "")) continue;
-      parsed.push(extractTransactionData(values, mapping));
-    }
 
-    if (parsed.length === 0) {
-      throw new Error(ERROR_MESSAGES.EXCEL_NO_TRANSACTIONS);
-    }
+      const data = (await res.json()) as {
+        transactions?: ParsedStatementTransaction[];
+        meta?: { discoveredCategories?: DiscoveredCategories };
+        error?: string;
+      };
 
-    return rawRowsToStaging(parsed);
-  }, []);
+      if (!res.ok) {
+        throw new Error(data.error || ERROR_MESSAGES.PARSE_STATEMENT_FAILED);
+      }
+
+      if (!data.transactions?.length) {
+        throw new Error(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS);
+      }
+
+      const rows = parsedToStaging(data.transactions);
+      const discovered =
+        data.meta?.discoveredCategories ??
+        collectNovelCategories(rows, {
+          income: userCategories.income ?? [],
+          expense: userCategories.expense ?? [],
+        });
+      return { rows, discovered };
+    },
+    [userCategories.expense, userCategories.income],
+  );
+
+  const parseExcelClient = useCallback(
+    async (selected: File) => {
+      const sheets = await readXlsxFile(selected);
+      if (!sheets || sheets.length === 0) {
+        throw new Error(ERROR_MESSAGES.EXCEL_NO_SHEETS);
+      }
+
+      const first = sheets[0] as { data?: unknown[][] } | unknown[];
+      const rows: unknown[][] =
+        Array.isArray(first) && !("data" in (first as object))
+          ? (first as unknown[][])
+          : ((first as { data?: unknown[][] }).data ?? []);
+
+      if (!rows || rows.length < 2) {
+        throw new Error(ERROR_MESSAGES.EXCEL_EMPTY);
+      }
+
+      const headers = rows[0].map((h) => String(h ?? "").trim());
+      if (headers.length === 0 || headers.every((h) => !h)) {
+        throw new Error(ERROR_MESSAGES.EXCEL_NO_HEADERS);
+      }
+
+      const mapping = detectColumnMapping(headers);
+      const validation = validateColumnMapping(mapping);
+      if (!validation.valid) {
+        throw new Error(
+          ERROR_MESSAGES.EXCEL_MISSING_COLUMNS.replace(
+            "{missing}",
+            (validation.missingColumns ?? []).join(", "),
+          ).replace("{found}", headers.join(", ")),
+        );
+      }
+
+      const parsed = [];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!Array.isArray(row) || row.length === 0) continue;
+        const values = row.map((cell) => {
+          if (cell === null || cell === undefined) return "";
+          if (typeof cell === "number") return String(cell);
+          if (cell instanceof Date) return cell.toISOString().slice(0, 10);
+          return String(cell || "").trim();
+        });
+        if (values.every((v) => !v || v === "")) continue;
+        parsed.push(extractTransactionData(values, mapping));
+      }
+
+      if (parsed.length === 0) {
+        throw new Error(ERROR_MESSAGES.EXCEL_NO_TRANSACTIONS);
+      }
+
+      const stagingRows = rawRowsToStaging(parsed);
+      const existing = {
+        income: userCategories.income ?? [],
+        expense: userCategories.expense ?? [],
+      };
+      return enrichStagingCategoriesWithAi(stagingRows, existing);
+    },
+    [userCategories.expense, userCategories.income],
+  );
 
   const handleFile = useCallback(
     async (selected: File) => {
@@ -234,9 +299,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       }
 
       if (selected.size > STATEMENT_IMPORT.MAX_FILE_BYTES) {
-        showError(
-          ERROR_MESSAGES.STATEMENT_FILE_TOO_LARGE.replace("{maxMb}", String(maxFileMb())),
-        );
+        showError(ERROR_MESSAGES.STATEMENT_FILE_TOO_LARGE.replace("{maxMb}", String(maxFileMb())));
         return;
       }
 
@@ -247,30 +310,33 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       try {
         const name = selected.name.toLowerCase();
         let rows: StagingRow[];
+        let discovered: DiscoveredCategories = { income: [], expense: [] };
 
         if (name.endsWith(".xlsx")) {
           showInfo(UI_TEXT.IMPORT_PARSING);
-          rows = await parseExcelClient(selected);
+          const result = await parseExcelClient(selected);
+          rows = result.rows;
+          discovered = result.discovered;
         } else if (name.endsWith(".xls") && !name.endsWith(".xlsx")) {
           throw new Error(ERROR_MESSAGES.EXCEL_LEGACY_XLS_UNSUPPORTED);
         } else {
           showInfo(UI_TEXT.IMPORT_PARSING);
-          rows = await parseViaApi(selected);
+          const result = await parseViaApi(selected);
+          rows = result.rows;
+          discovered = result.discovered;
         }
 
+        persistDiscoveredCategories(discovered);
         applyStaging(rows);
       } catch (err) {
-        const message =
-          err instanceof Error && err.message
-            ? err.message
-            : ERROR_MESSAGES.PARSE_STATEMENT_FAILED;
+        const message = err instanceof Error && err.message ? err.message : ERROR_MESSAGES.PARSE_STATEMENT_FAILED;
         showError(message);
         setFile(null);
       } finally {
         setParsing(false);
       }
     },
-    [applyStaging, parseExcelClient, parseViaApi],
+    [applyStaging, parseExcelClient, parseViaApi, persistDiscoveredCategories],
   );
 
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -285,12 +351,12 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     if (selected) void handleFile(selected);
   };
 
-  const handleToggle = useCallback((index: number, selected: boolean) => {
-    setStaging((prev) => prev.map((row, i) => (i === index ? { ...row, selected } : row)));
+  const handleToggle = useCallback((key: string, selected: boolean) => {
+    setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, selected } : row)));
   }, []);
 
-  const handleCategoryChange = useCallback((index: number, category: string) => {
-    setStaging((prev) => prev.map((row, i) => (i === index ? { ...row, category } : row)));
+  const handleCategoryChange = useCallback((key: string, category: string) => {
+    setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, category } : row)));
   }, []);
 
   const focusUiOnImported = useCallback(
@@ -336,36 +402,28 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       return;
     }
 
+    // Respect user selection: import every checked row, including ones flagged as duplicates.
     const prepared = stagingToTransactions(selected, userId);
-    const { filtered, duplicateCount } = filterDuplicates(prepared, transactions);
-
-    if (filtered.length === 0) {
-      showError(
-        ERROR_MESSAGES.IMPORT_NONE_SKIPPED.replace(
-          "{skipped}",
-          String(duplicateCount || selected.length),
-        ).replace("{reasons}", "duplicates already in your account"),
-      );
-      return;
-    }
+    const selectedDupCount = selected.filter((r) => duplicateKeys.has(r.key)).length;
 
     setImporting(true);
     try {
-      const saved = await dispatch(addTransactionsBulk(filtered)).unwrap();
+      const saved = await dispatch(addTransactionsBulk(prepared)).unwrap();
       const count = saved.length;
       setImportedCount(count);
       focusUiOnImported(saved);
       resetImport();
 
-      const message =
-        duplicateCount > 0
-          ? UI_TEXT.IMPORT_SUCCESS_WITH_SKIPPED.replace("{count}", String(count)).replace(
-              "{skipped}",
-              String(duplicateCount),
-            )
-          : UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(count));
-
-      duplicateCount > 0 ? showWarning(message) : showSuccess(message);
+      if (selectedDupCount > 0) {
+        showSuccess(
+          UI_TEXT.IMPORT_SUCCESS_WITH_DUPLICATES.replace("{count}", String(count)).replace(
+            "{duplicates}",
+            String(selectedDupCount),
+          ),
+        );
+      } else {
+        showSuccess(UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(count)));
+      }
       setTimeout(() => setImportedCount(0), TIMEOUTS.IMPORT_SUCCESS);
       onClose?.();
     } catch (err) {
@@ -415,9 +473,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
               <h1 className="text-2xl font-semibold tracking-tight text-brand-deep md:text-[32px] md:leading-10">
                 {UI_TEXT.IMPORT_TRANSACTIONS}
               </h1>
-              <p className="mt-1 text-sm text-gray-500 md:text-base">
-                {UI_TEXT.IMPORT_TRANSACTIONS_SUBTITLE}
-              </p>
+              <p className="mt-1 text-sm text-gray-500 md:text-base">{UI_TEXT.IMPORT_TRANSACTIONS_SUBTITLE}</p>
             </div>
             {onClose && (
               <button
@@ -510,13 +566,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
           }
         }}
       >
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".csv,.pdf,.xlsx"
-          onChange={onInputChange}
-          className="hidden"
-        />
+        <input ref={inputRef} type="file" accept=".csv,.pdf,.xlsx" onChange={onInputChange} className="hidden" />
         {parsing ? (
           <div className="flex flex-col items-center gap-3">
             <Spinner label={UI_TEXT.IMPORT_PARSING} />
@@ -527,11 +577,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
               <CloudUploadIcon className="h-10 w-10 sm:h-12 sm:w-12" />
             </div>
             <h3 className="text-lg font-semibold text-brand-deep sm:text-xl">
-              {file ? (
-                <span className="break-all">{file.name}</span>
-              ) : (
-                UI_TEXT.UPLOAD_DROP_HINT
-              )}
+              {file ? <span className="break-all">{file.name}</span> : UI_TEXT.UPLOAD_DROP_HINT}
             </h3>
             <p className="mt-1 text-sm text-gray-500 md:text-base">
               {UI_TEXT.UPLOAD_BROWSE_HINT.replace("{maxMb}", String(maxFileMb()))}
@@ -553,9 +599,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
       {/* Manual add fallback */}
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-        <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
-          {UI_TEXT.AUTH_OR}
-        </span>
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-400">{UI_TEXT.AUTH_OR}</span>
         <Button
           type="button"
           variant="outline"
@@ -567,10 +611,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         </Button>
       </div>
 
-      <TransactionModal
-        open={isAddTransactionModalOpen}
-        onClose={() => setIsAddTransactionModalOpen(false)}
-      />
+      <TransactionModal open={isAddTransactionModalOpen} onClose={() => setIsAddTransactionModalOpen(false)} />
 
       {/* Preview */}
       {staging.length > 0 && (
@@ -583,53 +624,85 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
             <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-500 sm:gap-3 sm:text-sm">
               <span>
                 {UI_TEXT.IMPORT_AUTO_MAPPING}{" "}
-                <span className="font-semibold text-income">
-                  {UI_TEXT.IMPORT_AUTO_MAPPING_ACTIVE}
-                </span>
+                <span className="font-semibold text-income">{UI_TEXT.IMPORT_AUTO_MAPPING_ACTIVE}</span>
               </span>
               <span className="hidden h-4 w-px bg-gray-200 sm:block" aria-hidden />
-              <span>
-                {UI_TEXT.IMPORT_TRANSACTIONS_FOUND.replace(
-                  "{count}",
-                  String(staging.length),
-                )}
-              </span>
-              <button
-                type="button"
-                onClick={() => setAllSelected(true)}
-                className="text-primary-main hover:underline"
-              >
+              <span>{UI_TEXT.IMPORT_TRANSACTIONS_FOUND.replace("{count}", String(staging.length))}</span>
+              <button type="button" onClick={() => setAllSelected(true)} className="text-primary-main hover:underline">
                 {UI_TEXT.IMPORT_SELECT_ALL}
               </button>
-              <button
-                type="button"
-                onClick={() => setAllSelected(false)}
-                className="text-gray-500 hover:underline"
-              >
+              <button type="button" onClick={() => setAllSelected(false)} className="text-gray-500 hover:underline">
                 {UI_TEXT.IMPORT_DESELECT_ALL}
               </button>
             </div>
           </div>
 
+          {duplicateCount > 0 ? (
+            <div
+              role="status"
+              className="flex items-start gap-3 border-b border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100 sm:px-6"
+            >
+              <WarningIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
+              <p className="font-medium">
+                {selectedDuplicateCount > 0
+                  ? UI_TEXT.IMPORT_DUPLICATE_BANNER.replace("{count}", String(duplicateCount)).replace(
+                      "{selected}",
+                      String(selectedDuplicateCount),
+                    )
+                  : UI_TEXT.IMPORT_DUPLICATE_BANNER_NONE_SELECTED.replace("{count}", String(duplicateCount))}
+              </p>
+            </div>
+          ) : null}
+
           <div className="hidden max-h-[50vh] overflow-auto lg:block">
             <table className="w-full text-left">
-              <thead className="sticky top-0 z-10 bg-surface-low/90 backdrop-blur">
-                <tr className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <thead className="sticky top-0 z-10 bg-surface-low/90 backdrop-blur dark:bg-surface-low/95">
+                <tr className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   <th className="px-4 py-3 text-center sm:px-6">✓</th>
-                  <th className="px-4 py-3 sm:px-6">{UI_TEXT.DATE}</th>
-                  <th className="px-4 py-3 sm:px-6">{UI_TEXT.DESCRIPTION}</th>
-                  <th className="px-4 py-3 sm:px-6">{UI_TEXT.CATEGORY_PLACEHOLDER}</th>
-                  <th className="px-4 py-3 sm:px-6">{UI_TEXT.AMOUNT}</th>
-                  <th className="px-4 py-3 sm:px-6">{UI_TEXT.STATUS}</th>
+                  <ImportSortableHeader
+                    label={UI_TEXT.DATE}
+                    columnKey={IMPORT_PREVIEW_SORT_KEYS.DATE}
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <ImportSortableHeader
+                    label={UI_TEXT.DESCRIPTION}
+                    columnKey={IMPORT_PREVIEW_SORT_KEYS.DESCRIPTION}
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <ImportSortableHeader
+                    label={UI_TEXT.CATEGORY_PLACEHOLDER}
+                    columnKey={IMPORT_PREVIEW_SORT_KEYS.CATEGORY}
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <ImportSortableHeader
+                    label={UI_TEXT.AMOUNT}
+                    columnKey={IMPORT_PREVIEW_SORT_KEYS.AMOUNT}
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <ImportSortableHeader
+                    label={UI_TEXT.STATUS}
+                    columnKey={IMPORT_PREVIEW_SORT_KEYS.STATUS}
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {staging.map((row, index) => (
+              <tbody className="divide-y divide-gray-100 dark:divide-outline-variant/40">
+                {sortedStaging.map((row) => (
                   <ImportPreviewRow
                     key={row.key}
                     row={row}
-                    index={index}
-                    isDuplicate={duplicateIndices.has(index)}
+                    isDuplicate={duplicateKeys.has(row.key)}
+                    duplicateReason={duplicateKeys.get(row.key)}
                     onToggle={handleToggle}
                     onCategoryChange={handleCategoryChange}
                     variant="table"
@@ -640,12 +713,12 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
           </div>
 
           <div className="max-h-[50vh] space-y-2 overflow-y-auto p-3 lg:hidden">
-            {staging.map((row, index) => (
+            {sortedStaging.map((row) => (
               <ImportPreviewRow
                 key={row.key}
                 row={row}
-                index={index}
-                isDuplicate={duplicateIndices.has(index)}
+                isDuplicate={duplicateKeys.has(row.key)}
+                duplicateReason={duplicateKeys.get(row.key)}
                 onToggle={handleToggle}
                 onCategoryChange={handleCategoryChange}
                 variant="card"
@@ -663,12 +736,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
               </p>
             </div>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-              <Button
-                onClick={resetImport}
-                variant="ghost"
-                disabled={importing}
-                className="sm:min-w-[120px]"
-              >
+              <Button onClick={resetImport} variant="ghost" disabled={importing} className="sm:min-w-[120px]">
                 {UI_TEXT.IMPORT_DISCARD_ALL}
               </Button>
               <Button
@@ -718,15 +786,56 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   );
 }
 
-function InfoCard({
-  icon,
-  title,
-  body,
+function ImportSortableHeader({
+  label,
+  columnKey,
+  activeKey,
+  direction,
+  onSort,
 }: {
-  icon: ReactNode;
-  title: string;
-  body: string;
+  label: string;
+  columnKey: ImportPreviewSortKey;
+  activeKey: ImportPreviewSortKey;
+  direction: SortDirection;
+  onSort: (key: ImportPreviewSortKey) => void;
 }) {
+  const active = activeKey === columnKey;
+  const ariaSort = active ? (direction === SORT_DIRECTIONS.ASC ? "ascending" : "descending") : "none";
+
+  return (
+    <th className="px-4 py-3 sm:px-6" aria-sort={ariaSort} scope="col">
+      <button
+        type="button"
+        onClick={() => onSort(columnKey)}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors",
+          "text-on-surface-variant hover:bg-primary-main/10 hover:text-brand-deep",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-main/40",
+          active && "text-primary-main",
+        )}
+        aria-label={UI_TEXT.SORT_BY_COLUMN.replace("{column}", label)}
+      >
+        <span>{label}</span>
+        <span className="inline-flex h-3.5 w-3.5 items-center justify-center" aria-hidden>
+          {active ? (
+            direction === SORT_DIRECTIONS.ASC ? (
+              <ArrowUpwardIcon className="h-3.5 w-3.5" />
+            ) : (
+              <ArrowDownwardIcon className="h-3.5 w-3.5" />
+            )
+          ) : (
+            <span className="flex flex-col leading-none opacity-40">
+              <ArrowUpwardIcon className="h-2.5 w-2.5 -mb-0.5" />
+              <ArrowDownwardIcon className="h-2.5 w-2.5 -mt-0.5" />
+            </span>
+          )}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+function InfoCard({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
   return (
     <div className="space-y-2 rounded-2xl border border-gray-100 bg-white/70 p-5 shadow-card">
       <div className="text-primary-main">{icon}</div>

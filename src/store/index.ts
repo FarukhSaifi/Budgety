@@ -1,10 +1,11 @@
 import { configureStore } from "@reduxjs/toolkit";
+
 import authReducer from "./slices/authSlice";
-import transactionsReducer from "./slices/transactionsSlice";
-import budgetsReducer from "./slices/budgetsSlice";
 import billsReducer from "./slices/billsSlice";
+import budgetsReducer from "./slices/budgetsSlice";
 import goalsReducer from "./slices/goalsSlice";
 import recurringReducer from "./slices/recurringSlice";
+import transactionsReducer from "./slices/transactionsSlice";
 import uiReducer from "./slices/uiSlice";
 
 export const makeStore = () =>

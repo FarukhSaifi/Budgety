@@ -1,9 +1,12 @@
 "use client";
 
-import { CURRENCY_SYMBOL } from "@constants";
-import { cn } from "@utils/cn";
-import { MoreHorizIcon } from "@components/icons";
 import type { ReactNode } from "react";
+
+import { CURRENCY_SYMBOL } from "@constants";
+
+import { MoreHorizIcon } from "@components/icons";
+
+import { cn } from "@utils/cn";
 
 export interface BudgetItemCardProps {
   category: string;

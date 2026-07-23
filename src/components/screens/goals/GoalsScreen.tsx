@@ -1,15 +1,21 @@
 "use client";
 
+import { useMemo, useState } from "react";
+
 import { CURRENCY_SYMBOL, PERCENTAGE_THRESHOLDS, UI_TEXT } from "@constants";
+
 import { Badge, Button, ConfirmDialog, EmptyState, ProgressBar, StatCard } from "@common";
+
+import { EditIcon, AddIcon, FlagIcon, DeleteIcon } from "@components/icons";
+
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useDateFormatter } from "@hooks/useDateFormatter";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { deleteGoal } from "@store/slices/goalsSlice";
 import { showSuccess } from "@utils/toast";
+
 import type { Goal } from "@/types";
-import { EditIcon, AddIcon, FlagIcon, DeleteIcon } from "@components/icons";
-import { useMemo, useState } from "react";
+
 import { GoalModal } from "./GoalModal";
 
 export function GoalsScreen() {

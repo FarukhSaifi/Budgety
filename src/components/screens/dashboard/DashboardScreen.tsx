@@ -1,29 +1,20 @@
 "use client";
 
-import {
-  CURRENCY_SYMBOL,
-  DEFAULT_VALUES,
-  DISPLAY_LIMITS,
-  TRANSACTION_TYPES,
-  UI_TEXT,
-} from "@constants";
-import SummaryCards from "@components/features/dashboard/SummaryCards";
-import MonthlyTrendChart from "@components/features/dashboard/MonthlyTrendChart";
-import CategoryBreakdownChart from "@components/features/dashboard/CategoryBreakdownChart";
-import { RecentTransactionsCard } from "@components/features/dashboard/RecentTransactionsCard";
-import {
-  BillPreviewRow,
-  BudgetProgress,
-} from "@components/mobile";
-import {
-  ChevronRightIcon,
-  NotificationsIcon,
-} from "@components/icons";
-import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
-import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
-import { useAppNavigation } from "@hooks/useAppNavigation";
-import { useAppSelector } from "@store/hooks";
 import { useMemo } from "react";
+
+import { CURRENCY_SYMBOL, DEFAULT_VALUES, DISPLAY_LIMITS, TRANSACTION_TYPES, UI_TEXT } from "@constants";
+
+import CategoryBreakdownChart from "@components/features/dashboard/CategoryBreakdownChart";
+import MonthlyTrendChart from "@components/features/dashboard/MonthlyTrendChart";
+import { RecentTransactionsCard } from "@components/features/dashboard/RecentTransactionsCard";
+import SummaryCards from "@components/features/dashboard/SummaryCards";
+import { ChevronRightIcon, NotificationsIcon } from "@components/icons";
+import { BillPreviewRow, BudgetProgress } from "@components/mobile";
+
+import { useAppNavigation } from "@hooks/useAppNavigation";
+import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { useAppSelector } from "@store/hooks";
+import { selectPeriodAggregates } from "@store/selectors/periodSelectors";
 
 function daysUntil(dueDate: string): number | null {
   const due = new Date(dueDate);
@@ -46,54 +37,32 @@ export function DashboardScreen() {
   const transactions = useAppSelector((s) => s.transactions.items);
   const budgets = useAppSelector((s) => s.budgets.items);
   const bills = useAppSelector((s) => s.bills.items);
-  const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
+  const current = useAppSelector(selectPeriodAggregates);
   const { formatCurrency } = useCurrencyFormatter();
-
-  const current = useBudgetCalculations(
-    transactions,
-    viewPeriod,
-    selectedMonth,
-    selectedYear,
-  );
 
   const totalBalance = useMemo(() => {
     const allIncome = transactions
       .filter((t) => t.type === TRANSACTION_TYPES.INCOME)
-      .reduce(
-        (sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT),
-        DEFAULT_VALUES.BALANCE,
-      );
+      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
     const allExpense = transactions
       .filter((t) => t.type === TRANSACTION_TYPES.EXPENSE)
-      .reduce(
-        (sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT),
-        DEFAULT_VALUES.BALANCE,
-      );
+      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
     return allIncome - allExpense;
   }, [transactions]);
 
   const budgetLimit = useMemo(
-    () =>
-      budgets
-        .filter((b) => b.period === "monthly")
-        .reduce((sum, b) => sum + (b.limitAmount || 0), 0),
+    () => budgets.filter((b) => b.period === "monthly").reduce((sum, b) => sum + (b.limitAmount || 0), 0),
     [budgets],
   );
 
   const upcomingBills = useMemo(() => {
     return [...bills]
       .filter((b) => !b.isPaid && b.status !== "paid")
-      .sort(
-        (a, b) =>
-          new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
-      )
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
       .slice(0, DISPLAY_LIMITS.PREVIEW_ITEMS);
   }, [bills]);
 
-  const firstName =
-    user?.displayName?.split(" ")[0] ||
-    user?.email?.split("@")[0] ||
-    "there";
+  const firstName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || "there";
   const initial = firstName.charAt(0).toUpperCase();
   const todayLabel = new Date().toLocaleDateString("en-GB", {
     weekday: "short",
@@ -110,22 +79,14 @@ export function DashboardScreen() {
           <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-soft text-lg font-bold text-primary-main">
             {user?.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={user.photoURL}
-                alt={firstName}
-                className="h-full w-full object-cover"
-              />
+              <img src={user.photoURL} alt={firstName} className="h-full w-full object-cover" />
             ) : (
               initial
             )}
           </span>
           <div className="min-w-0">
-            <h1 className="truncate text-xl font-bold tracking-tight text-brand-deep">
-              Good morning, {firstName}
-            </h1>
-            <p className="truncate text-sm text-gray-400">
-              Here is your wealth summary · {todayLabel}
-            </p>
+            <h1 className="truncate text-xl font-bold tracking-tight text-brand-deep">Good morning, {firstName}</h1>
+            <p className="truncate text-sm text-gray-400">Here is your wealth summary · {todayLabel}</p>
           </div>
         </div>
         <button
@@ -138,11 +99,7 @@ export function DashboardScreen() {
         </button>
       </header>
 
-      <SummaryCards
-        totalIncome={current.totalIncome}
-        totalExpense={current.totalExpense}
-        balance={totalBalance}
-      />
+      <SummaryCards totalIncome={current.totalIncome} totalExpense={current.totalExpense} balance={totalBalance} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <MonthlyTrendChart className="lg:col-span-3" />
@@ -161,9 +118,7 @@ export function DashboardScreen() {
 
       <section className="rounded-2xl border border-gray-100/80 bg-white p-4 shadow-card md:p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-bold text-brand-deep">
-            {UI_TEXT.UPCOMING_BILLS}
-          </h3>
+          <h3 className="text-base font-bold text-brand-deep">{UI_TEXT.UPCOMING_BILLS}</h3>
           <button
             type="button"
             onClick={() => navigateToTab("bills")}
@@ -174,9 +129,7 @@ export function DashboardScreen() {
           </button>
         </div>
         {upcomingBills.length === 0 ? (
-          <p className="py-4 text-center text-sm text-gray-400">
-            {UI_TEXT.NO_BILL_REMINDERS}
-          </p>
+          <p className="py-4 text-center text-sm text-gray-400">{UI_TEXT.NO_BILL_REMINDERS}</p>
         ) : (
           <ul className="divide-y divide-gray-50">
             {upcomingBills.map((bill) => (

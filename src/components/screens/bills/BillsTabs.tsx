@@ -1,7 +1,9 @@
 "use client";
 
 import { UI_TEXT } from "@constants";
+
 import { cn } from "@utils/cn";
+
 import type { BillTab } from "./billHelpers";
 
 export interface BillsTabsProps {

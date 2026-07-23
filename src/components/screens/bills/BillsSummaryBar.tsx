@@ -1,6 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
+
 import { cn } from "@utils/cn";
 
 export interface BillsSummaryBarProps {

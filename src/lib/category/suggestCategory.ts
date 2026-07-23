@@ -1,13 +1,15 @@
+import { ERROR_MESSAGES, STATEMENT_IMPORT, TRANSACTION_TYPES } from "@constants";
+
+import { builtInCategoriesForType, resolveCategoryName } from "@utils/categoryNormalize";
 import {
-  ERROR_MESSAGES,
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
-  STATEMENT_IMPORT,
-} from "@constants";
+  formatKnownUpiPayeePromptRules,
+  resolveKnownUpiPayeeCategory,
+} from "@utils/transactionCategorization";
+
 import type { TransactionType } from "@/types";
 
-const INCOME_LIST = Object.values(INCOME_CATEGORIES) as string[];
-const EXPENSE_LIST = Object.values(EXPENSE_CATEGORIES) as string[];
+const INCOME_LIST = builtInCategoriesForType("income");
+const EXPENSE_LIST = builtInCategoriesForType("expense");
 
 export interface SuggestCategoryRequest {
   title: string;
@@ -29,11 +31,7 @@ export interface SuggestCategoryResult {
 type AiProvider = "google" | "openai";
 
 function resolveGoogleApiKey(): string | null {
-  return (
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-    process.env.GEMINI_API_KEY?.trim() ||
-    null
-  );
+  return process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim() || null;
 }
 
 function resolveOpenAiApiKey(): string | null {
@@ -67,14 +65,13 @@ function buildPrompt(input: SuggestCategoryRequest): string {
     input.typeHint
       ? `- Prefer type "${input.typeHint}" unless the title clearly indicates otherwise.`
       : "- Infer type from the title and amount context.",
+    formatKnownUpiPayeePromptRules(),
     "",
     `Income categories: ${incomeAll.join(", ")}`,
     `Expense categories: ${expenseAll.join(", ")}`,
     "",
     `Title: ${input.title}`,
-    input.amount != null && Number.isFinite(input.amount)
-      ? `Amount: ${input.amount}`
-      : "",
+    input.amount != null && Number.isFinite(input.amount) ? `Amount: ${input.amount}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -94,22 +91,21 @@ function extractJsonPayload(content: string): unknown {
   }
 }
 
-function normalizeSuggestion(
-  raw: unknown,
-  typeHint?: TransactionType,
-): SuggestCategoryResult {
+function normalizeSuggestion(raw: unknown, typeHint?: TransactionType): SuggestCategoryResult {
   if (!raw || typeof raw !== "object") {
     throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_INVALID);
   }
   const row = raw as Record<string, unknown>;
-  const category = String(row.category ?? "").trim().replace(/\s+/g, " ");
+  const category = String(row.category ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
   if (!category) {
     throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_INVALID);
   }
 
   const rawType = String(row.type ?? "").toLowerCase();
   let type: TransactionType =
-    rawType === "income" ? "income" : rawType === "expense" ? "expense" : typeHint ?? "expense";
+    rawType === "income" ? "income" : rawType === "expense" ? "expense" : (typeHint ?? "expense");
 
   if (typeHint === "income" || typeHint === "expense") {
     // Keep locked context unless model is strongly contradictory — prefer hint.
@@ -117,25 +113,18 @@ function normalizeSuggestion(
   }
 
   const confidenceRaw = Number(row.confidence);
-  const confidence = Number.isFinite(confidenceRaw)
-    ? Math.min(1, Math.max(0, confidenceRaw))
-    : 0.5;
+  const confidence = Number.isFinite(confidenceRaw) ? Math.min(1, Math.max(0, confidenceRaw)) : 0.5;
 
-  // Prefer canonical casing from known lists.
-  const allowed = type === "income" ? INCOME_LIST : EXPENSE_LIST;
-  const match = allowed.find((c) => c.toLowerCase() === category.toLowerCase());
+  const resolved = resolveCategoryName(type, category);
 
   return {
-    category: match ?? category,
+    category: resolved.category,
     type,
     confidence,
   };
 }
 
-async function suggestWithGoogle(
-  prompt: string,
-  apiKey: string,
-): Promise<unknown> {
+async function suggestWithGoogle(prompt: string, apiKey: string): Promise<unknown> {
   const model = STATEMENT_IMPORT.GEMINI_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
@@ -171,9 +160,7 @@ async function suggestWithGoogle(
     } catch {
       // ignore
     }
-    throw new Error(
-      ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail),
-    );
+    throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail));
   }
 
   const data = (await response.json()) as {
@@ -191,10 +178,7 @@ async function suggestWithGoogle(
   return extractJsonPayload(content);
 }
 
-async function suggestWithOpenAi(
-  prompt: string,
-  apiKey: string,
-): Promise<unknown> {
+async function suggestWithOpenAi(prompt: string, apiKey: string): Promise<unknown> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -208,8 +192,7 @@ async function suggestWithOpenAi(
       messages: [
         {
           role: "system",
-          content:
-            "You classify personal finance transactions. Reply with JSON only.",
+          content: "You classify personal finance transactions. Reply with JSON only.",
         },
         { role: "user", content: prompt },
       ],
@@ -224,9 +207,7 @@ async function suggestWithOpenAi(
     } catch {
       // ignore
     }
-    throw new Error(
-      ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail),
-    );
+    throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail));
   }
 
   const data = (await response.json()) as {
@@ -243,13 +224,21 @@ async function suggestWithOpenAi(
 /**
  * Suggest a category name + income/expense type from a transaction title.
  * Server-only — uses the same Gemini/OpenAI keys as statement parsing.
+ * Known UPI payee overrides short-circuit before calling the model.
  */
-export async function suggestCategoryWithAi(
-  input: SuggestCategoryRequest,
-): Promise<SuggestCategoryResult> {
+export async function suggestCategoryWithAi(input: SuggestCategoryRequest): Promise<SuggestCategoryResult> {
   const title = String(input.title ?? "").trim();
   if (!title) {
     throw new Error(ERROR_MESSAGES.SUGGEST_CATEGORY_TITLE_REQUIRED);
+  }
+
+  const payeeCategory = resolveKnownUpiPayeeCategory(title);
+  if (payeeCategory && input.typeHint !== TRANSACTION_TYPES.INCOME) {
+    return {
+      category: resolveCategoryName(TRANSACTION_TYPES.EXPENSE, payeeCategory).category,
+      type: TRANSACTION_TYPES.EXPENSE,
+      confidence: 1,
+    };
   }
 
   const resolved = resolveProvider();
@@ -263,5 +252,15 @@ export async function suggestCategoryWithAi(
       ? await suggestWithGoogle(prompt, resolved.apiKey)
       : await suggestWithOpenAi(prompt, resolved.apiKey);
 
-  return normalizeSuggestion(raw, input.typeHint);
+  const suggestion = normalizeSuggestion(raw, input.typeHint);
+  if (suggestion.type === TRANSACTION_TYPES.INCOME) return suggestion;
+
+  const forced = resolveKnownUpiPayeeCategory(title);
+  if (!forced) return suggestion;
+
+  return {
+    ...suggestion,
+    category: resolveCategoryName(TRANSACTION_TYPES.EXPENSE, forced).category,
+    confidence: 1,
+  };
 }

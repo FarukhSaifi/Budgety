@@ -1,5 +1,6 @@
-import { TIMEOUTS, UI_TEXT } from "@constants";
 import { toast, type Id, type ToastOptions, type TypeOptions } from "react-toastify";
+
+import { TIMEOUTS, UI_TEXT } from "@constants";
 
 /**
  * Toast notification utility functions

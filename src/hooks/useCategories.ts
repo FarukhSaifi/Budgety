@@ -1,13 +1,22 @@
-import {
-  INCOME_CATEGORIES,
-  SORTED_EXPENSE_CATEGORIES,
-} from "@constants";
-import { useAppSelector } from "@store/hooks";
-import type { TransactionType } from "@/types";
 import { useMemo } from "react";
 
+import {
+  INCOME_CATEGORIES,
+  INVESTMENT_CATEGORIES,
+  SORTED_EXPENSE_CATEGORIES,
+} from "@constants";
+
+import { useAppSelector } from "@store/hooks";
+
+import type { TransactionType } from "@/types";
+
 const BASE_INCOME = Object.values(INCOME_CATEGORIES) as string[];
-const BASE_EXPENSE = SORTED_EXPENSE_CATEGORIES as string[];
+const BASE_EXPENSE = [
+  ...new Set([
+    ...(SORTED_EXPENSE_CATEGORIES as string[]),
+    ...(Object.values(INVESTMENT_CATEGORIES) as string[]),
+  ]),
+].sort((a, b) => a.localeCompare(b));
 
 export interface CategoriesResult {
   income: string[];

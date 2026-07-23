@@ -1,28 +1,40 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+
+import { useSearchParams } from "next/navigation";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
 import {
   CHART_CONFIG,
   CURRENCY_SYMBOL,
   DATE_CONSTANTS,
+  DEFAULT_VALUES,
   DISPLAY_LIMITS,
   MONTHS,
   PERCENTAGE_THRESHOLDS,
+  TRANSACTION_TYPES,
   UI_TEXT,
-  VIEW_PERIODS,
 } from "@constants";
-import { CHART_THEME_COLORS } from "@/lib/theme";
+
 import { Badge, Button, EmptyState, ProgressBar } from "@common";
+
 import {
-  AlertBanner,
-  BudgetItemCard,
-  DonutChartCard,
-  FilterPills,
-  SegmentedTabs,
-  TransactionItem,
-} from "@components/mobile";
-import { BudgetModal } from "@components/screens/budgets/BudgetModal";
-import { PeriodPicker } from "@components/shell/PeriodPicker";
-import {
+  AccountBalanceWalletIcon,
   AddIcon,
   ArrowDownwardIcon,
   ArrowUpwardIcon,
@@ -33,35 +45,40 @@ import {
   HelpOutlineIcon,
   LightbulbIcon,
   MenuIcon,
+  SavingsIcon,
   SearchIcon,
   ShoppingCartIcon,
   ShowChartIcon,
   TrendingUpIcon,
   WarningIcon,
 } from "@components/icons";
+import {
+  AlertBanner,
+  BudgetItemCard,
+  DonutChartCard,
+  FilterPills,
+  SegmentedTabs,
+  TransactionItem,
+} from "@components/mobile";
+import { daysElapsedInMonth, formatDelta } from "@components/screens/analytics/analyticsHelpers";
+import { ReportsInsightsPanel } from "@components/screens/analytics/ReportsInsightsPanel";
+import { BudgetModal } from "@components/screens/budgets/BudgetModal";
+import { PeriodPicker } from "@components/shell/PeriodPicker";
+
+import { useAppNavigation } from "@hooks/useAppNavigation";
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
-import { useAppNavigation } from "@hooks/useAppNavigation";
+import { useUiPeriod } from "@hooks/useUiPeriod";
 import { useAppSelector } from "@store/hooks";
 import { cn } from "@utils/cn";
 import { getCategoryChartColor } from "@utils/colorUtils";
-import { compareByDateThenCreatedAt, getMonthYear } from "@utils/dateUtils";
+import { compareByDateThenCreatedAt } from "@utils/dateUtils";
 import { exportChartData } from "@utils/exportUtils";
+import { buildRollingMonthTrend } from "@utils/periodFilter";
 import { percentChange } from "@utils/transactionFilters";
-import type { AnalyticsTab, Budget, ViewPeriod } from "@/types";
-import { useMemo, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+
+import { CHART_THEME_COLORS } from "@/lib/theme";
+import type { AnalyticsTab, Budget } from "@/types";
 
 const BUDGET_LIMIT_COLOR = CHART_THEME_COLORS.PRIMARY_SOFT;
 const ACTUAL_SPENT_COLOR = CHART_THEME_COLORS.PRIMARY_CONTAINER;
@@ -74,82 +91,102 @@ type CriticalAlert = {
   tone: "danger" | "success" | "warning";
 };
 
-function formatDelta(delta: number | null): string | null {
-  if (delta == null) return null;
-  const sign = delta >= 0 ? "+" : "";
-  return `${sign}${Math.abs(delta).toFixed(1)}%`;
-}
-
 export function AnalyticsScreen() {
   const navigateToTab = useAppNavigation();
+  const searchParams = useSearchParams();
   const transactions = useAppSelector((s) => s.transactions.items);
   const budgets = useAppSelector((s) => s.budgets.items);
   const goals = useAppSelector((s) => s.goals.items);
   const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
-  const { formatCurrency, formatCurrencyForChart, formatCompactCurrency } =
-    useCurrencyFormatter();
+  const { formatCurrency, formatCurrencyForChart, formatCompactCurrency } = useCurrencyFormatter();
 
-  const [tab, setTab] = useState<AnalyticsTab>("overview");
+  const initialTab = (searchParams.get("tab") as AnalyticsTab | null) ?? "overview";
+  const [tab, setTab] = useState<AnalyticsTab>(
+    initialTab === "income" ||
+      initialTab === "outcome" ||
+      initialTab === "budget" ||
+      initialTab === "reports"
+      ? initialTab
+      : "overview",
+  );
   const [search, setSearch] = useState("");
   const [incomeCategory, setIncomeCategory] = useState("all");
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
 
-  const current = useBudgetCalculations(
-    transactions,
-    viewPeriod,
-    selectedMonth,
-    selectedYear,
-  );
-
-  const previousPeriod = useMemo(() => {
-    if (viewPeriod === VIEW_PERIODS.YEARLY) {
-      return {
-        viewPeriod: VIEW_PERIODS.YEARLY as ViewPeriod,
-        month: selectedMonth,
-        year: selectedYear - 1,
-      };
+  useEffect(() => {
+    const param = searchParams.get("tab") as AnalyticsTab | null;
+    if (
+      param === "overview" ||
+      param === "income" ||
+      param === "outcome" ||
+      param === "budget" ||
+      param === "reports"
+    ) {
+      setTab(param);
     }
-    const month = selectedMonth === 1 ? 12 : selectedMonth - 1;
-    const year = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
-    return {
-      viewPeriod: VIEW_PERIODS.MONTHLY as ViewPeriod,
-      month,
-      year,
-    };
-  }, [viewPeriod, selectedMonth, selectedYear]);
+  }, [searchParams]);
 
+  const current = useBudgetCalculations(transactions, viewPeriod, selectedMonth, selectedYear);
+
+  const { previousPeriod } = useUiPeriod();
   const previous = useBudgetCalculations(
     transactions,
     previousPeriod.viewPeriod,
-    previousPeriod.month,
-    previousPeriod.year,
+    previousPeriod.selectedMonth,
+    previousPeriod.selectedYear,
   );
 
   const searchLower = search.trim().toLowerCase();
 
   const budgetLimit = useMemo(
-    () =>
-      budgets
-        .filter((b) => b.period === "monthly")
-        .reduce((sum, b) => sum + (b.limitAmount || 0), 0),
+    () => budgets.filter((b) => b.period === "monthly").reduce((sum, b) => sum + (b.limitAmount || 0), 0),
     [budgets],
   );
 
-  const netSavings = current.totalIncome - current.totalExpense;
-  const prevNetSavings = previous.totalIncome - previous.totalExpense;
+  const netSavings = current.balance;
+  const prevNetSavings = previous.balance;
   const netDelta = percentChange(netSavings, prevNetSavings);
   const spendDelta = percentChange(current.totalExpense, previous.totalExpense);
+  const incomeDelta = percentChange(current.totalIncome, previous.totalIncome);
+
+  /** All-time running balance — same pattern as Dashboard SummaryCards. */
+  const currentBalance = useMemo(() => {
+    const allIncome = transactions
+      .filter((t) => t.type === TRANSACTION_TYPES.INCOME)
+      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
+    const allExpense = transactions
+      .filter((t) => t.type === TRANSACTION_TYPES.EXPENSE)
+      .reduce((sum, t) => sum + (t.amount || DEFAULT_VALUES.AMOUNT), DEFAULT_VALUES.BALANCE);
+    return allIncome - allExpense;
+  }, [transactions]);
+
+  const savingsRate =
+    current.totalIncome > 0
+      ? (netSavings / current.totalIncome) * PERCENTAGE_THRESHOLDS.MAX
+      : null;
+
+  const avgDailySpend = useMemo(() => {
+    const days = daysElapsedInMonth(selectedMonth, selectedYear);
+    return current.totalExpense / days;
+  }, [current.totalExpense, selectedMonth, selectedYear]);
+
+  const spendOfIncome =
+    current.totalIncome > 0
+      ? (current.totalExpense / current.totalIncome) * PERCENTAGE_THRESHOLDS.MAX
+      : null;
+
+  const largestTransactions = useMemo(() => {
+    return [...current.filteredTransactions]
+      .sort((a, b) => (b.amount || 0) - (a.amount || 0))
+      .slice(0, DISPLAY_LIMITS.LARGEST_TRANSACTIONS);
+  }, [current.filteredTransactions]);
 
   const budgetHealthPct = useMemo(() => {
     if (budgetLimit <= 0) return PERCENTAGE_THRESHOLDS.MAX;
-    const remaining =
-      ((budgetLimit - current.totalExpense) / budgetLimit) *
-      PERCENTAGE_THRESHOLDS.MAX;
-    return Math.round(
-      Math.max(PERCENTAGE_THRESHOLDS.MIN, Math.min(PERCENTAGE_THRESHOLDS.MAX, remaining)),
-    );
+    const remaining = ((budgetLimit - current.totalExpense) / budgetLimit) * PERCENTAGE_THRESHOLDS.MAX;
+    return Math.round(Math.max(PERCENTAGE_THRESHOLDS.MIN, Math.min(PERCENTAGE_THRESHOLDS.MAX, remaining)));
   }, [budgetLimit, current.totalExpense]);
 
   const budgetHealthStatus = useMemo(() => {
@@ -161,48 +198,25 @@ export function AnalyticsScreen() {
   }, [budgetLimit, current.totalExpense]);
 
   const monthlyTrend = useMemo(() => {
-    const months: {
-      key: string;
-      label: string;
-      income: number;
-      expense: number;
-      net: number;
-    }[] = [];
-    const now = new Date();
-    for (let i = DISPLAY_LIMITS.TREND_MONTHS - 1; i >= 0; i -= 1) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({
-        key: `${d.getFullYear()}-${d.getMonth() + 1}`,
-        label: MONTHS[d.getMonth()].slice(0, 3),
-        income: 0,
-        expense: 0,
-        net: 0,
-      });
-    }
-    const index = new Map(months.map((m) => [m.key, m]));
-    transactions.forEach((t) => {
-      const my = getMonthYear(t.date);
-      if (!my) return;
-      const entry = index.get(`${my.year}-${my.month}`);
-      if (!entry) return;
-      if (t.type === "income") entry.income += t.amount || 0;
-      else entry.expense += t.amount || 0;
-    });
-    months.forEach((m) => {
-      m.net = m.income - m.expense;
-    });
-    return months;
-  }, [transactions]);
+    return buildRollingMonthTrend(transactions, selectedMonth, selectedYear, DISPLAY_LIMITS.TREND_MONTHS).map(
+      ({ key, label, Income, Expense }) => ({
+        key,
+        label,
+        income: Income,
+        expense: Expense,
+        net: Income - Expense,
+      }),
+    );
+  }, [transactions, selectedMonth, selectedYear]);
 
-  const incomeTrend = useMemo(
-    () => monthlyTrend.map(({ label, income }) => ({ label, income })),
+  const incomeExpenseTrend = useMemo(
+    () => monthlyTrend.map(({ label, income, expense }) => ({ label, income, expense })),
     [monthlyTrend],
   );
 
-  const expenseTrend = useMemo(
-    () => monthlyTrend.map(({ label, expense }) => ({ label, expense })),
-    [monthlyTrend],
-  );
+  const incomeTrend = useMemo(() => monthlyTrend.map(({ label, income }) => ({ label, income })), [monthlyTrend]);
+
+  const expenseTrend = useMemo(() => monthlyTrend.map(({ label, expense }) => ({ label, expense })), [monthlyTrend]);
 
   const highlightMonthLabel = MONTHS[selectedMonth - 1]?.slice(0, 3) ?? "";
 
@@ -213,10 +227,7 @@ export function AnalyticsScreen() {
       projected: false as boolean,
     }));
     const withSpend = monthlyTrend.filter((m) => m.expense > 0);
-    const avg =
-      withSpend.length > 0
-        ? withSpend.reduce((s, m) => s + m.expense, 0) / withSpend.length
-        : 0;
+    const avg = withSpend.length > 0 ? withSpend.reduce((s, m) => s + m.expense, 0) / withSpend.length : 0;
     const nextMonthIndex = (new Date().getMonth() + 1) % 12;
     history.push({
       label: MONTHS[nextMonthIndex].slice(0, 3),
@@ -228,14 +239,8 @@ export function AnalyticsScreen() {
 
   const eoyForecast = useMemo(() => {
     const withData = monthlyTrend.filter((m) => m.income > 0 || m.expense > 0);
-    const avgNet =
-      withData.length > 0
-        ? withData.reduce((s, m) => s + m.net, 0) / withData.length
-        : netSavings;
-    const remainingMonths = Math.max(
-      0,
-      DATE_CONSTANTS.MONTHS_PER_YEAR - selectedMonth,
-    );
+    const avgNet = withData.length > 0 ? withData.reduce((s, m) => s + m.net, 0) / withData.length : netSavings;
+    const remainingMonths = Math.max(0, DATE_CONSTANTS.MONTHS_PER_YEAR - selectedMonth);
     const ytdNet = monthlyTrend
       .filter((m) => {
         const [y] = m.key.split("-").map(Number);
@@ -252,8 +257,7 @@ export function AnalyticsScreen() {
     if (recent.length === 0) {
       return "Add a few months of spending to unlock a pace-based forecast insight.";
     }
-    const recentAvg =
-      recent.reduce((s, m) => s + m.expense, 0) / recent.length;
+    const recentAvg = recent.reduce((s, m) => s + m.expense, 0) / recent.length;
     if (prior.length === 0) {
       return `Based on recent months, average spend is about ${CURRENCY_SYMBOL}${formatCurrency(recentAvg)}. Next month is estimated near that pace.`;
     }
@@ -366,9 +370,7 @@ export function AnalyticsScreen() {
     let filtered = alerts;
     if (searchLower) {
       filtered = alerts.filter(
-        (a) =>
-          a.title.toLowerCase().includes(searchLower) ||
-          a.message.toLowerCase().includes(searchLower),
+        (a) => a.title.toLowerCase().includes(searchLower) || a.message.toLowerCase().includes(searchLower),
       );
     }
     return filtered.slice(0, DISPLAY_LIMITS.PREVIEW_ITEMS);
@@ -391,9 +393,7 @@ export function AnalyticsScreen() {
           (t.category || "").toLowerCase().includes(searchLower),
       );
     }
-    return [...list]
-      .sort((a, b) => -compareByDateThenCreatedAt(a, b))
-      .slice(0, 20);
+    return [...list].sort((a, b) => -compareByDateThenCreatedAt(a, b)).slice(0, 20);
   }, [current.filteredTransactions, incomeCategory, searchLower]);
 
   const outcomeRows = useMemo(() => {
@@ -405,19 +405,13 @@ export function AnalyticsScreen() {
           (t.category || "").toLowerCase().includes(searchLower),
       );
     }
-    return [...list]
-      .sort((a, b) => -compareByDateThenCreatedAt(a, b))
-      .slice(0, 20);
+    return [...list].sort((a, b) => -compareByDateThenCreatedAt(a, b)).slice(0, 20);
   }, [current.filteredTransactions, searchLower]);
-
-  const incomeDelta = percentChange(current.totalIncome, previous.totalIncome);
 
   const activeTooltip =
     spendSlices.length > 1
       ? `${spendSlices[1].name} ${Math.round(
-          (spendSlices[1].value /
-            (spendSlices.reduce((a, s) => a + s.value, 0) || 1)) *
-            100,
+          (spendSlices[1].value / (spendSlices.reduce((a, s) => a + s.value, 0) || 1)) * 100,
         )}%`
       : null;
 
@@ -447,12 +441,12 @@ export function AnalyticsScreen() {
         >
           <MenuIcon className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-bold text-brand-deep">{UI_TEXT.ANALYTICS}</h1>
+        <h1 className="text-lg font-bold text-brand-deep">{UI_TEXT.ANALYTICS_AND_REPORTS}</h1>
         <button
           type="button"
           className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white"
           aria-label={UI_TEXT.EXPORT_DATA}
-          onClick={() => navigateToTab("reports")}
+          onClick={() => setTab("reports")}
         >
           <DownloadIcon className="h-5 w-5" />
         </button>
@@ -473,9 +467,9 @@ export function AnalyticsScreen() {
           size="sm"
           variant="secondary"
           leftIcon={<DownloadIcon className="h-4 w-4" />}
-          onClick={() => navigateToTab("reports")}
+          onClick={() => setTab("reports")}
         >
-          {UI_TEXT.REPORTS}
+          {UI_TEXT.REPORTS_TAB}
         </Button>
       </div>
 
@@ -500,23 +494,35 @@ export function AnalyticsScreen() {
           { value: "income", label: UI_TEXT.INCOME },
           { value: "outcome", label: UI_TEXT.OUTCOME },
           { value: "budget", label: UI_TEXT.BUDGET },
+          { value: "reports", label: UI_TEXT.REPORTS_TAB },
         ]}
       />
 
       {tab === "overview" && (
         <>
-          {/* KPI row */}
+          {/* KPI row — balance + core period metrics */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
+              <div className="mb-3 flex items-start justify-between">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary-main">
+                  <AccountBalanceWalletIcon className="h-5 w-5" />
+                </span>
+              </div>
+              <p className="text-sm font-medium text-gray-500">{UI_TEXT.CURRENT_BALANCE}</p>
+              <p className="mt-1 text-2xl font-bold tracking-tight text-brand-deep md:text-[28px]">
+                {CURRENCY_SYMBOL}
+                {formatCurrency(currentBalance)}
+              </p>
+              <p className="mt-2 text-xs text-gray-400">{UI_TEXT.CURRENT_BALANCE_HINT}</p>
+            </article>
+
             <article className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
               <div className="mb-3 flex items-start justify-between">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary/10 text-tertiary">
                   <TrendingUpIcon className="h-5 w-5" />
                 </span>
                 {formatDelta(netDelta) && (
-                  <Badge
-                    tone={netDelta != null && netDelta >= 0 ? "success" : "danger"}
-                    className="rounded-md"
-                  >
+                  <Badge tone={netDelta != null && netDelta >= 0 ? "success" : "danger"} className="rounded-md">
                     {netDelta != null && netDelta >= 0 ? (
                       <ArrowUpwardIcon className="h-3 w-3" />
                     ) : (
@@ -543,10 +549,7 @@ export function AnalyticsScreen() {
                   <ShoppingCartIcon className="h-5 w-5" />
                 </span>
                 {formatDelta(spendDelta) && (
-                  <Badge
-                    tone={spendDelta != null && spendDelta <= 0 ? "success" : "danger"}
-                    className="rounded-md"
-                  >
+                  <Badge tone={spendDelta != null && spendDelta <= 0 ? "success" : "danger"} className="rounded-md">
                     {formatDelta(spendDelta)}
                   </Badge>
                 )}
@@ -591,33 +594,129 @@ export function AnalyticsScreen() {
                 trackClassName="bg-surface-high"
               />
             </article>
+          </div>
 
-            <article className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
-              <div className="mb-3 flex items-start justify-between">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary-main">
-                  <ShowChartIcon className="h-5 w-5" />
-                </span>
+          {/* Insight metrics — savings rate, avg daily, spend vs income, EOY */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <article className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-income/10 text-income">
+                <SavingsIcon className="h-4 w-4" />
               </div>
-              <p className="text-sm font-medium text-gray-500">{UI_TEXT.FORECAST_EOY}</p>
-              <p className="mt-1 text-2xl font-bold tracking-tight text-brand-deep md:text-[28px]">
+              <p className="text-xs font-medium text-gray-500">{UI_TEXT.SAVINGS_RATE}</p>
+              <p className="mt-1 text-xl font-bold text-brand-deep">
+                {savingsRate == null ? UI_TEXT.NOT_AVAILABLE : `${savingsRate.toFixed(0)}%`}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-400">{UI_TEXT.PERIOD_BALANCE}</p>
+            </article>
+
+            <article className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-expense/10 text-expense">
+                <ShoppingCartIcon className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-medium text-gray-500">{UI_TEXT.AVERAGE_DAILY_SPEND}</p>
+              <p className="mt-1 text-xl font-bold text-brand-deep">
+                {CURRENCY_SYMBOL}
+                {formatCurrency(avgDailySpend)}
+              </p>
+              <p className="mt-1 text-[11px] text-gray-400">{UI_TEXT.THIS_PERIOD}</p>
+            </article>
+
+            <article className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary-main">
+                <ShowChartIcon className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-medium text-gray-500">{UI_TEXT.SPEND_VS_INCOME}</p>
+              <p className="mt-1 text-xl font-bold text-brand-deep">
+                {spendOfIncome == null ? UI_TEXT.NOT_AVAILABLE : `${Math.round(spendOfIncome)}%`}
+              </p>
+              <ProgressBar
+                value={spendOfIncome == null ? 0 : Math.min(PERCENTAGE_THRESHOLDS.MAX, spendOfIncome)}
+                className="mt-2 h-1.5"
+                colorClassName={
+                  spendOfIncome != null && spendOfIncome > PERCENTAGE_THRESHOLDS.MAX
+                    ? "bg-expense"
+                    : "bg-primary-main"
+                }
+                trackClassName="bg-surface-high"
+              />
+              <p className="mt-1 text-[11px] text-gray-400">{UI_TEXT.OF_INCOME}</p>
+            </article>
+
+            <article className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card">
+              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary-main">
+                <TrendingUpIcon className="h-4 w-4" />
+              </div>
+              <p className="text-xs font-medium text-gray-500">{UI_TEXT.FORECAST_EOY}</p>
+              <p className="mt-1 text-xl font-bold text-brand-deep">
                 {CURRENCY_SYMBOL}
                 {formatCurrency(eoyForecast)}
               </p>
-              <p className="mt-2 text-xs text-gray-400">{UI_TEXT.FORECAST_PACE_HINT}</p>
+              <p className="mt-1 text-[11px] text-gray-400">{UI_TEXT.FORECAST_PACE_HINT}</p>
             </article>
           </div>
+
+          {/* Income vs Expenses trend */}
+          <section className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card backdrop-blur-sm md:p-5">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-brand-deep md:text-lg">{UI_TEXT.INCOME_VS_EXPENSES}</h3>
+                <p className="text-sm text-on-surface-variant">{UI_TEXT.MONTHLY_TREND}</p>
+              </div>
+              <PeriodPicker variant="chip" align="right" />
+            </div>
+            <div className="h-56 w-full md:h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={incomeExpenseTrend} margin={{ ...CHART_CONFIG.MARGIN, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME_COLORS.GRID} vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 12, fill: CHART_THEME_COLORS.TICK }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
+                    width={48}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`}
+                  />
+                  <Tooltip
+                    formatter={(value) =>
+                      formatCurrencyForChart(typeof value === "number" ? value : Number(value) || 0)
+                    }
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="income"
+                    name={UI_TEXT.INCOME}
+                    stroke={CHART_THEME_COLORS.INCOME}
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{ r: 5 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="expense"
+                    name={UI_TEXT.EXPENSE}
+                    stroke={CHART_THEME_COLORS.EXPENSE}
+                    strokeWidth={2.5}
+                    dot={false}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
 
           {/* Charts mid row */}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <section className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card backdrop-blur-sm md:p-5 xl:col-span-2">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-base font-semibold text-brand-deep md:text-lg">
-                    {UI_TEXT.BUDGET_VS_ACTUAL}
-                  </h3>
-                  <p className="text-sm text-on-surface-variant">
-                    {UI_TEXT.BUDGET_VS_ACTUAL_SUBTITLE}
-                  </p>
+                  <h3 className="text-base font-semibold text-brand-deep md:text-lg">{UI_TEXT.BUDGET_VS_ACTUAL}</h3>
+                  <p className="text-sm text-on-surface-variant">{UI_TEXT.BUDGET_VS_ACTUAL_SUBTITLE}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <PeriodPicker variant="chip" align="right" />
@@ -627,23 +726,13 @@ export function AnalyticsScreen() {
                 </div>
               </div>
               {budgetVsActual.length === 0 ? (
-                <EmptyState
-                  title={UI_TEXT.NO_BUDGETS}
-                  description={UI_TEXT.BUDGET_VS_ACTUAL_SUBTITLE}
-                />
+                <EmptyState title={UI_TEXT.NO_BUDGETS} description={UI_TEXT.BUDGET_VS_ACTUAL_SUBTITLE} />
               ) : (
                 <>
                   <div className="h-64 w-full md:h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={budgetVsActual}
-                        margin={{ ...CHART_CONFIG.MARGIN, left: 0 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={CHART_THEME_COLORS.GRID}
-                          vertical={false}
-                        />
+                      <BarChart data={budgetVsActual} margin={{ ...CHART_CONFIG.MARGIN, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME_COLORS.GRID} vertical={false} />
                         <XAxis
                           dataKey="category"
                           tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
@@ -659,15 +748,11 @@ export function AnalyticsScreen() {
                           width={44}
                           axisLine={false}
                           tickLine={false}
-                          tickFormatter={(v) =>
-                            `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`
-                          }
+                          tickFormatter={(v) => `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`}
                         />
                         <Tooltip
                           formatter={(value) =>
-                            formatCurrencyForChart(
-                              typeof value === "number" ? value : Number(value) || 0,
-                            )
+                            formatCurrencyForChart(typeof value === "number" ? value : Number(value) || 0)
                           }
                         />
                         <Bar
@@ -677,19 +762,9 @@ export function AnalyticsScreen() {
                           radius={[6, 6, 0, 0]}
                           maxBarSize={28}
                         />
-                        <Bar
-                          dataKey="actual"
-                          name={UI_TEXT.ACTUAL_SPENT}
-                          radius={[6, 6, 0, 0]}
-                          maxBarSize={28}
-                        >
+                        <Bar dataKey="actual" name={UI_TEXT.ACTUAL_SPENT} radius={[6, 6, 0, 0]} maxBarSize={28}>
                           {budgetVsActual.map((entry) => (
-                            <Cell
-                              key={entry.category}
-                              fill={
-                                entry.over ? OVER_BUDGET_COLOR : ACTUAL_SPENT_COLOR
-                              }
-                            />
+                            <Cell key={entry.category} fill={entry.over ? OVER_BUDGET_COLOR : ACTUAL_SPENT_COLOR} />
                           ))}
                         </Bar>
                       </BarChart>
@@ -697,24 +772,15 @@ export function AnalyticsScreen() {
                   </div>
                   <div className="mt-3 flex flex-wrap justify-center gap-4 border-t border-outline-variant/40 pt-3 text-xs text-on-surface-variant">
                     <span className="inline-flex items-center gap-2">
-                      <span
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: BUDGET_LIMIT_COLOR }}
-                      />
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: BUDGET_LIMIT_COLOR }} />
                       {UI_TEXT.BUDGET_LIMIT}
                     </span>
                     <span className="inline-flex items-center gap-2">
-                      <span
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: ACTUAL_SPENT_COLOR }}
-                      />
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: ACTUAL_SPENT_COLOR }} />
                       {UI_TEXT.ACTUAL_SPENT}
                     </span>
                     <span className="inline-flex items-center gap-2">
-                      <span
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: OVER_BUDGET_COLOR }}
-                      />
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: OVER_BUDGET_COLOR }} />
                       {UI_TEXT.OVER_BUDGET}
                     </span>
                   </div>
@@ -723,12 +789,8 @@ export function AnalyticsScreen() {
             </section>
 
             <section className="flex flex-col rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
-              <h3 className="text-base font-semibold text-brand-deep md:text-lg">
-                {UI_TEXT.EXPENSE_FORECAST}
-              </h3>
-              <p className="mb-4 text-sm text-gray-500">
-                {UI_TEXT.EXPENSE_FORECAST_SUBTITLE}
-              </p>
+              <h3 className="text-base font-semibold text-brand-deep md:text-lg">{UI_TEXT.EXPENSE_FORECAST}</h3>
+              <p className="mb-4 text-sm text-gray-500">{UI_TEXT.EXPENSE_FORECAST_SUBTITLE}</p>
               <div className="min-h-[180px] flex-1">
                 <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={expenseForecast} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
@@ -748,9 +810,7 @@ export function AnalyticsScreen() {
                     <YAxis hide />
                     <Tooltip
                       formatter={(value) =>
-                        formatCurrencyForChart(
-                          typeof value === "number" ? value : Number(value) || 0,
-                        )
+                        formatCurrencyForChart(typeof value === "number" ? value : Number(value) || 0)
                       }
                       labelFormatter={(label) => String(label)}
                     />
@@ -764,8 +824,7 @@ export function AnalyticsScreen() {
                       dot={(props) => {
                         const { cx, cy, index, payload } = props;
                         if (cx == null || cy == null) return null;
-                        const isCurrent =
-                          index === expenseForecast.length - 2 && !payload?.projected;
+                        const isCurrent = index === expenseForecast.length - 2 && !payload?.projected;
                         const isProjected = Boolean(payload?.projected);
                         if (!isCurrent && !isProjected) return null;
                         return (
@@ -821,13 +880,9 @@ export function AnalyticsScreen() {
             </section>
 
             <section className="rounded-2xl border border-white/60 bg-white/80 p-4 shadow-card backdrop-blur-sm md:p-5">
-              <h3 className="mb-4 text-base font-semibold text-brand-deep md:text-lg">
-                {UI_TEXT.CRITICAL_ALERTS}
-              </h3>
+              <h3 className="mb-4 text-base font-semibold text-brand-deep md:text-lg">{UI_TEXT.CRITICAL_ALERTS}</h3>
               {criticalAlerts.length === 0 ? (
-                <p className="py-8 text-center text-sm text-gray-400">
-                  {UI_TEXT.NO_CRITICAL_ALERTS}
-                </p>
+                <p className="py-8 text-center text-sm text-gray-400">{UI_TEXT.NO_CRITICAL_ALERTS}</p>
               ) : (
                 <ul className="space-y-2">
                   {criticalAlerts.map((alert) => (
@@ -850,12 +905,8 @@ export function AnalyticsScreen() {
                         )}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-bold text-brand-deep">
-                          {alert.title}
-                        </h4>
-                        <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                          {alert.message}
-                        </p>
+                        <h4 className="text-sm font-bold text-brand-deep">{alert.title}</h4>
+                        <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{alert.message}</p>
                       </div>
                     </li>
                   ))}
@@ -870,6 +921,30 @@ export function AnalyticsScreen() {
               </button>
             </section>
           </div>
+
+          <section className="rounded-2xl border border-outline-variant/60 bg-card/80 p-4 shadow-card md:p-5">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-base font-semibold text-brand-deep md:text-lg">{UI_TEXT.LARGEST_TRANSACTIONS}</h3>
+              <button
+                type="button"
+                onClick={() => navigateToTab("transactions")}
+                className="text-sm font-semibold text-primary-main hover:underline"
+              >
+                {UI_TEXT.VIEW_ALL}
+              </button>
+            </div>
+            {largestTransactions.length === 0 ? (
+              <EmptyState title={UI_TEXT.NO_TRANSACTIONS} />
+            ) : (
+              <ul className="divide-y divide-gray-50">
+                {largestTransactions.map((t) => (
+                  <li key={t.id}>
+                    <TransactionItem transaction={t} formatCurrency={formatCurrency} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </>
       )}
 
@@ -892,9 +967,7 @@ export function AnalyticsScreen() {
           />
 
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-base font-bold text-brand-deep">
-              {UI_TEXT.BUDGET_ITEM}
-            </h3>
+            <h3 className="text-base font-bold text-brand-deep">{UI_TEXT.BUDGET_ITEM}</h3>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -925,11 +998,7 @@ export function AnalyticsScreen() {
           ) : (
             <ul className="space-y-3">
               {budgets
-                .filter(
-                  (b) =>
-                    !searchLower ||
-                    b.category.toLowerCase().includes(searchLower),
-                )
+                .filter((b) => !searchLower || b.category.toLowerCase().includes(searchLower))
                 .map((b, i) => (
                   <li key={b.id}>
                     <BudgetItemCard
@@ -937,10 +1006,7 @@ export function AnalyticsScreen() {
                       spent={current.spendingByCategory[b.category] ?? 0}
                       limit={b.limitAmount || 0}
                       formatCurrency={formatCurrency}
-                      color={
-                        categoryColorByName.get(b.category) ??
-                        getCategoryChartColor(b.category, i)
-                      }
+                      color={categoryColorByName.get(b.category) ?? getCategoryChartColor(b.category, i)}
                       onMenu={() => {
                         setEditingBudget(b);
                         setBudgetModalOpen(true);
@@ -966,9 +1032,7 @@ export function AnalyticsScreen() {
           <div className="rounded-card bg-white p-4 shadow-card md:p-5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
-                <h3 className="text-sm font-semibold text-brand-deep md:text-base">
-                  {UI_TEXT.INCOME_ANALYTICS}
-                </h3>
+                <h3 className="text-sm font-semibold text-brand-deep md:text-base">{UI_TEXT.INCOME_ANALYTICS}</h3>
                 <HelpOutlineIcon className="h-4 w-4 text-gray-400" aria-hidden />
               </div>
               <PeriodPicker variant="chip" align="right" />
@@ -1003,11 +1067,7 @@ export function AnalyticsScreen() {
                       <stop offset="100%" stopColor={CHART_THEME_COLORS.PRIMARY} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={CHART_THEME_COLORS.GRID}
-                    vertical={false}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME_COLORS.GRID} vertical={false} />
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
@@ -1019,30 +1079,19 @@ export function AnalyticsScreen() {
                     width={36}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) =>
-                      `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`
-                    }
+                    tickFormatter={(v) => `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`}
                   />
                   <Tooltip
                     formatter={(value) =>
-                      formatCurrencyForChart(
-                        typeof value === "number" ? value : Number(value) || 0,
-                      )
+                      formatCurrencyForChart(typeof value === "number" ? value : Number(value) || 0)
                     }
                   />
-                  <Bar
-                    dataKey="income"
-                    radius={[8, 8, 0, 0]}
-                    name={UI_TEXT.INCOME}
-                    maxBarSize={36}
-                  >
+                  <Bar dataKey="income" radius={[8, 8, 0, 0]} name={UI_TEXT.INCOME} maxBarSize={36}>
                     {incomeTrend.map((entry) => (
                       <Cell
                         key={entry.label}
                         fill={
-                          entry.label === highlightMonthLabel
-                            ? "url(#incomeBarGrad)"
-                            : CHART_THEME_COLORS.MUTED_BAR
+                          entry.label === highlightMonthLabel ? "url(#incomeBarGrad)" : CHART_THEME_COLORS.MUTED_BAR
                         }
                       />
                     ))}
@@ -1069,10 +1118,7 @@ export function AnalyticsScreen() {
               <ul className="divide-y divide-gray-50">
                 {incomeRows.map((t) => (
                   <li key={t.id}>
-                    <TransactionItem
-                      transaction={t}
-                      formatCurrency={formatCurrency}
-                    />
+                    <TransactionItem transaction={t} formatCurrency={formatCurrency} />
                   </li>
                 ))}
               </ul>
@@ -1081,10 +1127,10 @@ export function AnalyticsScreen() {
 
           <button
             type="button"
-            onClick={() => navigateToTab("reports")}
+            onClick={() => setTab("reports")}
             className="w-full py-2 text-center text-sm font-semibold text-primary-main"
           >
-            {UI_TEXT.VIEW_ALL} {UI_TEXT.REPORTS}
+            {UI_TEXT.VIEW_ALL} {UI_TEXT.REPORTS_TAB}
           </button>
         </>
       )}
@@ -1094,9 +1140,7 @@ export function AnalyticsScreen() {
           <div className="rounded-card bg-white p-4 shadow-card md:p-5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
-                <h3 className="text-sm font-semibold text-brand-deep md:text-base">
-                  {UI_TEXT.OUTCOME_ANALYTICS}
-                </h3>
+                <h3 className="text-sm font-semibold text-brand-deep md:text-base">{UI_TEXT.OUTCOME_ANALYTICS}</h3>
                 <HelpOutlineIcon className="h-4 w-4 text-gray-400" aria-hidden />
               </div>
               <PeriodPicker variant="chip" align="right" />
@@ -1131,11 +1175,7 @@ export function AnalyticsScreen() {
                       <stop offset="100%" stopColor={CHART_THEME_COLORS.PRIMARY} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={CHART_THEME_COLORS.GRID}
-                    vertical={false}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_THEME_COLORS.GRID} vertical={false} />
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 11, fill: CHART_THEME_COLORS.TICK }}
@@ -1147,30 +1187,19 @@ export function AnalyticsScreen() {
                     width={36}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) =>
-                      `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`
-                    }
+                    tickFormatter={(v) => `${CURRENCY_SYMBOL}${formatCompactCurrency(Number(v) || 0)}`}
                   />
                   <Tooltip
                     formatter={(value) =>
-                      formatCurrencyForChart(
-                        typeof value === "number" ? value : Number(value) || 0,
-                      )
+                      formatCurrencyForChart(typeof value === "number" ? value : Number(value) || 0)
                     }
                   />
-                  <Bar
-                    dataKey="expense"
-                    radius={[8, 8, 0, 0]}
-                    name={UI_TEXT.EXPENSE}
-                    maxBarSize={36}
-                  >
+                  <Bar dataKey="expense" radius={[8, 8, 0, 0]} name={UI_TEXT.EXPENSE} maxBarSize={36}>
                     {expenseTrend.map((entry) => (
                       <Cell
                         key={entry.label}
                         fill={
-                          entry.label === highlightMonthLabel
-                            ? "url(#outcomeBarGrad)"
-                            : CHART_THEME_COLORS.MUTED_BAR
+                          entry.label === highlightMonthLabel ? "url(#outcomeBarGrad)" : CHART_THEME_COLORS.MUTED_BAR
                         }
                       />
                     ))}
@@ -1195,10 +1224,7 @@ export function AnalyticsScreen() {
               <ul className="divide-y divide-gray-50">
                 {outcomeRows.map((t) => (
                   <li key={t.id}>
-                    <TransactionItem
-                      transaction={t}
-                      formatCurrency={formatCurrency}
-                    />
+                    <TransactionItem transaction={t} formatCurrency={formatCurrency} />
                   </li>
                 ))}
               </ul>
@@ -1206,13 +1232,15 @@ export function AnalyticsScreen() {
           </div>
           <button
             type="button"
-            onClick={() => navigateToTab("reports")}
+            onClick={() => setTab("reports")}
             className="w-full py-2 text-center text-sm font-semibold text-primary-main"
           >
-            {UI_TEXT.VIEW_ALL} {UI_TEXT.REPORTS}
+            {UI_TEXT.VIEW_ALL} {UI_TEXT.REPORTS_TAB}
           </button>
         </>
       )}
+
+      {tab === "reports" && <ReportsInsightsPanel />}
 
       <BudgetModal
         open={budgetModalOpen}

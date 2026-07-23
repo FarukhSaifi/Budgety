@@ -1,10 +1,12 @@
+import { NextResponse } from "next/server";
+
 import { ERROR_MESSAGES } from "@constants";
+
 import {
   suggestCategoryWithAi,
   type SuggestCategoryResult,
 } from "@/lib/category/suggestCategory";
 import type { TransactionType } from "@/types";
-import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

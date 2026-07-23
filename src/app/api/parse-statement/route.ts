@@ -1,4 +1,9 @@
+import { NextResponse } from "next/server";
+
 import { ERROR_MESSAGES, STATEMENT_IMPORT } from "@constants";
+
+import { collectNovelCategories } from "@utils/categoryNormalize";
+
 import { parseStatementWithAi } from "@/lib/statement/aiParse";
 import {
   extractPdfText,
@@ -9,7 +14,6 @@ import type {
   ParseStatementSuccess,
   StatementFileKind,
 } from "@/lib/statement/types";
-import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,9 +88,15 @@ export async function POST(request: Request) {
       return jsonError(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS, 422);
     }
 
+    const discoveredCategories = collectNovelCategories(transactions);
+
     const body: ParseStatementSuccess = {
       transactions,
-      meta: { source: kind, count: transactions.length },
+      meta: {
+        source: kind,
+        count: transactions.length,
+        discoveredCategories,
+      },
     };
     return NextResponse.json(body);
   } catch (err) {

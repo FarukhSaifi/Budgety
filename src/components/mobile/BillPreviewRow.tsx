@@ -1,7 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
-import { cn } from "@utils/cn";
+
 import {
   ElectricBoltIcon,
   MovieIcon,
@@ -10,6 +10,9 @@ import {
   WifiIcon,
 } from "@components/icons";
 import type { IconComponent } from "@components/icons";
+
+import { cn } from "@utils/cn";
+
 import type { Bill } from "@/types";
 
 export interface BillPreviewRowProps {

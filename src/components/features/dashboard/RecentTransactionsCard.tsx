@@ -1,16 +1,22 @@
 "use client";
 
+import { useMemo, useState } from "react";
+
+import Link from "next/link";
+
 import { DISPLAY_LIMITS, UI_TEXT } from "@constants";
+
 import { APP_ROUTES } from "@constants/routes";
+
 import { DashboardWidget } from "@components/features/dashboard/DashboardWidget";
 import { TransactionListRow } from "@components/features/transactions/TransactionListRow";
 import { TransactionModal } from "@components/screens/transactions/TransactionModal";
+
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useAppSelector } from "@store/hooks";
 import { compareByDateThenCreatedAt } from "@utils/dateUtils";
+
 import type { Transaction } from "@/types";
-import Link from "next/link";
-import { useMemo, useState } from "react";
 
 export interface RecentTransactionsCardProps {
   limit?: number;

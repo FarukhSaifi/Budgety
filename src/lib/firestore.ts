@@ -1,7 +1,3 @@
-import { db } from "@/lib/firebase";
-import type { Bill, BillStatus, Budget, Goal, PaymentMode, RecurringTransaction, Transaction } from "@/types";
-import { FIRESTORE_COLLECTIONS, PAYMENT_MODES_LIST } from "@constants/firestore";
-import { toStorageDate, todayStorage } from "@utils/dateUtils";
 import {
   addDoc,
   collection,
@@ -19,6 +15,14 @@ import {
   type FirestoreError,
   type QuerySnapshot,
 } from "firebase/firestore";
+
+import { FIRESTORE_COLLECTIONS, PAYMENT_MODES_LIST } from "@constants/firestore";
+
+import { toStorageDate, todayStorage } from "@utils/dateUtils";
+
+import { db } from "@/lib/firebase";
+import type { Bill, BillStatus, Budget, Goal, PaymentMode, RecurringTransaction, Transaction } from "@/types";
+
 
 function requireDb() {
   if (!db) {

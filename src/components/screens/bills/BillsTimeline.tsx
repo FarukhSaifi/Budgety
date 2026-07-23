@@ -1,10 +1,15 @@
 "use client";
 
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
-import { EventNoteIcon } from "@components/icons";
+
 import { EmptyState } from "@common";
+
+import { EventNoteIcon } from "@components/icons";
+
 import { cn } from "@utils/cn";
+
 import type { Bill } from "@/types";
+
 import {
   billTitle,
   formatTimelineDate,

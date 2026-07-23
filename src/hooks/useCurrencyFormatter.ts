@@ -1,5 +1,6 @@
-import { CURRENCY_SYMBOL, CURRENCY_THRESHOLDS, NUMBER_FORMAT } from "@constants";
 import { useMemo } from "react";
+
+import { CURRENCY_SYMBOL, CURRENCY_THRESHOLDS, NUMBER_FORMAT } from "@constants";
 
 export interface CurrencyFormatOptions {
   minimumFractionDigits?: number;

@@ -1,4 +1,5 @@
 import { DATE_CONSTANTS, RECURRENCE_LABELS, UI_TEXT } from "@constants";
+
 import type { IconComponent } from "@components/icons";
 import {
   ApartmentIcon,
@@ -9,6 +10,7 @@ import {
   ScheduleIcon,
   WifiIcon,
 } from "@components/icons";
+
 import type { Bill, BillStatus } from "@/types";
 
 export type BillTab = "upcoming" | "paid" | "all";

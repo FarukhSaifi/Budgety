@@ -1,9 +1,5 @@
 "use client";
 
-import { UI_TEXT } from "@constants";
-import { AddIcon, CheckIcon, KeyboardArrowDownIcon, SearchIcon } from "@components/icons";
-import { getCategoryIcon } from "@components/features/transactions/TransactionListRow";
-import { cn } from "@utils/cn";
 import {
   createElement,
   useEffect,
@@ -14,6 +10,13 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+
+import { UI_TEXT } from "@constants";
+
+import { getCategoryIcon } from "@components/features/transactions/TransactionListRow";
+import { AddIcon, CheckIcon, KeyboardArrowDownIcon, SearchIcon } from "@components/icons";
+
+import { cn } from "@utils/cn";
 
 export interface CategorySelectProps {
   value: string;

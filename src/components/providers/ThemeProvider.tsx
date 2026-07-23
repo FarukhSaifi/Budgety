@@ -1,23 +1,27 @@
 "use client";
 
 import {
-  applyResolvedTheme,
-  readStoredThemePreference,
-  resolveThemePreference,
-  writeStoredThemePreference,
-  type ResolvedTheme,
-  type ThemePreference,
-} from "@/lib/theme";
-import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+
+import {
+  applyResolvedTheme,
+  getSystemPrefersDark,
+  readStoredThemePreference,
+  resolveThemePreference,
+  subscribeSystemPrefersDark,
+  writeStoredThemePreference,
+  type ResolvedTheme,
+  type ThemePreference,
+} from "@/lib/theme";
 
 interface ThemeContextValue {
   preference: ThemePreference;
@@ -28,50 +32,47 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function subscribeSystemTheme(onChange: () => void) {
-  if (typeof window === "undefined" || !window.matchMedia) return () => undefined;
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
-}
-
-function getSystemDarkSnapshot() {
-  if (typeof window === "undefined" || !window.matchMedia) return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
 function getServerSystemDarkSnapshot() {
   return false;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("system");
-  const [hydrated, setHydrated] = useState(false);
-  const systemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDarkSnapshot, getServerSystemDarkSnapshot);
+  const preferenceRef = useRef<ThemePreference>("system");
+  const didReadStorageRef = useRef(false);
 
-  useEffect(() => {
-    setPreferenceState(readStoredThemePreference());
-    setHydrated(true);
-  }, []);
+  const systemDark = useSyncExternalStore(
+    subscribeSystemPrefersDark,
+    getSystemPrefersDark,
+    getServerSystemDarkSnapshot,
+  );
 
   const resolved = useMemo(() => resolveThemePreference(preference, systemDark), [preference, systemDark]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    applyResolvedTheme(resolved);
-  }, [hydrated, resolved]);
+  /**
+   * Apply before paint. Always resolve System via live `matchMedia` so we never
+   * overwrite the FOUC script with the SSR snapshot (`systemDark === false`).
+   * `systemDark` in the dependency list re-runs this when the OS theme changes.
+   */
+  useLayoutEffect(() => {
+    preferenceRef.current = preference;
+
+    if (!didReadStorageRef.current) {
+      didReadStorageRef.current = true;
+      const stored = readStoredThemePreference();
+      preferenceRef.current = stored;
+      setPreferenceState(stored);
+      applyResolvedTheme(resolveThemePreference(stored, getSystemPrefersDark()));
+      return;
+    }
+    applyResolvedTheme(resolveThemePreference(preferenceRef.current, getSystemPrefersDark()));
+  }, [preference, systemDark]);
 
   const setPreference = useCallback((next: ThemePreference) => {
+    preferenceRef.current = next;
     setPreferenceState(next);
     writeStoredThemePreference(next);
-    applyResolvedTheme(
-      resolveThemePreference(
-        next,
-        typeof window !== "undefined" && window.matchMedia
-          ? window.matchMedia("(prefers-color-scheme: dark)").matches
-          : false,
-      ),
-    );
+    applyResolvedTheme(resolveThemePreference(next, getSystemPrefersDark()));
   }, []);
 
   const toggleLightDark = useCallback(() => {

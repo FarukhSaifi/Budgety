@@ -18,11 +18,18 @@ export interface ParsedStatementTransaction {
 
 export type StatementFileKind = "csv" | "pdf";
 
+export interface DiscoveredCategories {
+  income: string[];
+  expense: string[];
+}
+
 export interface ParseStatementSuccess {
   transactions: ParsedStatementTransaction[];
   meta: {
     source: StatementFileKind;
     count: number;
+    /** Novel category names invented by AI (client should persist via addCategory). */
+    discoveredCategories?: DiscoveredCategories;
   };
 }
 

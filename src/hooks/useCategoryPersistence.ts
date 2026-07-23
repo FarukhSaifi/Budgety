@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { setCategories } from "@store/slices/uiSlice";
 import {
   loadPersistedCategories,
   savePersistedCategories,
 } from "@utils/categoryStorage";
-import { useEffect, useRef } from "react";
 
 /**
  * Hydrates custom categories from localStorage (keyed by Firebase uid) and

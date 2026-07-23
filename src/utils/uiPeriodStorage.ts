@@ -1,4 +1,5 @@
 import { UI_PERIOD_STORAGE_KEY, VIEW_PERIODS } from "@constants";
+
 import type { ViewPeriod } from "@/types";
 
 export interface PersistedUiPeriod {

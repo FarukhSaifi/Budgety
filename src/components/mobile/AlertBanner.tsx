@@ -1,8 +1,10 @@
 "use client";
 
-import { cn } from "@utils/cn";
-import { CloseIcon, HelpOutlineIcon, WarningIcon } from "@components/icons";
 import type { ReactNode } from "react";
+
+import { CloseIcon, HelpOutlineIcon, WarningIcon } from "@components/icons";
+
+import { cn } from "@utils/cn";
 
 export interface AlertBannerProps {
   title?: string;

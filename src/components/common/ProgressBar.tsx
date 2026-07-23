@@ -1,5 +1,6 @@
-import { cn } from "@utils/cn";
 import { PERCENTAGE_THRESHOLDS } from "@constants";
+
+import { cn } from "@utils/cn";
 
 export interface ProgressBarProps {
   /** 0–100 (values above 100 are clamped for the bar width). */

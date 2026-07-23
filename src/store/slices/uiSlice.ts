@@ -1,5 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+
 import { VIEW_PERIODS, VIEW_TYPES } from "@constants";
+
 import type { CategoryState, NavTab, UiFiltersState, ViewPeriod, ViewType } from "@/types";
 
 const now = new Date();
@@ -65,6 +67,25 @@ const uiSlice = createSlice({
         list.push(trimmed);
       }
     },
+    addCategoriesBulk(
+      state,
+      action: PayloadAction<{
+        income?: string[];
+        expense?: string[];
+      }>,
+    ) {
+      const pushUnique = (list: string[], names: string[] | undefined) => {
+        (names ?? []).forEach((name) => {
+          const trimmed = String(name ?? "").trim().replace(/\s+/g, " ");
+          if (!trimmed) return;
+          if (!list.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+            list.push(trimmed);
+          }
+        });
+      };
+      pushUnique(state.categories.income, action.payload.income);
+      pushUnique(state.categories.expense, action.payload.expense);
+    },
   },
 });
 
@@ -76,5 +97,6 @@ export const {
   setSelectedCategory,
   setSearchQuery,
   addCategory,
+  addCategoriesBulk,
 } = uiSlice.actions;
 export default uiSlice.reducer;

@@ -1,7 +1,10 @@
 "use client";
 
-import { Badge } from "@common";
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
+
+import { Badge } from "@common";
+
+import type { IconComponent } from "@components/icons";
 import {
   AccountBalanceIcon,
   ApartmentIcon,
@@ -24,9 +27,11 @@ import {
   WifiIcon,
   WorkIcon,
 } from "@components/icons";
-import type { IconComponent } from "@components/icons";
+
 import { useDateFormatter } from "@hooks/useDateFormatter";
 import { cn } from "@utils/cn";
+import { getCategorySoftStyle } from "@utils/colorUtils";
+
 import type { Transaction } from "@/types";
 
 /** Shared category tiles for list + dashboard recent rows (Stitch Material Symbols). */
@@ -162,33 +167,23 @@ export function resolveTransactionIconTile(transaction: Transaction) {
   const haystack = `${transaction.category || ""} ${transaction.title || ""} ${transaction.description || ""}`;
   const match = ICON_TILES.find((tile) => tile.match.test(haystack));
   const isIncome = transaction.type === "income";
+  const category = String(transaction.category || "").trim();
+  // Match spend-bar / legend colors for the same category (CATEGORY_COLORS).
+  const categoryStyle = category ? getCategorySoftStyle(category) : null;
+
   if (match) {
-    // Keep chip colors aligned with transaction type (e.g. SIP expense ≠ income green).
-    const usesIncomeFill = match.wrap.includes("income");
-    if (!isIncome && usesIncomeFill) {
-      return {
-        ...match,
-        wrap: "bg-expense-soft text-expense",
-        badge: "bg-expense-soft text-expense",
-      };
-    }
-    if (isIncome && match.wrap.includes("rose")) {
-      return {
-        ...match,
-        wrap: "bg-income-soft text-income",
-        badge: "bg-income-soft text-income",
-      };
-    }
-    return match;
+    return {
+      Icon: match.Icon,
+      wrap: categoryStyle ? "" : match.wrap,
+      badge: categoryStyle ? "" : match.badge,
+      categoryStyle,
+    };
   }
   return {
     Icon: isIncome ? PaymentsIcon : WalletIcon,
-    wrap: isIncome
-      ? "bg-income-soft text-income"
-      : "bg-primary-soft text-primary-main",
-    badge: isIncome
-      ? "bg-income-soft text-income"
-      : "bg-primary-soft text-primary-dark",
+    wrap: categoryStyle ? "" : isIncome ? "bg-income-soft text-income" : "bg-primary-soft text-primary-main",
+    badge: categoryStyle ? "" : isIncome ? "bg-income-soft text-income" : "bg-primary-soft text-primary-dark",
+    categoryStyle,
   };
 }
 
@@ -220,9 +215,8 @@ export function TransactionListRow({
 }: TransactionListRowProps) {
   const { formatDate } = useDateFormatter();
   const isIncome = transaction.type === "income";
-  const title =
-    transaction.title || transaction.description || UI_TEXT.NO_DESCRIPTION;
-  const { Icon, wrap, badge } = resolveTransactionIconTile(transaction);
+  const title = transaction.title || transaction.description || UI_TEXT.NO_DESCRIPTION;
+  const { Icon, wrap, badge, categoryStyle } = resolveTransactionIconTile(transaction);
   const dateLabel = formatDate(transaction.date, "monthDay");
   const isRecent = variant === "recent";
 
@@ -232,9 +226,7 @@ export function TransactionListRow({
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-3 text-left transition-colors",
-        isRecent
-          ? "gap-3 px-2 py-3.5 hover:bg-surface-low/50 md:gap-4 md:px-3"
-          : "gap-3 py-3 hover:bg-surface-low/60",
+        isRecent ? "gap-3 px-2 py-3.5 hover:bg-surface-low/50 md:gap-4 md:px-3" : "gap-3 py-3 hover:bg-surface-low/60",
         className,
       )}
     >
@@ -244,8 +236,9 @@ export function TransactionListRow({
           isRecent ? "h-11 w-11 rounded-xl" : "h-10 w-10 rounded-full",
           wrap,
         )}
+        style={categoryStyle ?? undefined}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="h-5 w-5" style={categoryStyle ? { color: categoryStyle.color } : undefined} />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-brand-deep">{title}</p>
@@ -264,6 +257,7 @@ export function TransactionListRow({
                 "inline-flex max-w-full truncate rounded-full px-2.5 py-0.5 text-[11px] font-medium",
                 badge,
               )}
+              style={categoryStyle ?? undefined}
             >
               {transaction.category}
             </span>
@@ -271,19 +265,12 @@ export function TransactionListRow({
         </div>
       </div>
       <div className="shrink-0 text-right">
-        <p
-          className={cn(
-            "text-sm font-bold tabular-nums",
-            isIncome ? "text-income" : "text-expense",
-          )}
-        >
+        <p className={cn("text-sm font-bold tabular-nums", isIncome ? "text-income" : "text-expense")}>
           {isIncome ? UI_TEXT.INCOME_SYMBOL : UI_TEXT.EXPENSE_SYMBOL}
           {CURRENCY_SYMBOL}
           {formatCurrency(transaction.amount)}
         </p>
-        {isRecent && dateLabel ? (
-          <p className="mt-0.5 text-[11px] text-on-surface-variant">{dateLabel}</p>
-        ) : null}
+        {isRecent && dateLabel ? <p className="mt-0.5 text-[11px] text-on-surface-variant">{dateLabel}</p> : null}
       </div>
     </button>
   );

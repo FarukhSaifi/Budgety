@@ -1,10 +1,13 @@
 "use client";
 
-import type { ThemePreference } from "@/lib/theme";
+import { UI_TEXT } from "@constants";
+
 import { DarkModeIcon } from "@components/icons";
 import { useTheme } from "@components/providers/ThemeProvider";
-import { UI_TEXT } from "@constants";
+
 import { cn } from "@utils/cn";
+
+import type { ThemePreference } from "@/lib/theme";
 
 const OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: UI_TEXT.THEME_LIGHT },

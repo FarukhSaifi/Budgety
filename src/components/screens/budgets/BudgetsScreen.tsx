@@ -1,6 +1,14 @@
 "use client";
 
 import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+
+import {
   CURRENCY_SYMBOL,
   DEFAULT_CATEGORY_TAG_COLOR,
   MONTHS,
@@ -8,7 +16,9 @@ import {
   UI_TEXT,
   VIEW_PERIODS,
 } from "@constants";
+
 import { Badge, ConfirmDialog, ProgressBar } from "@common";
+
 import {
   AccountBalanceWalletIcon,
   AddIcon,
@@ -29,6 +39,7 @@ import {
   WifiIcon,
   WorkIcon,
 } from "@components/icons";
+
 import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
@@ -36,14 +47,9 @@ import { deleteBudget } from "@store/slices/budgetsSlice";
 import { cn } from "@utils/cn";
 import { getCategoryChartColor } from "@utils/colorUtils";
 import { showSuccess } from "@utils/toast";
+
 import type { Budget } from "@/types";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+
 import { BudgetModal } from "./BudgetModal";
 
 type BudgetStatus = "good" | "near" | "over";

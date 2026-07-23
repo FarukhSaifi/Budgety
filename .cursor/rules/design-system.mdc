@@ -19,7 +19,7 @@ Stitch project [9083140746767418409](https://stitch.withgoogle.com/projects/9083
 ## Light / dark themes
 
 | Mode | Visual system | Tokens |
-| ---- | ------------- | ------ |
+| --- | --- | --- |
 | Light | Stitch **Luminous Precision** | `:root` in `globals.css`, `STITCH_COLORS` |
 | Dark | Stitch **Obsidian Flux** surfaces + Budgety purple brand | `html.dark` in `globals.css`, `STITCH_DARK_COLORS` |
 
@@ -51,15 +51,15 @@ Do not use `lucide-react` or `@mui/icons-material`. Icons are Stitch Material Sy
 
 ## Tokens (dark — Obsidian Flux + purple)
 
-| Token        | Value     | Notes                          |
-| ------------ | --------- | ------------------------------ |
-| Background   | `#131314` | `STITCH_DARK_COLORS.BACKGROUND` |
-| Surface low  | `#1C1B1C` | Cards / elevated panels        |
-| On surface   | `#E5E2E3` | Primary text                   |
-| Primary      | `#C1C1FF` | Brand on dark                  |
-| FAB / CTA    | `#5D5FEF` | Unchanged container purple     |
-| Income       | `#27FF97` |                                |
-| Expense      | `#FFB4AB` |                                |
+| Token       | Value     | Notes                           |
+| ----------- | --------- | ------------------------------- |
+| Background  | `#131314` | `STITCH_DARK_COLORS.BACKGROUND` |
+| Surface low | `#1C1B1C` | Cards / elevated panels         |
+| On surface  | `#E5E2E3` | Primary text                    |
+| Primary     | `#C1C1FF` | Brand on dark                   |
+| FAB / CTA   | `#5D5FEF` | Unchanged container purple      |
+| Income      | `#27FF97` |                                 |
+| Expense     | `#FFB4AB` |                                 |
 
 ## Navigation IA (4-tab Stitch shell + secondary)
 

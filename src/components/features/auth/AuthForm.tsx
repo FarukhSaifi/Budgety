@@ -1,12 +1,16 @@
 "use client";
 
-import { APP_LOGO_ALT, APP_LOGO_SRC, APP_NAME, UI_TEXT } from "@constants";
-import { useAuth } from "@context/AuthContext";
-import { getAuthErrorMessage } from "@/lib/auth-errors";
-import { showError, showSuccess } from "@utils/toast";
+import { useState } from "react";
+
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+
+import { APP_LOGO_ALT, APP_LOGO_SRC, APP_NAME, UI_TEXT } from "@constants";
+
+import { useAuth } from "@context/AuthContext";
+import { showError, showSuccess } from "@utils/toast";
+
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 
 type AuthMode = "signin" | "signup";
 
@@ -79,9 +83,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               priority
             />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-brand-deep">
-            {APP_NAME}
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-brand-deep">{APP_NAME}</h1>
           <p className="mt-1 text-sm text-on-surface-variant">
             {isSignUp ? UI_TEXT.AUTH_SIGN_UP_TITLE : UI_TEXT.AUTH_SIGN_IN_TITLE}
           </p>
@@ -96,10 +98,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
             <div>
-              <label
-                htmlFor="auth-name"
-                className="mb-1 block text-sm font-medium text-brand-deep"
-              >
+              <label htmlFor="auth-name" className="mb-1 block text-sm font-medium text-brand-deep">
                 {UI_TEXT.NAME}
               </label>
               <input
@@ -115,10 +114,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             </div>
           )}
           <div>
-            <label
-              htmlFor="auth-email"
-              className="mb-1 block text-sm font-medium text-brand-deep"
-            >
+            <label htmlFor="auth-email" className="mb-1 block text-sm font-medium text-brand-deep">
               {UI_TEXT.EMAIL}
             </label>
             <input
@@ -133,10 +129,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             />
           </div>
           <div>
-            <label
-              htmlFor="auth-password"
-              className="mb-1 block text-sm font-medium text-brand-deep"
-            >
+            <label htmlFor="auth-password" className="mb-1 block text-sm font-medium text-brand-deep">
               {UI_TEXT.PASSWORD}
             </label>
             <input
@@ -157,19 +150,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
             disabled={loading || !isConfigured}
             className="w-full rounded-xl bg-primary-light px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-primary-container/25 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading
-              ? UI_TEXT.LOADING
-              : isSignUp
-                ? UI_TEXT.SIGN_UP
-                : UI_TEXT.SIGN_IN}
+            {loading ? UI_TEXT.LOADING : isSignUp ? UI_TEXT.SIGN_UP : UI_TEXT.SIGN_IN}
           </button>
         </form>
 
         <div className="my-5 flex items-center gap-3">
           <div className="h-px flex-1 bg-outline-variant" />
-          <span className="text-xs uppercase tracking-wide text-on-surface-variant">
-            {UI_TEXT.AUTH_OR}
-          </span>
+          <span className="text-xs uppercase tracking-wide text-on-surface-variant">{UI_TEXT.AUTH_OR}</span>
           <div className="h-px flex-1 bg-outline-variant" />
         </div>
 
@@ -190,10 +177,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
         <p className="mt-6 text-center text-sm text-on-surface-variant">
           {isSignUp ? UI_TEXT.AUTH_HAVE_ACCOUNT : UI_TEXT.AUTH_NO_ACCOUNT}{" "}
-          <Link
-            href={isSignUp ? "/login" : "/register"}
-            className="font-semibold text-primary-main hover:underline"
-          >
+          <Link href={isSignUp ? "/login" : "/register"} className="font-semibold text-primary-main hover:underline">
             {isSignUp ? UI_TEXT.SIGN_IN : UI_TEXT.SIGN_UP}
           </Link>
         </p>

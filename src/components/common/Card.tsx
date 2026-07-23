@@ -1,5 +1,6 @@
-import { cn } from "@utils/cn";
 import type { HTMLAttributes, ReactNode } from "react";
+
+import { cn } from "@utils/cn";
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   padded?: boolean;

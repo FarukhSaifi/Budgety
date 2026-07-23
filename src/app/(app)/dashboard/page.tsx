@@ -1,5 +1,6 @@
-import { APP_ROUTES } from "@constants/routes";
 import { redirect } from "next/navigation";
+
+import { APP_ROUTES } from "@constants/routes";
 
 /** Alias for Home / overview. */
 export default function DashboardPage() {

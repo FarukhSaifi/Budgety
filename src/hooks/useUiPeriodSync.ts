@@ -1,12 +1,15 @@
 "use client";
 
+import { useEffect, useRef, useSyncExternalStore } from "react";
+
 import { VIEW_PERIODS } from "@constants";
+
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { setViewPeriod } from "@store/slices/uiSlice";
-import type { Transaction, ViewPeriod } from "@/types";
-import { getMonthYear } from "@utils/dateUtils";
+import { filterTransactionsByPeriod, mostRecentTransactionMonth } from "@utils/periodFilter";
 import { loadPersistedUiPeriod, savePersistedUiPeriod } from "@utils/uiPeriodStorage";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+
+import type { ViewPeriod } from "@/types";
 
 const hydrationStore = {
   hydrated: false,
@@ -34,42 +37,6 @@ function markHydrated() {
   hydrationStore.listeners.forEach((listener) => listener());
 }
 
-function filterByPeriod(
-  transactions: Transaction[],
-  viewPeriod: ViewPeriod,
-  selectedMonth: number,
-  selectedYear: number,
-): Transaction[] {
-  if (viewPeriod === VIEW_PERIODS.ALL) return transactions;
-  return transactions.filter((tx) => {
-    const monthYear = getMonthYear(tx.date);
-    if (!monthYear) return false;
-    if (viewPeriod === VIEW_PERIODS.MONTHLY) {
-      return monthYear.month === selectedMonth && monthYear.year === selectedYear;
-    }
-    if (viewPeriod === VIEW_PERIODS.YEARLY) {
-      return monthYear.year === selectedYear;
-    }
-    return true;
-  });
-}
-
-/** Most recent calendar month that has at least one transaction. */
-function mostRecentTransactionMonth(
-  transactions: Transaction[],
-): { month: number; year: number } | null {
-  let best: { month: number; year: number; key: string } | null = null;
-  for (const tx of transactions) {
-    const my = getMonthYear(tx.date);
-    if (!my) continue;
-    const key = `${my.year}-${String(my.month).padStart(2, "0")}`;
-    if (!best || key > best.key) {
-      best = { month: my.month, year: my.year, key };
-    }
-  }
-  return best ? { month: best.month, year: best.year } : null;
-}
-
 /**
  * Hydrates viewPeriod/month/year from localStorage, persists changes, and
  * one-shot auto-adjusts when the active filter hides all loaded transactions
@@ -81,11 +48,7 @@ export function useUiPeriodSync(): void {
   const transactions = useAppSelector((s) => s.transactions.items);
   const txStatus = useAppSelector((s) => s.transactions.status);
 
-  const hydrated = useSyncExternalStore(
-    subscribeHydration,
-    getHydrationSnapshot,
-    getHydrationServerSnapshot,
-  );
+  const hydrated = useSyncExternalStore(subscribeHydration, getHydrationSnapshot, getHydrationServerSnapshot);
   const hadPersistedRef = useRef(false);
   const didAutoAdjustRef = useRef(false);
 
@@ -122,12 +85,7 @@ export function useUiPeriodSync(): void {
       return;
     }
 
-    const filtered = filterByPeriod(
-      transactions,
-      viewPeriod,
-      selectedMonth,
-      selectedYear,
-    );
+    const filtered = filterTransactionsByPeriod(transactions, viewPeriod, selectedMonth, selectedYear);
     if (filtered.length > 0) {
       didAutoAdjustRef.current = true;
       return;
@@ -137,7 +95,7 @@ export function useUiPeriodSync(): void {
     if (hadPersistedRef.current) {
       const persisted = loadPersistedUiPeriod();
       if (persisted) {
-        const persistedFiltered = filterByPeriod(
+        const persistedFiltered = filterTransactionsByPeriod(
           transactions,
           persisted.viewPeriod,
           persisted.selectedMonth,

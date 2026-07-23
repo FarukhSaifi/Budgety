@@ -1,25 +1,17 @@
 "use client";
 
-import {
-  CHART_CONFIG,
-  DISPLAY_LIMITS,
-  STITCH_CHART_COLORS,
-  UI_TEXT,
-} from "@constants";
+import { useMemo, useState } from "react";
+
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, type TooltipContentProps } from "recharts";
+
+import { CHART_CONFIG, DISPLAY_LIMITS, STITCH_CHART_COLORS, UI_TEXT } from "@constants";
+
 import { DashboardWidget } from "@components/features/dashboard/DashboardWidget";
-import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
+
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useAppSelector } from "@store/hooks";
+import { selectSpendingByCategory } from "@store/selectors/periodSelectors";
 import { exportChartData } from "@utils/exportUtils";
-import { useMemo, useState } from "react";
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  type TooltipContentProps,
-} from "recharts";
 
 type ChartDatum = {
   name: string;
@@ -27,22 +19,15 @@ type ChartDatum = {
   color: string;
 };
 
-function CustomTooltip({
-  active,
-  payload,
-}: Partial<TooltipContentProps<number, string>>) {
+function CustomTooltip({ active, payload }: Partial<TooltipContentProps<number, string>>) {
   const { formatCurrencyForChart } = useCurrencyFormatter();
 
   if (active && payload && payload.length) {
     const item = payload[0];
     return (
       <div className="rounded-xl border border-outline-variant/60 bg-card px-3 py-2 shadow-elevated">
-        <div className="mb-0.5 text-sm font-semibold text-brand-deep">
-          {item.name}
-        </div>
-        <div className="text-sm font-medium text-primary-main">
-          {formatCurrencyForChart(Number(item.value))}
-        </div>
+        <div className="mb-0.5 text-sm font-semibold text-brand-deep">{item.name}</div>
+        <div className="text-sm font-medium text-primary-main">{formatCurrencyForChart(Number(item.value))}</div>
       </div>
     );
   }
@@ -53,17 +38,8 @@ interface CategoryBreakdownChartProps {
   className?: string;
 }
 
-export default function CategoryBreakdownChart({
-  className = "",
-}: CategoryBreakdownChartProps) {
-  const transactions = useAppSelector((s) => s.transactions.items);
-  const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
-  const { spendingByCategory } = useBudgetCalculations(
-    transactions,
-    viewPeriod,
-    selectedMonth,
-    selectedYear,
-  );
+export default function CategoryBreakdownChart({ className = "" }: CategoryBreakdownChartProps) {
+  const spendingByCategory = useAppSelector(selectSpendingByCategory);
   const { formatCurrencyForChart } = useCurrencyFormatter();
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -79,10 +55,7 @@ export default function CategoryBreakdownChart({
       .slice(0, DISPLAY_LIMITS.TOP_CATEGORIES);
   }, [spendingByCategory, refreshKey]);
 
-  const total = useMemo(
-    () => chartData.reduce((sum, item) => sum + item.value, 0) || 1,
-    [chartData],
-  );
+  const total = useMemo(() => chartData.reduce((sum, item) => sum + item.value, 0) || 1, [chartData]);
 
   const handleExport = () => {
     const exportData = chartData.map((item) => ({
@@ -140,13 +113,9 @@ export default function CategoryBreakdownChart({
                   className="flex items-center gap-2 text-xs text-gray-600"
                   title={formatCurrencyForChart(item.value)}
                 >
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                    style={{ backgroundColor: item.color }}
-                  />
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: item.color }} />
                   <span className="truncate">
-                    {item.name}{" "}
-                    <span className="text-gray-400">({pct}%)</span>
+                    {item.name} <span className="text-gray-400">({pct}%)</span>
                   </span>
                 </li>
               );

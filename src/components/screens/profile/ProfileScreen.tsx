@@ -1,12 +1,9 @@
 "use client";
 
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
+
 import { ThemeToggle } from "@common";
-import { ProfileSettingRow } from "@components/mobile";
-import { useAppNavigation } from "@hooks/useAppNavigation";
-import { useAppDispatch, useAppSelector } from "@store/hooks";
-import { signOutUser } from "@store/slices/authSlice";
-import { showSuccess } from "@utils/toast";
+
 import {
   AccountBalanceWalletIcon,
   CalendarClockIcon,
@@ -17,6 +14,12 @@ import {
   PersonIcon,
   TuneIcon,
 } from "@components/icons";
+import { ProfileSettingRow } from "@components/mobile";
+
+import { useAppNavigation } from "@hooks/useAppNavigation";
+import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { signOutUser } from "@store/slices/authSlice";
+import { showSuccess } from "@utils/toast";
 
 export function ProfileScreen() {
   const dispatch = useAppDispatch();

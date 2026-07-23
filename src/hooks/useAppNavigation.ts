@@ -1,11 +1,15 @@
 "use client";
 
+import { useCallback, useEffect } from "react";
+
+import { usePathname, useRouter } from "next/navigation";
+
 import { TAB_TO_PATH, pathToTab } from "@constants/routes";
+
 import { useAppDispatch } from "@store/hooks";
 import { setActiveTab } from "@store/slices/uiSlice";
+
 import type { NavTab } from "@/types";
-import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect } from "react";
 
 /** Keep Redux `activeTab` aligned with the App Router pathname. */
 export function useSyncActiveTabFromPath() {

@@ -1,7 +1,8 @@
 "use client";
 
-import { cn } from "@utils/cn";
 import { BackspaceIcon } from "@components/icons";
+
+import { cn } from "@utils/cn";
 
 export interface NumericKeypadProps {
   onDigit: (digit: string) => void;

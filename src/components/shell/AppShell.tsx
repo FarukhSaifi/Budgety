@@ -1,16 +1,20 @@
 "use client";
 
+import { useMemo, useState, type ReactNode } from "react";
+
+import { usePathname } from "next/navigation";
+
 import { AddTransactionSheet } from "@components/mobile/AddTransactionSheet";
-import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
+
 import { useSyncActiveTabFromPath } from "@hooks/useAppNavigation";
 import { useAppSelector } from "@store/hooks";
+import { selectPeriodTotalExpense } from "@store/selectors/periodSelectors";
 import { cn } from "@utils/cn";
-import { usePathname } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+
 import { BottomNav } from "./BottomNav";
+import { SELF_HEADER_TABS } from "./navigation";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
-import { SELF_HEADER_TABS } from "./navigation";
 
 export interface AppShellProps {
   children: ReactNode;
@@ -25,28 +29,16 @@ export function AppShell({ children }: AppShellProps) {
 
   const pathname = usePathname();
   const activeTab = useAppSelector((state) => state.ui.activeTab);
-  const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((s) => s.ui);
-  const transactions = useAppSelector((s) => s.transactions.items);
   const budgets = useAppSelector((s) => s.budgets.items);
+  const totalExpense = useAppSelector(selectPeriodTotalExpense);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const { totalExpense } = useBudgetCalculations(
-    transactions,
-    viewPeriod,
-    selectedMonth,
-    selectedYear,
-  );
-
   const budgetLimit = useMemo(
-    () =>
-      budgets
-        .filter((b) => b.period === "monthly")
-        .reduce((sum, b) => sum + (b.limitAmount || 0), 0),
+    () => budgets.filter((b) => b.period === "monthly").reduce((sum, b) => sum + (b.limitAmount || 0), 0),
     [budgets],
   );
 
-  const budgetPct =
-    budgetLimit > 0 ? (totalExpense / budgetLimit) * 100 : null;
+  const budgetPct = budgetLimit > 0 ? (totalExpense / budgetLimit) * 100 : null;
 
   const isImportPage = Boolean(pathname?.startsWith("/transactions/import"));
   const hideTopBarMobile = SELF_HEADER_TABS.includes(activeTab) || isImportPage;
@@ -56,12 +48,7 @@ export function AppShell({ children }: AppShellProps) {
     <div className="min-h-screen bg-surface">
       <Sidebar />
       <div className="flex min-h-screen flex-col md:ml-20">
-        <div
-          className={cn(
-            hideTopBarMobile && "hidden md:block",
-            hideTopBarDesktop && "md:hidden",
-          )}
-        >
+        <div className={cn(hideTopBarMobile && "hidden md:block", hideTopBarDesktop && "md:hidden")}>
           <TopBar />
         </div>
         <main
@@ -75,11 +62,7 @@ export function AppShell({ children }: AppShellProps) {
         </main>
       </div>
       <BottomNav onFabClick={() => setSheetOpen(true)} />
-      <AddTransactionSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        budgetPct={budgetPct}
-      />
+      <AddTransactionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} budgetPct={budgetPct} />
     </div>
   );
 }

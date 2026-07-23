@@ -1,13 +1,20 @@
 "use client";
 
+import type { ReactNode } from "react";
+
+import { ToastContainer } from "react-toastify";
+
+import { TIMEOUTS } from "@constants";
+
 import { ErrorBoundary } from "@common";
+
 import AuthBootstrap from "@components/providers/AuthBootstrap";
 import { ThemeProvider, useTheme } from "@components/providers/ThemeProvider";
-import { TIMEOUTS } from "@constants";
+
 import { AuthProvider } from "@context/AuthContext";
 import ReduxProvider from "@store/ReduxProvider";
-import type { ReactNode } from "react";
-import { ToastContainer } from "react-toastify";
+
+
 
 function ThemedToasts() {
   const { resolved } = useTheme();

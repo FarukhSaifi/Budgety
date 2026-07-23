@@ -1,7 +1,8 @@
 "use client";
 
-import { cn } from "@utils/cn";
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+
+import { cn } from "@utils/cn";
 
 export type ButtonVariant =
   | "primary"

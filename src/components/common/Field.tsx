@@ -1,4 +1,3 @@
-import { cn } from "@utils/cn";
 import {
   forwardRef,
   type InputHTMLAttributes,
@@ -6,6 +5,8 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
+
+import { cn } from "@utils/cn";
 
 export interface FieldProps {
   label?: ReactNode;
@@ -34,25 +35,27 @@ export function Field({ label, htmlFor, error, required, children, className }: 
 const CONTROL_CLASSES =
   "w-full rounded-xl border border-outline-variant bg-card px-3.5 py-2.5 text-sm text-brand-deep placeholder:text-outline transition-colors focus:border-primary-main focus:outline-none focus:ring-2 focus:ring-primary-main/20 disabled:cursor-not-allowed disabled:bg-surface-low";
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, ...rest }, ref) {
-    return <input ref={ref} className={cn(CONTROL_CLASSES, className)} {...rest} />;
-  },
-);
-
-export const TextArea = forwardRef<
-  HTMLTextAreaElement,
-  TextareaHTMLAttributes<HTMLTextAreaElement>
->(function TextArea({ className, ...rest }, ref) {
-  return <textarea ref={ref} className={cn(CONTROL_CLASSES, "min-h-[80px]", className)} {...rest} />;
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input(
+  { className, ...rest },
+  ref,
+) {
+  return <input ref={ref} className={cn(CONTROL_CLASSES, className)} {...rest} />;
 });
 
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
-  function Select({ className, children, ...rest }, ref) {
-    return (
-      <select ref={ref} className={cn(CONTROL_CLASSES, "appearance-none pr-9", className)} {...rest}>
-        {children}
-      </select>
-    );
-  },
-);
+export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function TextArea(
+  { className, ...rest },
+  ref,
+) {
+  return <textarea ref={ref} className={cn(CONTROL_CLASSES, "min-h-20", className)} {...rest} />;
+});
+
+export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select(
+  { className, children, ...rest },
+  ref,
+) {
+  return (
+    <select ref={ref} className={cn(CONTROL_CLASSES, "appearance-none pr-9", className)} {...rest}>
+      {children}
+    </select>
+  );
+});

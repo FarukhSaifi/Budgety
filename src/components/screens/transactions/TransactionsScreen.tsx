@@ -1,56 +1,39 @@
 "use client";
 
-import {
-  CATEGORY_COLORS,
-  CURRENCY_SYMBOL,
-  DEFAULT_CATEGORY_TAG_COLOR,
-  STITCH_CHART_COLORS,
-  UI_TEXT,
-  VIEW_TYPE_LABELS,
-  VIEW_TYPES,
-} from "@constants";
+import { useCallback, useMemo, useState } from "react";
+
+import Link from "next/link";
+
+import { CURRENCY_SYMBOL, UI_TEXT, VIEW_TYPE_LABELS, VIEW_TYPES } from "@constants";
+
 import { APP_ROUTES } from "@constants/routes";
-import { Button, EmptyState, Spinner, StatCard } from "@common";
-import {
-  FilterPills,
-  SpendSummaryBar,
-  TransactionGroup,
-  AddTransactionSheet,
-} from "@components/mobile";
-import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
-import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
-import { useAppDispatch, useAppSelector } from "@store/hooks";
-import {
-  setSearchQuery,
-  setViewType,
-  setViewPeriod,
-} from "@store/slices/uiSlice";
-import { compareByDateThenCreatedAt } from "@utils/dateUtils";
-import { filterByTransactionType } from "@utils/transactionFilters";
-import type { Transaction, TransactionFilter, ViewType } from "@/types";
+
+import { Button, EmptyState, PeriodShiftPill, Spinner, StatCard } from "@common";
+
 import {
   AddIcon,
   CalendarTodayIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CloudUploadIcon,
   ListAltIcon,
   ReceiptLongIcon,
   SearchIcon,
   TrendingUpIcon,
 } from "@components/icons";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { AddTransactionSheet, FilterPills, SpendSummaryBar, TransactionGroup } from "@components/mobile";
+
+import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
+import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+import { useUiPeriod } from "@hooks/useUiPeriod";
+import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { setSearchQuery, setSelectedCategory, setViewType } from "@store/slices/uiSlice";
+import { getCategoryChartColor } from "@utils/colorUtils";
+import { compareByDateThenCreatedAt } from "@utils/dateUtils";
+import { filterByTransactionType } from "@utils/transactionFilters";
+
+import type { Transaction, TransactionFilter, ViewType } from "@/types";
+
 import { TransactionCalendar } from "./TransactionCalendar";
 import { TransactionModal } from "./TransactionModal";
-
-function categoryColor(category: string, index: number): string {
-  return (
-    (CATEGORY_COLORS as Record<string, string>)[category] ??
-    STITCH_CHART_COLORS[index % STITCH_CHART_COLORS.length] ??
-    DEFAULT_CATEGORY_TAG_COLOR
-  );
-}
 
 function groupByDate(rows: Transaction[]) {
   const map = new Map<string, Transaction[]>();
@@ -79,8 +62,17 @@ export function TransactionsScreen() {
   const dispatch = useAppDispatch();
   const transactions = useAppSelector((state) => state.transactions.items);
   const txStatus = useAppSelector((state) => state.transactions.status);
-  const { viewPeriod, viewType, selectedMonth, selectedYear, searchQuery } =
-    useAppSelector((state) => state.ui);
+  const { viewType, searchQuery, selectedCategory } = useAppSelector((state) => state.ui);
+  const {
+    viewPeriod,
+    selectedMonth,
+    selectedYear,
+    shiftPeriod,
+    canShiftPeriod,
+    periodLabel,
+    shiftPrevLabel,
+    shiftNextLabel,
+  } = useUiPeriod();
   const { formatCurrency } = useCurrencyFormatter();
 
   const [typeFilter, setTypeFilter] = useState<TransactionFilter>("all");
@@ -89,19 +81,29 @@ export function TransactionsScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
 
-  const { filteredTransactions, totalExpense, totalIncome, spendingByCategory } =
-    useBudgetCalculations(
-      transactions,
-      viewPeriod,
-      selectedMonth,
-      selectedYear,
-      searchQuery,
-    );
+  const { filteredTransactions, totalExpense, totalIncome, spendingByCategory } = useBudgetCalculations(
+    transactions,
+    viewPeriod,
+    selectedMonth,
+    selectedYear,
+    searchQuery,
+  );
 
   const rows = useMemo(() => {
     const typed = filterByTransactionType(filteredTransactions, typeFilter);
-    return [...typed].sort((a, b) => -compareByDateThenCreatedAt(a, b));
-  }, [filteredTransactions, typeFilter]);
+    const categoryKey = String(selectedCategory || "")
+      .trim()
+      .toLowerCase();
+    const byCategory = categoryKey
+      ? typed.filter(
+          (t) =>
+            String(t.category || "")
+              .trim()
+              .toLowerCase() === categoryKey,
+        )
+      : typed;
+    return [...byCategory].sort((a, b) => -compareByDateThenCreatedAt(a, b));
+  }, [filteredTransactions, typeFilter, selectedCategory]);
 
   const groups = useMemo(() => groupByDate(rows), [rows]);
 
@@ -110,31 +112,23 @@ export function TransactionsScreen() {
       .map(([name, value], i) => ({
         name,
         value,
-        color: categoryColor(name, i),
+        color: getCategoryChartColor(name, i),
       }))
       .sort((a, b) => b.value - a.value);
   }, [spendingByCategory]);
 
-  const dateNavLabel = useMemo(() => {
-    const d = new Date(selectedYear, selectedMonth - 1, 1);
-    return d.toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  }, [selectedMonth, selectedYear]);
+  const filteredSpendTotal = useMemo(() => {
+    if (!selectedCategory) return totalExpense;
+    const match = spendSegments.find((s) => s.name.toLowerCase() === selectedCategory.toLowerCase());
+    return match?.value ?? 0;
+  }, [selectedCategory, spendSegments, totalExpense]);
 
-  const shiftMonth = (delta: number) => {
-    const d = new Date(selectedYear, selectedMonth - 1 + delta, 1);
-    dispatch(
-      setViewPeriod({
-        viewPeriod: "monthly",
-        selectedMonth: d.getMonth() + 1,
-        selectedYear: d.getFullYear(),
-      }),
-    );
-  };
+  const handleSelectCategory = useCallback(
+    (category: string | null) => {
+      dispatch(setSelectedCategory(category ?? ""));
+    },
+    [dispatch],
+  );
 
   const openEdit = (t: Transaction) => {
     setEditing(t);
@@ -151,9 +145,7 @@ export function TransactionsScreen() {
           <h1 className="text-2xl font-semibold tracking-tight text-brand-deep lg:text-[32px] lg:leading-10">
             {UI_TEXT.TRANSACTIONS} Ledger
           </h1>
-          <p className="mt-1 text-sm text-gray-500 md:text-base">
-            {UI_TEXT.VIEW_AND_MANAGE_TRANSACTIONS}
-          </p>
+          <p className="mt-1 text-sm text-gray-500 md:text-base">{UI_TEXT.VIEW_AND_MANAGE_TRANSACTIONS}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -163,11 +155,7 @@ export function TransactionsScreen() {
             <CloudUploadIcon className="h-4 w-4" />
             {UI_TEXT.IMPORT_BANK_STATEMENT}
           </Link>
-          <Button
-            size="md"
-            onClick={() => setSheetOpen(true)}
-            leftIcon={<AddIcon className="h-4 w-4" />}
-          >
+          <Button size="md" onClick={() => setSheetOpen(true)} leftIcon={<AddIcon className="h-4 w-4" />}>
             {UI_TEXT.ADD_TRANSACTION}
           </Button>
         </div>
@@ -180,17 +168,13 @@ export function TransactionsScreen() {
           onClick={() =>
             dispatch(
               setViewType(
-                viewType === VIEW_TYPES.LIST
-                  ? (VIEW_TYPES.CALENDAR as ViewType)
-                  : (VIEW_TYPES.LIST as ViewType),
+                viewType === VIEW_TYPES.LIST ? (VIEW_TYPES.CALENDAR as ViewType) : (VIEW_TYPES.LIST as ViewType),
               ),
             )
           }
-          className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-low text-brand-deep transition hover:bg-surface-container"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-low text-brand-deep ring-1 ring-outline-variant/60 transition hover:bg-primary-soft hover:text-primary-main"
           aria-label={
-            viewType === VIEW_TYPES.LIST
-              ? VIEW_TYPE_LABELS[VIEW_TYPES.CALENDAR]
-              : VIEW_TYPE_LABELS[VIEW_TYPES.LIST]
+            viewType === VIEW_TYPES.LIST ? VIEW_TYPE_LABELS[VIEW_TYPES.CALENDAR] : VIEW_TYPE_LABELS[VIEW_TYPES.LIST]
           }
         >
           {viewType === VIEW_TYPES.LIST ? (
@@ -200,32 +184,19 @@ export function TransactionsScreen() {
           )}
         </button>
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => shiftMonth(-1)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-surface-low hover:text-brand-deep"
-            aria-label="Previous month"
-          >
-            <ChevronLeftIcon className="h-5 w-5" />
-          </button>
-          <p className="min-w-[140px] text-center text-sm font-bold text-brand-deep">
-            {dateNavLabel}
-          </p>
-          <button
-            type="button"
-            onClick={() => shiftMonth(1)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-surface-low hover:text-brand-deep"
-            aria-label="Next month"
-          >
-            <ChevronRightIcon className="h-5 w-5" />
-          </button>
-        </div>
+        <PeriodShiftPill
+          label={periodLabel}
+          canShift={canShiftPeriod}
+          onPrev={() => shiftPeriod(-1)}
+          onNext={() => shiftPeriod(1)}
+          prevLabel={shiftPrevLabel}
+          nextLabel={shiftNextLabel}
+        />
 
         <button
           type="button"
           onClick={() => setSearchOpen((v) => !v)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-low text-brand-deep transition hover:bg-surface-container"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-low text-brand-deep ring-1 ring-outline-variant/60 transition hover:bg-primary-soft hover:text-primary-main"
           aria-label={UI_TEXT.SEARCH_LABEL}
         >
           <SearchIcon className="h-5 w-5" />
@@ -243,21 +214,23 @@ export function TransactionsScreen() {
       )}
 
       <FilterPills
-        variant="underline"
+        ariaLabel={UI_TEXT.TRANSACTIONS}
         value={typeFilter}
         onChange={setTypeFilter}
         options={[
-          { value: "all", label: UI_TEXT.ALL },
-          { value: "income", label: UI_TEXT.INCOME },
-          { value: "expense", label: UI_TEXT.EXPENSE },
-          { value: "transfer", label: UI_TEXT.TRANSFER },
+          { value: "all", label: UI_TEXT.ALL, tone: "brand" },
+          { value: "income", label: UI_TEXT.INCOME, tone: "income" },
+          { value: "expense", label: UI_TEXT.EXPENSE, tone: "expense" },
+          { value: "transfer", label: UI_TEXT.TRANSFER, tone: "brand" },
         ]}
       />
 
       <SpendSummaryBar
-        total={totalExpense}
+        total={filteredSpendTotal}
         segments={spendSegments}
         formatCurrency={formatCurrency}
+        selectedCategory={selectedCategory}
+        onSelectCategory={handleSelectCategory}
         className="border-0 bg-transparent p-0 shadow-none"
       />
 
@@ -303,12 +276,7 @@ export function TransactionsScreen() {
           <Spinner label={UI_TEXT.LOADING} />
         </div>
       ) : viewType === VIEW_TYPES.CALENDAR ? (
-        <TransactionCalendar
-          transactions={rows}
-          month={selectedMonth}
-          year={selectedYear}
-          onSelect={openEdit}
-        />
+        <TransactionCalendar transactions={rows} month={selectedMonth} year={selectedYear} onSelect={openEdit} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<ReceiptLongIcon className="h-6 w-6" />}
@@ -316,9 +284,7 @@ export function TransactionsScreen() {
           description={UI_TEXT.VIEW_AND_MANAGE_TRANSACTIONS}
           action={
             <div className="flex flex-wrap justify-center gap-2">
-              <Button onClick={() => setSheetOpen(true)}>
-                {UI_TEXT.ADD_TRANSACTION}
-              </Button>
+              <Button onClick={() => setSheetOpen(true)}>{UI_TEXT.ADD_TRANSACTION}</Button>
               <Link
                 href={APP_ROUTES.transactionsImport}
                 className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-brand-deep"
@@ -346,10 +312,7 @@ export function TransactionsScreen() {
         </div>
       )}
 
-      <AddTransactionSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-      />
+      <AddTransactionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
       <TransactionModal
         open={modalOpen}
         onClose={() => {

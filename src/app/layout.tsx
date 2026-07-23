@@ -1,5 +1,5 @@
-import { THEME_STORAGE_KEY } from "@/lib/theme";
-import AppProviders from "@components/providers/AppProviders";
+import type { Metadata, Viewport } from "next";
+
 import {
   APP_APPLE_TOUCH_ICON_SRC,
   APP_FAVICON_SRC,
@@ -9,7 +9,11 @@ import {
   STITCH_COLORS,
   STITCH_DARK_COLORS,
 } from "@constants";
-import type { Metadata, Viewport } from "next";
+
+import AppProviders from "@components/providers/AppProviders";
+
+import { THEME_STORAGE_KEY } from "@/lib/theme";
+
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
 
@@ -44,16 +48,19 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-/** Avoid light flash before ThemeProvider hydrates. */
+/**
+ * Avoid light flash before ThemeProvider hydrates.
+ * Missing key and `"system"` both follow `prefers-color-scheme` (same as ThemeProvider).
+ */
 const themeInitScript = `
 (function(){
   try {
     var key=${JSON.stringify(THEME_STORAGE_KEY)};
     var pref=localStorage.getItem(key);
-    var dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var resolved=pref==='dark'|| (pref!=='light' && dark);
+    var systemDark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var isDark=pref==='dark'||((pref===null||pref==='system')&&systemDark);
     var root=document.documentElement;
-    if(resolved){ root.classList.add('dark'); root.style.colorScheme='dark'; root.dataset.theme='dark'; }
+    if(isDark){ root.classList.add('dark'); root.style.colorScheme='dark'; root.dataset.theme='dark'; }
     else { root.classList.remove('dark'); root.style.colorScheme='light'; root.dataset.theme='light'; }
   } catch(e){}
 })();`;

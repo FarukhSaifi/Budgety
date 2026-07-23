@@ -1,8 +1,11 @@
 "use client";
 
-import { cn } from "@utils/cn";
-import type { Transaction } from "@/types";
 import type { ReactNode } from "react";
+
+import { cn } from "@utils/cn";
+
+import type { Transaction } from "@/types";
+
 import { TransactionItem } from "./TransactionItem";
 
 export interface TransactionGroupProps {

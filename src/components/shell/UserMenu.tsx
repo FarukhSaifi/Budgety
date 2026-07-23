@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { UI_TEXT } from "@constants";
+
+import { LogoutIcon } from "@components/icons";
+
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { signOutUser } from "@store/slices/authSlice";
 import { showSuccess } from "@utils/toast";
-import { LogoutIcon } from "@components/icons";
-import { useEffect, useRef, useState } from "react";
 
 export function UserMenu() {
   const dispatch = useAppDispatch();

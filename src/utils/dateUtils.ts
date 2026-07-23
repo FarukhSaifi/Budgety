@@ -2,9 +2,10 @@
  * Central date utilities using dayjs for the whole app.
  * Use this instead of new Date() for parsing, formatting, and date math.
  */
-import { DATE_FORMAT, DATE_FORMAT_STORAGE, UI_TEXT } from "@constants";
 import dayjs, { type Dayjs } from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+
+import { DATE_FORMAT, DATE_FORMAT_STORAGE, UI_TEXT } from "@constants";
 
 dayjs.extend(customParseFormat);
 
@@ -63,8 +64,16 @@ export function toISOString(dateString?: string | null): string {
 
 /**
  * Get { month: 1-12, year } from a date string.
+ * Fast-path for ISO / storage dates (`YYYY-MM-DD…`) avoids dayjs parse.
  */
 export function getMonthYear(dateString: string | null | undefined): MonthYear | null {
+  if (!dateString) return null;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateString);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    if (month >= 1 && month <= 12) return { month, year };
+  }
   const d = parseDate(dateString);
   if (!d) return null;
   return { month: d.month() + 1, year: d.year() };
@@ -101,10 +110,7 @@ export function daysInMonth(year: number, month: number): number {
 /**
  * Compare two date strings for sorting (returns -1, 0, 1).
  */
-export function compareDates(
-  a: string | null | undefined,
-  b: string | null | undefined,
-): number {
+export function compareDates(a: string | null | undefined, b: string | null | undefined): number {
   const dA = parseDate(a);
   const dB = parseDate(b);
   if (!dA || !dB) return 0;
@@ -132,10 +138,7 @@ export function compareDatesOrTimestamps(
 /**
  * Is same calendar day?
  */
-export function isSameDay(
-  dateStrA: string | null | undefined,
-  dateStrB: string | null | undefined,
-): boolean {
+export function isSameDay(dateStrA: string | null | undefined, dateStrB: string | null | undefined): boolean {
   const dA = parseDate(dateStrA);
   const dB = parseDate(dateStrB);
   if (!dA || !dB) return false;
@@ -145,11 +148,7 @@ export function isSameDay(
 /**
  * Is date in given month/year? (month 1-12)
  */
-export function isInMonthYear(
-  dateString: string | null | undefined,
-  month: number,
-  year: number,
-): boolean {
+export function isInMonthYear(dateString: string | null | undefined, month: number, year: number): boolean {
   const d = parseDate(dateString);
   if (!d) return false;
   return d.month() + 1 === month && d.year() === year;
@@ -180,10 +179,7 @@ export function startOfMonthDayOfWeek(year: number, month: number): number {
 export function compareByDateThenCreatedAt(a: DateSortable, b: DateSortable): number {
   const cmp = compareDates(a.date || a.createdAt, b.date || b.createdAt);
   if (cmp !== 0) return cmp;
-  return (
-    dayjs(a.createdAt || a.date).valueOf() -
-    dayjs(b.createdAt || b.date).valueOf()
-  );
+  return dayjs(a.createdAt || a.date).valueOf() - dayjs(b.createdAt || b.date).valueOf();
 }
 
 /**

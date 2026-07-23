@@ -1,7 +1,5 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { AuthUser } from "@/types";
-import { auth, isFirebaseConfigured } from "@/lib/firebase";
-import { getAuthErrorMessage } from "@/lib/auth-errors";
+
 import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
@@ -15,6 +13,11 @@ import {
   type User,
   type UserCredential,
 } from "firebase/auth";
+
+import { getAuthErrorMessage } from "@/lib/auth-errors";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
+import type { AuthUser } from "@/types";
+
 
 function toAuthUser(user: User): AuthUser {
   return {

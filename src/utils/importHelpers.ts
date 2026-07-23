@@ -1,11 +1,11 @@
-import type { PaymentMode, Transaction, TransactionType } from "@/types";
 import {
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
+  IMPORT_PREVIEW_SORT_KEYS,
   NUMBER_FORMAT,
+  SORT_DIRECTIONS,
   TRANSACTION_TYPES,
   TRANSACTION_MODES as TX_MODES,
 } from "@constants";
+
 import { toStorageDate } from "@hooks/useDateFormatter";
 import {
   detectTransactionMode,
@@ -15,9 +15,12 @@ import {
   type ColumnMapping,
   type ParsedRawRow,
 } from "@utils/bankStatementParser";
+import { resolveCategoryName } from "@utils/categoryNormalize";
 import { nowISO } from "@utils/dateUtils";
 import type { DuplicateCheckable } from "@utils/duplicateDetection";
 import { categorizeTransaction } from "@utils/transactionCategorization";
+
+import type { PaymentMode, Transaction, TransactionType } from "@/types";
 
 export interface StagingRow {
   key: string;
@@ -28,6 +31,75 @@ export interface StagingRow {
   paymentMode: PaymentMode;
   date: string;
   selected: boolean;
+}
+
+export type ImportPreviewSortKey = (typeof IMPORT_PREVIEW_SORT_KEYS)[keyof typeof IMPORT_PREVIEW_SORT_KEYS];
+
+export type SortDirection = (typeof SORT_DIRECTIONS)[keyof typeof SORT_DIRECTIONS];
+
+/** Whether a staging row needs user review before import. */
+export function stagingRowNeedsReview(row: StagingRow, isDuplicate: boolean): boolean {
+  return isDuplicate || !row.category || !String(row.title || "").trim() || !row.date || !Number(row.amount);
+}
+
+function signedAmount(row: StagingRow): number {
+  const abs = Math.abs(Number(row.amount) || 0);
+  return row.type === TRANSACTION_TYPES.INCOME ? abs : -abs;
+}
+
+/**
+ * Stable sort of staging rows for the import review table.
+ * Clones once; does not mutate the source array.
+ */
+export function sortStagingRows(
+  rows: StagingRow[],
+  sortKey: ImportPreviewSortKey,
+  direction: SortDirection,
+  duplicateKeys: { has: (key: string) => boolean },
+): StagingRow[] {
+  if (rows.length < 2) return rows;
+
+  const dir = direction === SORT_DIRECTIONS.ASC ? 1 : -1;
+  const sorted = rows.slice();
+
+  sorted.sort((a, b) => {
+    let cmp = 0;
+
+    switch (sortKey) {
+      case IMPORT_PREVIEW_SORT_KEYS.DATE:
+        cmp = (a.date || "").localeCompare(b.date || "");
+        break;
+      case IMPORT_PREVIEW_SORT_KEYS.DESCRIPTION:
+        cmp = (a.title || "").localeCompare(b.title || "", undefined, {
+          sensitivity: "base",
+        });
+        break;
+      case IMPORT_PREVIEW_SORT_KEYS.CATEGORY:
+        cmp = (a.category || "").localeCompare(b.category || "", undefined, {
+          sensitivity: "base",
+        });
+        break;
+      case IMPORT_PREVIEW_SORT_KEYS.AMOUNT:
+        cmp = signedAmount(a) - signedAmount(b);
+        break;
+      case IMPORT_PREVIEW_SORT_KEYS.STATUS: {
+        const aReview = stagingRowNeedsReview(a, duplicateKeys.has(a.key)) ? 1 : 0;
+        const bReview = stagingRowNeedsReview(b, duplicateKeys.has(b.key)) ? 1 : 0;
+        cmp = aReview - bReview;
+        break;
+      }
+      default:
+        cmp = 0;
+    }
+
+    if (cmp === 0) {
+      cmp = a.key.localeCompare(b.key);
+    }
+
+    return cmp * dir;
+  });
+
+  return sorted;
 }
 
 export function validateColumnMapping(mapping: ColumnMapping): {
@@ -117,15 +189,7 @@ export function rawRowsToStaging(rows: ParsedRawRow[]): StagingRow[] {
     if (!mode) mode = TX_MODES.OTHER;
 
     const category = categorizeTransaction(description, type);
-    const isValidCategory =
-      type === TRANSACTION_TYPES.INCOME
-        ? Object.values(INCOME_CATEGORIES).includes(category)
-        : Object.values(EXPENSE_CATEGORIES).includes(category);
-    const finalCategory = isValidCategory
-      ? category
-      : type === TRANSACTION_TYPES.INCOME
-        ? INCOME_CATEGORIES.OTHER
-        : EXPENSE_CATEGORIES.OTHER;
+    const finalCategory = resolveCategoryName(type, category).category;
 
     result.push({
       key: newId(),
@@ -189,15 +253,7 @@ export function prepareTransactionsForImport(
 
     const editedCategory = editedCategories[index];
     const category = editedCategory ?? categorizeTransaction(description, type);
-    const isValidCategory =
-      type === TRANSACTION_TYPES.INCOME
-        ? Object.values(INCOME_CATEGORIES).includes(category)
-        : Object.values(EXPENSE_CATEGORIES).includes(category);
-    const finalCategory = isValidCategory
-      ? category
-      : type === TRANSACTION_TYPES.INCOME
-        ? INCOME_CATEGORIES.OTHER
-        : EXPENSE_CATEGORIES.OTHER;
+    const finalCategory = resolveCategoryName(type, category).category;
 
     const title = description.trim();
     preparedTransactions.push({

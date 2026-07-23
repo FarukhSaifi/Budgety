@@ -3,6 +3,8 @@ import { STITCH_DARK_COLORS } from "@constants";
 /** Theme preference storage + Stitch dark token helpers. */
 export const THEME_STORAGE_KEY = "budgety.theme";
 
+export const SYSTEM_COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
+
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
@@ -34,6 +36,27 @@ export function resolveThemePreference(
 ): ResolvedTheme {
   if (preference === "system") return systemDark ? "dark" : "light";
   return preference;
+}
+
+/** OS dark preference via `prefers-color-scheme`. */
+export function getSystemPrefersDark(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia(SYSTEM_COLOR_SCHEME_QUERY).matches;
+}
+
+/**
+ * Subscribe to OS color-scheme changes.
+ * Supports modern `addEventListener` and legacy `addListener`.
+ */
+export function subscribeSystemPrefersDark(onChange: () => void): () => void {
+  if (typeof window === "undefined" || !window.matchMedia) return () => undefined;
+  const mq = window.matchMedia(SYSTEM_COLOR_SCHEME_QUERY);
+  if (typeof mq.addEventListener === "function") {
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }
+  mq.addListener(onChange);
+  return () => mq.removeListener(onChange);
 }
 
 export function readStoredThemePreference(): ThemePreference {

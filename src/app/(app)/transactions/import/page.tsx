@@ -1,8 +1,10 @@
 "use client";
 
-import BankStatementImport from "@components/features/transactions/BankStatementImport";
-import { APP_ROUTES } from "@constants/routes";
 import { useRouter } from "next/navigation";
+
+import { APP_ROUTES } from "@constants/routes";
+
+import BankStatementImport from "@components/features/transactions/BankStatementImport";
 
 export default function TransactionsImportPage() {
   const router = useRouter();

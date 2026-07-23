@@ -1,7 +1,9 @@
 "use client";
 
-import { ERROR_MESSAGES, UI_TEXT } from "@constants";
 import { Component, type ErrorInfo, type ReactNode } from "react";
+
+import { ERROR_MESSAGES, UI_TEXT } from "@constants";
+
 import { Button } from "./Button";
 
 interface ErrorBoundaryProps {

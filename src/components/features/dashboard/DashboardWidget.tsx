@@ -1,9 +1,12 @@
 "use client";
 
-import { UI_TEXT } from "@constants";
-import { DownloadIcon, MoreVertIcon, RefreshIcon } from "@components/icons";
-import { cn } from "@utils/cn";
 import type { ReactNode } from "react";
+
+import { UI_TEXT } from "@constants";
+
+import { DownloadIcon, MoreVertIcon, RefreshIcon } from "@components/icons";
+
+import { cn } from "@utils/cn";
 
 export interface DashboardWidgetProps {
   title: string;

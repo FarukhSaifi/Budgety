@@ -1,19 +1,23 @@
 "use client";
 
+import { useId, useState } from "react";
+
 import { TRANSACTION_TYPES, UI_TEXT } from "@constants";
+
 import { Button } from "@components/common/Button";
 import { CategorySelect } from "@components/common/CategorySelect";
 import { Field, Input } from "@components/common/Field";
 import { Modal } from "@components/common/Modal";
 import { AddIcon, BoltIcon } from "@components/icons";
+
 import { useCategories } from "@hooks/useCategories";
 import { useAppDispatch } from "@store/hooks";
 import { addCategory } from "@store/slices/uiSlice";
 import { cn } from "@utils/cn";
 import { requestCategorySuggestion } from "@utils/suggestCategoryClient";
 import { showError, showSuccess } from "@utils/toast";
+
 import type { TransactionType } from "@/types";
-import { useId, useState } from "react";
 
 export interface CategoryPickerProps {
   value: string;

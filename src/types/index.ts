@@ -115,7 +115,8 @@ export type ViewType = "list" | "calendar";
 /**
  * Navigation sections.
  * Primary Stitch shell (bottom nav): overview | transactions | analytics | profile
- * Secondary (reachable via Home/Profile/Analytics links): budgets | bills | reports | goals
+ * Secondary (reachable via Home/Profile/Analytics links): budgets | bills | goals
+ * Reports live under Analytics (`AnalyticsTab` "reports").
  */
 export type NavTab =
   | "overview"
@@ -124,14 +125,13 @@ export type NavTab =
   | "profile"
   | "budgets"
   | "bills"
-  | "reports"
   | "goals";
 
 /** Transaction list filter pills (Transfer is UI-only; maps to transfer payment modes). */
 export type TransactionFilter = "all" | "income" | "expense" | "transfer";
 
-/** Analytics segmented control. */
-export type AnalyticsTab = "overview" | "income" | "outcome" | "budget";
+/** Analytics segmented control (includes former Reports screen). */
+export type AnalyticsTab = "overview" | "income" | "outcome" | "budget" | "reports";
 
 export interface CategoryState {
   income: string[];

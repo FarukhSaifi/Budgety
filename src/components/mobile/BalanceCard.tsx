@@ -1,7 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
-import { cn } from "@utils/cn";
+
 import {
   ArrowDownwardIcon,
   ArrowUpwardIcon,
@@ -10,6 +10,8 @@ import {
   VisibilityIcon,
   VisibilityOffIcon,
 } from "@components/icons";
+
+import { cn } from "@utils/cn";
 
 export interface BalanceCardProps {
   balance: number;

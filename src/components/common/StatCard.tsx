@@ -1,5 +1,6 @@
-import { cn } from "@utils/cn";
 import type { ReactNode } from "react";
+
+import { cn } from "@utils/cn";
 
 export interface StatCardProps {
   label: string;

@@ -1,9 +1,12 @@
 "use client";
 
-import { cn } from "@utils/cn";
+import type { ReactNode } from "react";
+
 import { ChevronRightIcon } from "@components/icons";
 import type { IconComponent } from "@components/icons";
-import type { ReactNode } from "react";
+
+import { cn } from "@utils/cn";
+
 
 export interface ProfileSettingRowProps {
   icon: IconComponent;

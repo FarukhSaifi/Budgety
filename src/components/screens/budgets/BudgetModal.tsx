@@ -1,15 +1,21 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
+
+import { v4 as uuidv4 } from "uuid";
+
 import { NUMBER_FORMAT, UI_TEXT, VIEW_PERIODS } from "@constants";
+
 import { Button, CategoryPicker, Field, Input, Modal, Select } from "@common";
+
 import { CheckIcon } from "@components/icons";
+
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addBudget, updateBudget } from "@store/slices/budgetsSlice";
 import { showError, showSuccess } from "@utils/toast";
+
 import type { Budget, BudgetPeriod } from "@/types";
-import { useResetOnOpen } from "@hooks/useResetOnOpen";
-import { useState, type FormEvent } from "react";
-import { v4 as uuidv4 } from "uuid";
 
 export interface BudgetModalProps {
   open: boolean;

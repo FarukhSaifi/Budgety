@@ -1,9 +1,12 @@
 "use client";
 
-import { CHART_CONFIG } from "@constants";
-import { cn } from "@utils/cn";
 import type { ReactElement, ReactNode } from "react";
+
 import { ResponsiveContainer } from "recharts";
+
+import { CHART_CONFIG } from "@constants";
+
+import { cn } from "@utils/cn";
 
 export interface ChartCardProps {
   title?: string;

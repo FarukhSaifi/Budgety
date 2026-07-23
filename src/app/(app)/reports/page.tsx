@@ -1,7 +1,8 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { ReportsScreen } from "@components/screens/reports/ReportsScreen";
+import { APP_ROUTES } from "@constants/routes";
 
-export default function ReportsPage() {
-  return <ReportsScreen />;
+/** Legacy `/reports` → unified Analytics page (Reports tab). */
+export default function ReportsRedirectPage() {
+  redirect(`${APP_ROUTES.analytics}?tab=reports`);
 }

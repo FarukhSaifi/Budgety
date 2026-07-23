@@ -1,28 +1,25 @@
 "use client";
 
 import { UI_TEXT } from "@constants";
-import { useTheme } from "@components/providers/ThemeProvider";
+
 import { DarkModeIcon } from "@components/icons";
-import { useBudgetCalculations } from "@hooks/useBudgetCalculations";
+import { useTheme } from "@components/providers/ThemeProvider";
+
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useAppSelector } from "@store/hooks";
+import { selectPeriodTotalExpense, selectPeriodTotalIncome } from "@store/selectors/periodSelectors";
 import { cn } from "@utils/cn";
-import { PeriodPicker } from "./PeriodPicker";
+
 import { TAB_TITLES } from "./navigation";
+import { PeriodPicker } from "./PeriodPicker";
 import { UserMenu } from "./UserMenu";
 
 export function TopBar() {
   const activeTab = useAppSelector((state) => state.ui.activeTab);
-  const { viewPeriod, selectedMonth, selectedYear } = useAppSelector((state) => state.ui);
-  const transactions = useAppSelector((state) => state.transactions.items);
+  const totalIncome = useAppSelector(selectPeriodTotalIncome);
+  const totalExpense = useAppSelector(selectPeriodTotalExpense);
   const { formatCurrency } = useCurrencyFormatter();
   const { toggleLightDark, resolved } = useTheme();
-  const { totalIncome, totalExpense } = useBudgetCalculations(
-    transactions,
-    viewPeriod,
-    selectedMonth,
-    selectedYear,
-  );
 
   return (
     <header className="glass-nav sticky top-0 z-40 border-b border-primary-soft/60 px-4 py-3 md:px-6 md:py-4">
@@ -39,15 +36,11 @@ export function TopBar() {
         <div className="flex items-center gap-3 md:gap-5">
           <div className="hidden text-right sm:block">
             <p className="text-xs font-medium text-gray-400">{UI_TEXT.TOTAL_INCOME}</p>
-            <p className={cn("text-sm font-semibold text-income")}>
-              +₹{formatCurrency(totalIncome)}
-            </p>
+            <p className={cn("text-sm font-semibold text-income")}>+₹{formatCurrency(totalIncome)}</p>
           </div>
           <div className="hidden text-right sm:block">
             <p className="text-xs font-medium text-gray-400">{UI_TEXT.TOTAL_EXPENSES}</p>
-            <p className={cn("text-sm font-semibold text-expense")}>
-              -₹{formatCurrency(totalExpense)}
-            </p>
+            <p className={cn("text-sm font-semibold text-expense")}>-₹{formatCurrency(totalExpense)}</p>
           </div>
           <button
             type="button"

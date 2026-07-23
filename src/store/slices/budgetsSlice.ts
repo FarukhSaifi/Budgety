@@ -1,6 +1,8 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { firestoreApi } from "@/lib/firestore";
+
 import { upsertById } from "@store/upsert";
+
+import { firestoreApi } from "@/lib/firestore";
 import type { Budget } from "@/types";
 
 interface BudgetsState {

@@ -1,6 +1,7 @@
 "use client";
 
 import { TransactionListRow } from "@components/features/transactions/TransactionListRow";
+
 import type { Transaction } from "@/types";
 
 export interface TransactionItemProps {

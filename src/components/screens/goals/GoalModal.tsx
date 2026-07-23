@@ -1,15 +1,21 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
+
+import { v4 as uuidv4 } from "uuid";
+
 import { NUMBER_FORMAT, UI_TEXT } from "@constants";
+
 import { Button, Field, Input, Modal } from "@common";
+
+import { toStorageDate } from "@hooks/useDateFormatter";
+import { useResetOnOpen } from "@hooks/useResetOnOpen";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addGoal, updateGoal } from "@store/slices/goalsSlice";
 import { showError, showSuccess } from "@utils/toast";
-import { toStorageDate } from "@hooks/useDateFormatter";
+
 import type { Goal } from "@/types";
-import { useResetOnOpen } from "@hooks/useResetOnOpen";
-import { useState, type FormEvent } from "react";
-import { v4 as uuidv4 } from "uuid";
+
 
 export interface GoalModalProps {
   open: boolean;

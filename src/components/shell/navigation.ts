@@ -1,10 +1,10 @@
 import { UI_TEXT } from "@constants";
+
 import { TAB_TO_PATH } from "@constants/routes";
-import type { NavTab } from "@/types";
+
 import type { IconComponent } from "@components/icons";
 import {
   AccountBalanceWalletIcon,
-  AnalyticsIcon,
   BarChartIcon,
   CalendarClockIcon,
   FlagIcon,
@@ -12,6 +12,8 @@ import {
   PersonIcon,
   ReceiptLongIcon,
 } from "@components/icons";
+
+import type { NavTab } from "@/types";
 
 export interface NavItem {
   id: NavTab;
@@ -51,7 +53,6 @@ export const SECONDARY_NAV_ITEMS: NavItem[] = [
     href: TAB_TO_PATH.budgets,
   },
   { id: "bills", label: UI_TEXT.BILLS, icon: CalendarClockIcon, href: TAB_TO_PATH.bills },
-  { id: "reports", label: UI_TEXT.REPORTS, icon: AnalyticsIcon, href: TAB_TO_PATH.reports },
   { id: "goals", label: UI_TEXT.GOALS, icon: FlagIcon, href: TAB_TO_PATH.goals },
 ];
 
@@ -65,7 +66,6 @@ export const TAB_TITLES: Record<NavTab, string> = {
   profile: UI_TEXT.PROFILE,
   budgets: UI_TEXT.BUDGETS,
   bills: UI_TEXT.BILLS,
-  reports: UI_TEXT.REPORTS,
   goals: UI_TEXT.GOALS,
 };
 

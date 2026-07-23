@@ -1,17 +1,19 @@
-import {
-  ERROR_MESSAGES,
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
-  STATEMENT_IMPORT,
-  TRANSACTION_MODES,
-} from "@constants";
-import { PAYMENT_MODES_LIST } from "@constants/firestore";
-import type { PaymentMode, TransactionType } from "@/types";
-import type { ParsedStatementTransaction } from "@/lib/statement/types";
-import { truncateForAi } from "@/lib/statement/extractText";
+import { ERROR_MESSAGES, STATEMENT_IMPORT, TRANSACTION_MODES } from "@constants";
 
-const INCOME_LIST = Object.values(INCOME_CATEGORIES);
-const EXPENSE_LIST = Object.values(EXPENSE_CATEGORIES);
+import { PAYMENT_MODES_LIST } from "@constants/firestore";
+
+import { builtInCategoriesForType, resolveCategoryName } from "@utils/categoryNormalize";
+import {
+  applyKnownUpiPayeeCategory,
+  formatKnownUpiPayeePromptRules,
+} from "@utils/transactionCategorization";
+
+import { truncateForAi } from "@/lib/statement/extractText";
+import type { ParsedStatementTransaction } from "@/lib/statement/types";
+import type { PaymentMode, TransactionType } from "@/types";
+
+const INCOME_LIST = builtInCategoriesForType("income");
+const EXPENSE_LIST = builtInCategoriesForType("expense");
 const MODE_LIST = Object.values(TRANSACTION_MODES);
 
 type AiProvider = "google" | "openai";
@@ -26,9 +28,12 @@ function buildSystemPrompt(): string {
     "Rules:",
     "- amount: positive number only (absolute value).",
     '- type: "income" for credits/deposits; "expense" for debits/withdrawals.',
-    `- category: MUST be exactly one of the allowed lists below based on type.`,
+    "- category: Prefer an existing category from the lists below when it fits well.",
+    "- You MAY invent a short Title Case category (2–4 words max) when none of the lists fit.",
+    "- Do NOT invent vague labels like Misc or General when a specific merchant category is clear.",
     `  Income categories: ${INCOME_LIST.join(", ")}`,
     `  Expense categories: ${EXPENSE_LIST.join(", ")}`,
+    formatKnownUpiPayeePromptRules(),
     `- paymentMode: MUST be exactly one of: ${MODE_LIST.join(", ")}`,
     "- date: ISO date YYYY-MM-DD. Prefer DD-MM-YYYY / DD.MM.YYYY interpretation for Indian statements.",
     "- title: concise merchant/narration (max ~120 chars). Prefer clean human-readable text.",
@@ -41,18 +46,12 @@ function buildSystemPrompt(): string {
 
 function normalizePaymentMode(value: unknown): PaymentMode {
   const raw = String(value ?? "Other").trim();
-  const match = PAYMENT_MODES_LIST.find(
-    (m) => m.toLowerCase() === raw.toLowerCase(),
-  );
+  const match = PAYMENT_MODES_LIST.find((m) => m.toLowerCase() === raw.toLowerCase());
   return (match ?? "Other") as PaymentMode;
 }
 
 function normalizeCategory(type: TransactionType, value: unknown): string {
-  const raw = String(value ?? "Other").trim();
-  const allowed = type === "income" ? INCOME_LIST : EXPENSE_LIST;
-  const match = allowed.find((c) => c.toLowerCase() === raw.toLowerCase());
-  if (match) return match;
-  return type === "income" ? INCOME_CATEGORIES.OTHER : EXPENSE_CATEGORIES.OTHER;
+  return resolveCategoryName(type, value).category;
 }
 
 function normalizeDate(value: unknown): string | null {
@@ -91,13 +90,16 @@ function coerceTransactions(raw: unknown): ParsedStatementTransaction[] {
     const row = item as Record<string, unknown>;
     const title = String(row.title ?? row.description ?? "").trim();
     const amount = Math.abs(Number(row.amount) || 0);
-    const type: TransactionType =
-      String(row.type).toLowerCase() === "income" ? "income" : "expense";
+    const type: TransactionType = String(row.type).toLowerCase() === "income" ? "income" : "expense";
     const date = normalizeDate(row.date);
     if (!title || !date || amount <= 0) continue;
 
     const paymentMode = normalizePaymentMode(row.paymentMode ?? row.mode);
-    const category = normalizeCategory(type, row.category);
+    const category = applyKnownUpiPayeeCategory(
+      title,
+      type,
+      normalizeCategory(type, row.category),
+    );
 
     out.push({
       title,
@@ -131,11 +133,7 @@ function extractJsonPayload(content: string): unknown {
 }
 
 function resolveGoogleApiKey(): string | null {
-  return (
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-    process.env.GEMINI_API_KEY?.trim() ||
-    null
-  );
+  return process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim() || null;
 }
 
 function resolveOpenAiApiKey(): string | null {
@@ -152,10 +150,7 @@ function resolveProvider(): { provider: AiProvider; apiKey: string } | null {
   return null;
 }
 
-async function parseWithGoogle(
-  statementText: string,
-  apiKey: string,
-): Promise<ParsedStatementTransaction[]> {
+async function parseWithGoogle(statementText: string, apiKey: string): Promise<ParsedStatementTransaction[]> {
   const model = STATEMENT_IMPORT.GEMINI_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
@@ -197,14 +192,7 @@ async function parseWithGoogle(
                   paymentMode: { type: "STRING" },
                   date: { type: "STRING" },
                 },
-                required: [
-                  "title",
-                  "amount",
-                  "type",
-                  "category",
-                  "paymentMode",
-                  "date",
-                ],
+                required: ["title", "amount", "type", "category", "paymentMode", "date"],
               },
             },
           },
@@ -224,9 +212,7 @@ async function parseWithGoogle(
     } catch {
       // ignore body parse failure
     }
-    throw new Error(
-      ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", detail),
-    );
+    throw new Error(ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", detail));
   }
 
   const data = (await response.json()) as {
@@ -247,10 +233,7 @@ async function parseWithGoogle(
   return coerceTransactions(parsed);
 }
 
-async function parseWithOpenAi(
-  statementText: string,
-  apiKey: string,
-): Promise<ParsedStatementTransaction[]> {
+async function parseWithOpenAi(statementText: string, apiKey: string): Promise<ParsedStatementTransaction[]> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -281,9 +264,7 @@ async function parseWithOpenAi(
     } catch {
       // ignore body parse failure
     }
-    throw new Error(
-      ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", detail),
-    );
+    throw new Error(ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", detail));
   }
 
   const data = (await response.json()) as {
@@ -306,9 +287,7 @@ async function parseWithOpenAi(
  * 1. GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY → Gemini Developer API
  * 2. OPENAI_API_KEY → OpenAI chat completions (fallback)
  */
-export async function parseStatementWithAi(
-  statementText: string,
-): Promise<ParsedStatementTransaction[]> {
+export async function parseStatementWithAi(statementText: string): Promise<ParsedStatementTransaction[]> {
   const resolved = resolveProvider();
   if (!resolved) {
     throw new Error(ERROR_MESSAGES.AI_API_KEY_MISSING);

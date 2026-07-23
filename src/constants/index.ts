@@ -166,6 +166,7 @@ export const EXPENSE_CATEGORIES = {
   GIFTS: "Gifts & Donations",
   GROCERIES: "Groceries",
   HEALTHCARE: "Healthcare",
+  HOME_EXPENSE: "Home Expense",
   HOUSING: "Housing",
   INSURANCE: "Insurance",
   INVESTMENTS: "Investments",
@@ -219,6 +220,7 @@ export const CATEGORY_COLORS = {
   [EXPENSE_CATEGORIES.GIFTS]: "#9c27b0",
   [EXPENSE_CATEGORIES.GROCERIES]: "#f39c12",
   [EXPENSE_CATEGORIES.HEALTHCARE]: "#e67e22",
+  [EXPENSE_CATEGORIES.HOME_EXPENSE]: "#c17f59",
   [EXPENSE_CATEGORIES.HOUSING]: "#e74c3c",
   [EXPENSE_CATEGORIES.INSURANCE]: "#607d8b",
   [EXPENSE_CATEGORIES.INVESTMENTS]: "#3498db",
@@ -237,6 +239,10 @@ export const CATEGORY_COLORS = {
   [EXPENSE_CATEGORIES.TRAVEL]: "#00bcd4",
   [EXPENSE_CATEGORIES.UTILITIES]: "#1abc9c",
   [EXPENSE_CATEGORIES.CREDIT_CARD]: "#ff5767",
+  [INVESTMENT_CATEGORIES.STOCKS]: "#1565c0",
+  [INVESTMENT_CATEGORIES.REITS]: "#00897b",
+  [INVESTMENT_CATEGORIES.P2P]: "#6d4c41",
+  [INVESTMENT_CATEGORIES.CRYPTO]: "#f9a825",
 };
 
 // Fallback for category tags when category is not in CATEGORY_COLORS (e.g. user-added)
@@ -519,15 +525,24 @@ export const UI_TEXT = {
   UPLOAD_ACCEPTED_FORMATS: "PDF or CSV (XLSX also supported)",
   IMPORT_PARSING: "Reading statement with AI…",
   IMPORT_PREVIEW_TITLE: "Import Preview",
-  IMPORT_PREVIEW_SUBTITLE: "Deselect any rows you want to skip. Duplicates are flagged and unchecked by default.",
+  IMPORT_PREVIEW_SUBTITLE:
+    "Deselect any rows you want to skip. Duplicates are flagged and unchecked by default — re-select them if you still want to import.",
   IMPORT_APPROVE: "Import selected",
   IMPORT_ITEMS: "Import {count} Items",
   IMPORT_SELECT_ALL: "Select all",
   IMPORT_DESELECT_ALL: "Deselect all",
   IMPORT_DISCARD_ALL: "Discard All",
   IMPORT_DUPLICATE_BADGE: "Duplicate",
+  IMPORT_DUPLICATE_IN_ACCOUNT: "Already in account",
+  IMPORT_DUPLICATE_IN_FILE: "Duplicate in this file",
+  IMPORT_DUPLICATE_BANNER:
+    "{count} possible duplicate(s) found — unchecked by default. Re-select any you still want to import ({selected} selected).",
+  IMPORT_DUPLICATE_BANNER_NONE_SELECTED:
+    "{count} possible duplicate(s) found — unchecked by default. Re-select any you still want to import.",
   IMPORT_FILE_FORMAT_GUIDE_TITLE: "How it works",
   IMPORT_SUCCESS_COUNT: "Successfully imported {count} transaction(s)!",
+  IMPORT_SUCCESS_WITH_DUPLICATES:
+    "Successfully imported {count} transaction(s), including {duplicates} previously flagged duplicate(s).",
   IMPORT_SUCCESS_WITH_SKIPPED: "Successfully imported {count} transaction(s). {skipped} duplicate(s) were skipped.",
   IMPORT_NONE_SELECTED: "Select at least one transaction to import.",
   IMPORT_SUPPORT: "Support",
@@ -542,15 +557,18 @@ export const UI_TEXT = {
   IMPORT_TRANSACTIONS_FOUND: "{count} Transactions Found",
   IMPORT_STATUS_VALID: "Valid",
   IMPORT_STATUS_REVIEW: "Review",
+  IMPORT_STATUS_DUPLICATE: "Duplicate",
   IMPORT_SELECT_CATEGORY: "Select Category",
   IMPORT_MISSING_REFERENCE: "Missing reference data",
   IMPORT_AI_SUGGESTED: "AI has suggested categories for {pct}% of entries.",
+  IMPORT_NEW_CATEGORIES_ADDED:
+    "Added {count} new categories from this statement — they now appear when you add income or expense.",
   IMPORT_PRIVACY_TITLE: "Privacy Guaranteed",
   IMPORT_PRIVACY_BODY: "Statements are processed securely and never shared with other accounts.",
   IMPORT_AI_CAT_TITLE: "AI Categorization",
   IMPORT_AI_CAT_BODY: "Merchants are auto-mapped to categories you can edit before import.",
   IMPORT_SAFE_SYNC_TITLE: "Safe Syncing",
-  IMPORT_SAFE_SYNC_BODY: "Duplicates are detected so you don’t import the same row twice.",
+  IMPORT_SAFE_SYNC_BODY: "Likely duplicates are flagged and unchecked by default. Re-select any you still want to add.",
   IMPORT_EXT_CSV: ".CSV",
   IMPORT_EXT_XLSX: ".XLSX",
   IMPORT_EXT_PDF: ".PDF",
@@ -578,9 +596,18 @@ export const UI_TEXT = {
   ANALYTICS_AND_REPORTS: "Analytics & Reports",
   SEARCH_ANALYTICS: "Search analytics…",
   OVERVIEW: "Overview",
+  REPORTS_TAB: "Reports",
+  CURRENT_BALANCE: "Current Balance",
+  CURRENT_BALANCE_HINT: "All-time income minus expenses",
+  AVERAGE_DAILY_SPEND: "Avg Daily Spend",
+  SPEND_VS_INCOME: "Spend vs Income",
+  OF_INCOME: "of income",
+  LARGEST_TRANSACTIONS: "Largest Transactions",
+  PERIOD_BALANCE: "Period Balance",
   MONTHLY_SPEND: "Monthly Spend",
   BUDGET_HEALTH: "Budget Health",
   FORECAST_EOY: "Forecast (EOY)",
+
   ON_TRACK: "On Track",
   AT_RISK: "At Risk",
   WATCH: "Watch",
@@ -642,6 +669,7 @@ export const UI_TEXT = {
   TOGGLE_THEME: "Toggle theme",
   CURRENCY_LANGUAGE: "Currency & Language",
   SORT: "Sort",
+  SORT_BY_COLUMN: "Sort by {column}",
   OF: "of",
   DAYS_LEFT: "days left",
   /** Label used in bill rows (includes trailing colon). */
@@ -651,6 +679,10 @@ export const UI_TEXT = {
   BILLS_AND_RECURRING: "Bills & Recurring",
   GOALS: "Goals",
   ALL_TIME: "All Time",
+  PREVIOUS_MONTH: "Previous month",
+  NEXT_MONTH: "Next month",
+  PREVIOUS_YEAR: "Previous year",
+  NEXT_YEAR: "Next year",
   PAYMENTS_CALENDAR: "Payments Calendar",
   CALENDAR_VIEW: "Calendar View",
   TOTAL_PAYMENTS: "Total Payments",
@@ -812,6 +844,25 @@ export const STATEMENT_IMPORT = {
   FIELD_NAME: "file",
 };
 
+/** Review-table column sort keys (Import Preview). */
+export const IMPORT_PREVIEW_SORT_KEYS = {
+  DATE: "date",
+  DESCRIPTION: "description",
+  CATEGORY: "category",
+  AMOUNT: "amount",
+  STATUS: "status",
+} as const;
+
+export const SORT_DIRECTIONS = {
+  ASC: "asc",
+  DESC: "desc",
+} as const;
+
+export const IMPORT_PREVIEW_SORT = {
+  DEFAULT_KEY: IMPORT_PREVIEW_SORT_KEYS.DATE,
+  DEFAULT_DIRECTION: SORT_DIRECTIONS.DESC,
+} as const;
+
 // Recurrence Types
 export const RECURRENCE_TYPES = {
   DAILY: "daily",
@@ -843,6 +894,14 @@ export const DEFAULT_STATE = {
   selectedCategory: "",
   searchQuery: "",
 };
+
+/** Shared Modal shell timing / stacking (CSS animations in globals.css). */
+export const MODAL = {
+  BASE_Z: 1100,
+  Z_STEP: 10,
+  ENTER_MS: 240,
+  EXIT_MS: 200,
+} as const;
 
 // App branding (Stitch project 9083140746767418409)
 export const APP_NAME = "Budgety";
@@ -988,6 +1047,7 @@ export const DISPLAY_LIMITS = {
   PREVIEW_ITEMS: 5,
   PREVIEW_ROWS: 50,
   TOP_CATEGORIES_ANALYSIS: 10,
+  LARGEST_TRANSACTIONS: 5,
   UPCOMING_BILLS: 10,
   TREND_MONTHS: 6,
   FORECAST_MONTHS: 3,
@@ -1053,6 +1113,29 @@ export const DEFAULT_VALUES = {
   DATE_TIMESTAMP: 0,
   EMPTY_STRING: "",
 };
+
+/**
+ * Hard-mapped personal UPI payees → expense categories.
+ * Matchers are case-insensitive substrings; keep Naim vs Sameer distinct
+ * (never match on "MOHAMMAD" alone).
+ */
+export const KNOWN_UPI_PAYEE_OVERRIDES = [
+  {
+    label: "Mohammad Naim",
+    category: EXPENSE_CATEGORIES.GROCERIES,
+    matchers: ["mohammad.naim1", "mohammad naim", "mohammad n/", "naim"],
+  },
+  {
+    label: "Mohammad Sameer",
+    category: EXPENSE_CATEGORIES.HOME_EXPENSE,
+    matchers: [
+      "9013411448@axl",
+      "mohammad sameer",
+      "mohammad s/",
+      "sameer",
+    ],
+  },
+] as const;
 
 // Category Detection Patterns
 export const CATEGORY_PATTERNS = {

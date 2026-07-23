@@ -1,7 +1,8 @@
-import { APP_ROUTES } from "@constants/routes";
 import { redirect } from "next/navigation";
 
-/** Alias so `/report` lands on the canonical Reports screen. */
+import { APP_ROUTES } from "@constants/routes";
+
+/** Alias so `/report` lands on the unified Analytics page (Reports tab). */
 export default function ReportAliasPage() {
-  redirect(APP_ROUTES.reports);
+  redirect(`${APP_ROUTES.analytics}?tab=reports`);
 }

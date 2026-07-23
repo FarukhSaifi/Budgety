@@ -1,13 +1,18 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { MONTHS, UI_TEXT, VIEW_PERIOD_LABELS, VIEW_PERIODS } from "@constants";
+
 import { Select } from "@common";
+
+import { ExpandMoreIcon } from "@components/icons";
+
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { setViewPeriod } from "@store/slices/uiSlice";
-import type { ViewPeriod } from "@/types";
-import { ExpandMoreIcon } from "@components/icons";
 import { cn } from "@utils/cn";
-import { useEffect, useRef, useState } from "react";
+
+import type { ViewPeriod } from "@/types";
 
 function yearRange(): number[] {
   const current = new Date().getFullYear();

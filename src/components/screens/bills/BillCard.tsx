@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
+
 import {
   AutorenewIcon,
   DeleteIcon,
@@ -9,9 +12,11 @@ import {
   ScheduleIcon,
   WarningIcon,
 } from "@components/icons";
+
 import { cn } from "@utils/cn";
+
 import type { Bill } from "@/types";
-import { useEffect, useRef, useState } from "react";
+
 import {
   billTitle,
   billVendor,

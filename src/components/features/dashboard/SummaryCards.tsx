@@ -1,7 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
-import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
+
 import {
   AccountBalanceIcon,
   ArrowDownwardIcon,
@@ -9,7 +11,8 @@ import {
   CheckCircleIcon,
 } from "@components/icons";
 import type { IconComponent } from "@components/icons/types";
-import type { ReactNode } from "react";
+
+import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 
 interface SummaryCardsProps {
   totalIncome: number;

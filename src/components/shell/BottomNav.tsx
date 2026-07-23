@@ -1,11 +1,16 @@
 "use client";
 
-import { UI_TEXT } from "@constants";
-import { isPrimaryNavPathActive } from "@constants/routes";
-import { cn } from "@utils/cn";
-import { AddIcon } from "@components/icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { UI_TEXT } from "@constants";
+
+import { isPrimaryNavPathActive } from "@constants/routes";
+
+import { AddIcon } from "@components/icons";
+
+import { cn } from "@utils/cn";
+
 import { PRIMARY_NAV_ITEMS } from "./navigation";
 
 export interface BottomNavProps {

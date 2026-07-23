@@ -1,9 +1,12 @@
 "use client";
 
-import { CURRENCY_SYMBOL, STITCH_CHART_COLORS, UI_TEXT, CHART_CONFIG } from "@constants";
-import { CHART_THEME_COLORS } from "@/lib/theme";
-import { cn } from "@utils/cn";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+
+import { CURRENCY_SYMBOL, STITCH_CHART_COLORS, UI_TEXT, CHART_CONFIG } from "@constants";
+
+import { cn } from "@utils/cn";
+
+import { CHART_THEME_COLORS } from "@/lib/theme";
 
 export interface DonutSlice {
   name: string;

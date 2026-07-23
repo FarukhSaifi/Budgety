@@ -1,10 +1,13 @@
 "use client";
 
-import { APP_LOGO_ALT, APP_LOGO_SRC, APP_NAME } from "@constants";
-import { cn } from "@utils/cn";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { APP_LOGO_ALT, APP_LOGO_SRC, APP_NAME } from "@constants";
+
+import { cn } from "@utils/cn";
+
 import { PRIMARY_NAV_ITEMS, SECONDARY_NAV_ITEMS } from "./navigation";
 
 export function Sidebar() {

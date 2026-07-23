@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
+
 import { ERROR_MESSAGES } from "@constants";
-import { firestoreListeners } from "@/lib/firestore";
-import { useAppDispatch, useAppSelector } from "@store/hooks";
-import { listenToAuthChanges } from "@store/slices/authSlice";
-import { clearTransactions, markTransactionsLoadFailed, setTransactions } from "@store/slices/transactionsSlice";
-import { clearBudgets, markBudgetsLoadFailed, setBudgets } from "@store/slices/budgetsSlice";
-import { clearBills, markBillsLoadFailed, setBills } from "@store/slices/billsSlice";
-import { clearGoals, markGoalsLoadFailed, setGoals } from "@store/slices/goalsSlice";
-import { clearRecurring, markRecurringLoadFailed, setRecurring } from "@store/slices/recurringSlice";
+
 import { useCategoryPersistence } from "@hooks/useCategoryPersistence";
 import { useUiPeriodSync } from "@hooks/useUiPeriodSync";
+import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { listenToAuthChanges } from "@store/slices/authSlice";
+import { clearBills, markBillsLoadFailed, setBills } from "@store/slices/billsSlice";
+import { clearBudgets, markBudgetsLoadFailed, setBudgets } from "@store/slices/budgetsSlice";
+import { clearGoals, markGoalsLoadFailed, setGoals } from "@store/slices/goalsSlice";
+import { clearRecurring, markRecurringLoadFailed, setRecurring } from "@store/slices/recurringSlice";
+import { clearTransactions, markTransactionsLoadFailed, setTransactions } from "@store/slices/transactionsSlice";
 import { showError } from "@utils/toast";
+
+import { firestoreListeners } from "@/lib/firestore";
 
 /**
  * Keeps Firebase Auth ↔ Redux in sync and attaches Firestore listeners
