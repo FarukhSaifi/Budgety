@@ -10,6 +10,7 @@ import { RecentTransactionsCard } from "@components/features/dashboard/RecentTra
 import SummaryCards from "@components/features/dashboard/SummaryCards";
 import { ChevronRightIcon, NotificationsIcon } from "@components/icons";
 import { BillPreviewRow, BudgetProgress } from "@components/mobile";
+import { PeriodPicker } from "@components/shell/PeriodPicker";
 
 import { useAppNavigation } from "@hooks/useAppNavigation";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
@@ -98,6 +99,10 @@ export function DashboardScreen() {
           <NotificationsIcon className="h-5 w-5" />
         </button>
       </header>
+
+      <div className="md:hidden">
+        <PeriodPicker />
+      </div>
 
       <SummaryCards totalIncome={current.totalIncome} totalExpense={current.totalExpense} balance={totalBalance} />
 
