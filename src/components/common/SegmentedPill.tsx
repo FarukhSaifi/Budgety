@@ -39,7 +39,7 @@ export function SegmentedPill<T extends string = string>({
       role="radiogroup"
       aria-label={ariaLabel}
       className={cn(
-        "flex gap-1 rounded-full bg-surface-low p-1 ring-1 ring-outline-variant/60",
+        "flex w-full min-w-0 gap-1 overflow-x-auto rounded-full bg-surface-container p-1 ring-1 ring-outline-variant/70 scrollbar-none",
         className,
       )}
     >
@@ -54,7 +54,7 @@ export function SegmentedPill<T extends string = string>({
             aria-checked={active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "min-w-0 flex-1 rounded-full py-2.5 text-sm font-semibold transition-all",
+              "min-h-10 min-w-0 flex-1 basis-0 truncate rounded-full px-1.5 py-2 text-center text-xs font-semibold transition-all sm:px-2 sm:text-sm",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring) focus-visible:ring-offset-1",
               active
                 ? ACTIVE_TONE[tone]

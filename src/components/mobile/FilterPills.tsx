@@ -40,7 +40,7 @@ export function FilterPills<T extends string = string>({
   if (variant === "underline") {
     return (
       <div
-        className={cn("flex gap-2 overflow-x-auto pb-1 scrollbar-none", className)}
+        className={cn("flex w-full min-w-0 gap-2 overflow-x-auto pb-1 scrollbar-none", className)}
         role="tablist"
         aria-label={ariaLabel}
       >
@@ -72,7 +72,9 @@ export function FilterPills<T extends string = string>({
   return (
     <div
       className={cn(
-        "flex gap-1 rounded-full bg-surface-low p-1 ring-1 ring-outline-variant/60",
+        // w-full + min-w-0 keeps the track visible inside padded mobile main;
+        // overflow-x-auto is a safety net if labels can't fit equal flex slots.
+        "flex w-full min-w-0 gap-1 overflow-x-auto rounded-full bg-surface-container p-1 ring-1 ring-outline-variant/70 scrollbar-none",
         className,
       )}
       role="radiogroup"
@@ -89,7 +91,7 @@ export function FilterPills<T extends string = string>({
             aria-checked={active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "min-w-0 flex-1 rounded-full px-2 py-2.5 text-center text-sm font-semibold transition-all",
+              "min-h-10 min-w-0 flex-1 basis-0 truncate rounded-full px-1.5 py-2 text-center text-xs font-semibold transition-all sm:px-2 sm:text-sm",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring) focus-visible:ring-offset-1",
               active
                 ? ACTIVE_TONE[tone]

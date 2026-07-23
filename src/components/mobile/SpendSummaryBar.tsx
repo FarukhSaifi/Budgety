@@ -18,6 +18,12 @@ export interface SpendSummaryBarProps {
   segments: SpendSegment[];
   formatCurrency: (n: number) => string;
   title?: string;
+  /**
+   * Visual wrapper style.
+   * - "card": stitched card container (rounded/bg/padding/shadow)
+   * - "plain": blend into parent (no border/bg/padding/shadow)
+   */
+  variant?: "card" | "plain";
   className?: string;
   maxLegend?: number;
   /** Currently selected category filter (empty = all). */
@@ -35,16 +41,21 @@ export function SpendSummaryBar({
   segments,
   formatCurrency,
   title = UI_TEXT.TOTAL_SPEND,
+  variant = "card",
   className,
   maxLegend = 6,
   selectedCategory = "",
   onSelectCategory,
 }: SpendSummaryBarProps) {
-  const colored = segments.map((s, i) => ({
+  // Only render meaningful spend slices (prevents zero/negative entries collapsing to 0px).
+  const colored = segments
+    .map((s, i) => ({
     ...s,
     color: resolveColor(s.name, i, s.color),
-  }));
-  const sum = colored.reduce((acc, s) => acc + s.value, 0) || 1;
+    }))
+    .filter((s) => Number.isFinite(s.value) && s.value > 0);
+
+  const sum = colored.reduce((acc, s) => acc + s.value, 0);
   const interactive = typeof onSelectCategory === "function";
   const active = String(selectedCategory || "")
     .trim()
@@ -56,8 +67,14 @@ export function SpendSummaryBar({
     onSelectCategory(next);
   };
 
+  const hasSegments = sum > 0;
+  const wrapperClass =
+    variant === "plain"
+      ? cn("rounded-none border-0 bg-transparent p-0 shadow-none", className)
+      : cn("rounded-card bg-card p-4 shadow-card", className);
+
   return (
-    <div className={cn("rounded-card bg-card p-4 shadow-card", className)}>
+    <div className={wrapperClass}>
       <div className="mb-3 flex items-end justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-medium text-on-surface-variant">{title}</h3>
@@ -84,9 +101,10 @@ export function SpendSummaryBar({
         role={interactive ? "listbox" : undefined}
         aria-label={title}
       >
-        {colored.map((s) => {
+        {hasSegments ? (
+          colored.map((s) => {
           const isActive = active === s.name.toLowerCase();
-          const widthPct = Math.max((s.value / sum) * 100, s.value > 0 ? 2 : 0);
+          const widthPct = sum > 0 ? Math.max((s.value / sum) * 100, 2) : 0;
           const SegmentTag = interactive ? "button" : "div";
           return (
             <SegmentTag
@@ -97,10 +115,10 @@ export function SpendSummaryBar({
               title={`${s.name}: ${CURRENCY_SYMBOL}${formatCurrency(s.value)}`}
               onClick={interactive ? () => toggle(s.name) : undefined}
               className={cn(
-                "h-full min-w-[4px] first:rounded-l-full last:rounded-r-full transition-[filter,opacity,transform]",
+                "h-full min-w-1 first:rounded-l-full last:rounded-r-full transition-[filter,opacity,transform]",
                 interactive &&
                   "cursor-pointer hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-main/40",
-                isActive && "z-[1] brightness-110 ring-2 ring-inset ring-white/50",
+                isActive && "z-1 brightness-110 ring-2 ring-inset ring-white/50",
                 active && !isActive && "opacity-40",
               )}
               style={{
@@ -109,63 +127,73 @@ export function SpendSummaryBar({
               }}
             />
           );
-        })}
+          })
+        ) : (
+          // Empty state: keep the bar footprint for layout stability.
+          <div className="h-full w-full bg-surface-low/70" aria-hidden />
+        )}
       </div>
 
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {colored.slice(0, maxLegend).map((s) => {
-          const isActive = active === s.name.toLowerCase();
-          const chipClass = cn(
-            "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition",
-            interactive && "cursor-pointer hover:brightness-105",
-            isActive ? "border-transparent shadow-sm ring-2 ring-primary-main/30" : "border-outline-variant/50",
-            active && !isActive && "opacity-50",
-          );
-          const chipStyle = {
-            backgroundColor: hexToRgba(s.color, isActive ? 0.28 : 0.14),
-            color: s.color,
-            borderColor: isActive ? s.color : undefined,
-          } as const;
-          const chipInner = (
-            <>
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-              <span className="truncate">{s.name}</span>
-            </>
-          );
-          if (interactive) {
+      {hasSegments ? (
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {colored.slice(0, maxLegend).map((s) => {
+            const isActive = active === s.name.toLowerCase();
+            const chipClass = cn(
+              "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition",
+              interactive && "cursor-pointer hover:brightness-105",
+              isActive
+                ? "border-transparent shadow-sm ring-2 ring-primary-main/30"
+                : "border-outline-variant/50",
+              active && !isActive && "opacity-50",
+            );
+            const chipStyle = {
+              backgroundColor: hexToRgba(s.color, isActive ? 0.28 : 0.14),
+              color: s.color,
+              borderColor: isActive ? s.color : undefined,
+            } as const;
+            const chipInner = (
+              <>
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                <span className="truncate">{s.name}</span>
+              </>
+            );
+            if (interactive) {
+              return (
+                <li key={s.name} className="list-none">
+                  <button
+                    type="button"
+                    onClick={() => toggle(s.name)}
+                    aria-pressed={isActive}
+                    className={chipClass}
+                    style={chipStyle}
+                    title={`${s.name}: ${CURRENCY_SYMBOL}${formatCurrency(s.value)}`}
+                  >
+                    {chipInner}
+                  </button>
+                </li>
+              );
+            }
             return (
-              <li key={s.name} className="list-none">
-                <button
-                  type="button"
-                  onClick={() => toggle(s.name)}
-                  aria-pressed={isActive}
-                  className={chipClass}
-                  style={chipStyle}
-                  title={`${s.name}: ${CURRENCY_SYMBOL}${formatCurrency(s.value)}`}
-                >
-                  {chipInner}
-                </button>
+              <li
+                key={s.name}
+                className={chipClass}
+                style={chipStyle}
+                title={`${s.name}: ${CURRENCY_SYMBOL}${formatCurrency(s.value)}`}
+              >
+                {chipInner}
               </li>
             );
-          }
-          return (
-            <li
-              key={s.name}
-              className={chipClass}
-              style={chipStyle}
-              title={`${s.name}: ${CURRENCY_SYMBOL}${formatCurrency(s.value)}`}
-            >
-              {chipInner}
+          })}
+          {colored.length > maxLegend ? (
+            <li className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-low px-2.5 py-1 text-xs text-on-surface-variant">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-outline" />
+              {UI_TEXT.OTHERS}
             </li>
-          );
-        })}
-        {colored.length > maxLegend ? (
-          <li className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-low px-2.5 py-1 text-xs text-on-surface-variant">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-outline" />
-            {UI_TEXT.OTHERS}
-          </li>
-        ) : null}
-      </ul>
+          ) : null}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-on-surface-variant">{UI_TEXT.NO_SPENDING_DATA}</p>
+      )}
     </div>
   );
 }

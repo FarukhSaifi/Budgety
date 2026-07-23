@@ -231,7 +231,7 @@ export function TransactionsScreen() {
         formatCurrency={formatCurrency}
         selectedCategory={selectedCategory}
         onSelectCategory={handleSelectCategory}
-        className="border-0 bg-transparent p-0 shadow-none"
+        variant="plain"
       />
 
       {/* Mobile import CTA */}

@@ -426,18 +426,33 @@ textarea {
   }
 }
 
-button,
-a,
-[role="button"] {
-  min-height: 44px;
-  min-width: 44px;
-}
-@media (min-width: 640px) {
+/*
+ * Touch targets live in @layer base so Tailwind size utilities (min-w-0, w-8, h-10)
+ * can override them. Unlayered min-width:44px was collapsing / overflowing compact
+ * segmented filters (FilterPills, SegmentedPill) on narrow mobile viewports.
+ */
+@layer base {
   button,
   a,
   [role="button"] {
-    min-height: auto;
-    min-width: auto;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  @media (min-width: 640px) {
+    button,
+    a,
+    [role="button"] {
+      min-height: auto;
+      min-width: auto;
+    }
+  }
+  /* Segmented / tab / chart-filter controls must shrink freely on small screens */
+  [role="radiogroup"] > button,
+  [role="tablist"] > button,
+  [role="listbox"] button,
+  [role="option"] {
+    min-width: 0;
+    min-height: 0;
   }
 }
 
