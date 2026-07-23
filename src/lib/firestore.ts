@@ -511,6 +511,10 @@ export const firestoreListeners = {
 export const firestoreApi = {
   fetchTransactions: (userId: string) => listRecentTransactions(userId),
 
+  /** Unbounded fetch for one-shot jobs (e.g. apply rules to all history). */
+  fetchAllTransactions: (userId: string) =>
+    listByUserId(FIRESTORE_COLLECTIONS.TRANSACTIONS, userId, mapTransactionDoc),
+
   /** Load the next older page before `beforeDate` (ISO day or full date string). */
   fetchOlderTransactions: async (userId: string, beforeDate: string): Promise<Transaction[]> => {
     const firestore = requireDb();
@@ -584,6 +588,31 @@ export const firestoreApi = {
     await updateDoc(ref, payload);
     const snap = await getDoc(ref);
     return mapTransactionDoc(id, snap.data() ?? payload);
+  },
+
+  /** Batch-update transactions (category / paymentMode patches from smart rules). */
+  updateTransactionsBulk: async (
+    updates: Array<{ id: string; userId: string; patch: Partial<Transaction> }>,
+  ): Promise<Array<{ id: string; patch: Partial<Transaction> }>> => {
+    const firestore = requireDb();
+    if (!updates.length) return [];
+    const CHUNK = 400;
+    for (let offset = 0; offset < updates.length; offset += CHUNK) {
+      const chunk = updates.slice(offset, offset + CHUNK);
+      const batch = writeBatch(firestore);
+      for (const item of chunk) {
+        const paymentMode =
+          item.patch.paymentMode != null || item.patch.mode != null
+            ? normalizePaymentMode(item.patch.paymentMode ?? item.patch.mode)
+            : undefined;
+        const payload: DocumentData = { userId: item.userId };
+        if (item.patch.category != null) payload.category = item.patch.category;
+        if (paymentMode != null) payload.paymentMode = paymentMode;
+        batch.update(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, item.id), payload);
+      }
+      await batch.commit();
+    }
+    return updates.map(({ id, patch }) => ({ id, patch }));
   },
 
   deleteTransaction: async (id: string) => {

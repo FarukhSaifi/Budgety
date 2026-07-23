@@ -8,13 +8,14 @@ import { PRIMARY_PAYMENT_MODES, UI_TEXT } from "@constants";
 
 import { Badge, Button, CategoryPicker, ConfirmDialog, EmptyState, Field, Input, Modal, Select } from "@common";
 
-import { AddIcon, AutoAwesomeIcon, DeleteIcon, EditIcon, MoreVertIcon, TuneIcon } from "@components/icons";
+import { AddIcon, AutoAwesomeIcon, DeleteIcon, EditIcon, MoreVertIcon, PlayArrowIcon, TuneIcon } from "@components/icons";
 
 import { useResetOnOpen } from "@hooks/useResetOnOpen";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addRule, deleteRule, fetchRules, updateRule } from "@store/slices/rulesSlice";
+import { applyRulesToTransactions } from "@store/slices/transactionsSlice";
 import { cn } from "@utils/cn";
-import { showSuccess } from "@utils/toast";
+import { showError, showSuccess } from "@utils/toast";
 
 import type { CategorizationRule, PaymentMode } from "@/types";
 
@@ -316,11 +317,13 @@ export function RulesScreen() {
   const dispatch = useAppDispatch();
   const userId = useAppSelector((s) => s.auth.user?.uid);
   const { items: rules, status } = useAppSelector((s) => s.rules);
+  const applyingRules = useAppSelector((s) => s.transactions.applyingRules);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CategorizationRule | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CategorizationRule | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [runningRuleId, setRunningRuleId] = useState<string | null>(null);
 
   useEffect(() => {
     if (userId && status === "idle") {
@@ -352,6 +355,42 @@ export function RulesScreen() {
 
   const activeCount = rules.filter((r) => r.isActive).length;
 
+  const runRules = async (rulesToRun: CategorizationRule[]) => {
+    if (!userId) return;
+    try {
+      const result = await dispatch(applyRulesToTransactions({ userId, rules: rulesToRun })).unwrap();
+      if (result.updatedCount > 0) {
+        const template = rulesToRun.length === 1 ? UI_TEXT.APPLY_RULE_SUCCESS : UI_TEXT.APPLY_RULES_SUCCESS;
+        showSuccess(template.replace("{count}", String(result.updatedCount)));
+      } else {
+        showSuccess(rulesToRun.length === 1 ? UI_TEXT.APPLY_RULE_NONE : UI_TEXT.APPLY_RULES_NONE);
+      }
+    } catch {
+      showError(UI_TEXT.AUTH_GENERIC_ERROR);
+    }
+  };
+
+  const handleApplyAllRules = async () => {
+    if (activeCount === 0) {
+      showError(UI_TEXT.APPLY_RULES_NO_ACTIVE);
+      return;
+    }
+    await runRules(rules);
+  };
+
+  const handleRunRule = async (rule: CategorizationRule) => {
+    if (!rule.isActive) {
+      showError(UI_TEXT.APPLY_RULE_INACTIVE);
+      return;
+    }
+    setRunningRuleId(rule.id);
+    try {
+      await runRules([rule]);
+    } finally {
+      setRunningRuleId(null);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-lg space-y-5 pb-4 md:max-w-2xl">
       <header className="flex items-start justify-between gap-3">
@@ -365,14 +404,28 @@ export function RulesScreen() {
       </header>
 
       {rules.length > 0 && (
-        <div className="rounded-card border border-primary-soft/40 bg-primary-soft/20 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <AutoAwesomeIcon className="h-4 w-4 text-primary-main" />
-            <p className="text-sm text-on-surface-variant">
-              <span className="font-semibold text-brand-deep">{activeCount}</span> active{" "}
-              {activeCount === 1 ? "rule" : "rules"} — new transactions will be auto-categorized.
-            </p>
+        <div className="space-y-3 rounded-card border border-primary-soft/40 bg-primary-soft/20 px-4 py-3">
+          <div className="flex items-start gap-2">
+            <AutoAwesomeIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-main" />
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm text-on-surface-variant">
+                <span className="font-semibold text-brand-deep">{activeCount}</span> active{" "}
+                {activeCount === 1 ? "rule" : "rules"} — new imports and transactions are auto-categorized.
+              </p>
+              <p className="text-xs text-on-surface-variant">{UI_TEXT.RULES_APPLY_HINT}</p>
+            </div>
           </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            leftIcon={<PlayArrowIcon className="h-4 w-4" />}
+            loading={applyingRules && !runningRuleId}
+            disabled={applyingRules || activeCount === 0}
+            onClick={() => void handleApplyAllRules()}
+          >
+            {applyingRules && !runningRuleId ? UI_TEXT.APPLY_RULES_RUNNING : UI_TEXT.APPLY_RULES_TO_EXISTING}
+          </Button>
         </div>
       )}
 
@@ -390,7 +443,15 @@ export function RulesScreen() {
           />
         ) : (
           rules.map((rule) => (
-            <RuleCard key={rule.id} rule={rule} onEdit={() => openEdit(rule)} onDelete={() => setPendingDelete(rule)} />
+            <RuleCard
+              key={rule.id}
+              rule={rule}
+              running={runningRuleId === rule.id}
+              applyDisabled={applyingRules}
+              onRun={() => void handleRunRule(rule)}
+              onEdit={() => openEdit(rule)}
+              onDelete={() => setPendingDelete(rule)}
+            />
           ))
         )}
 
@@ -427,13 +488,28 @@ export function RulesScreen() {
 // Rule card
 // ---------------------------------------------------------------------------
 
-function RuleCard({ rule, onEdit, onDelete }: { rule: CategorizationRule; onEdit: () => void; onDelete: () => void }) {
+function RuleCard({
+  rule,
+  running,
+  applyDisabled,
+  onRun,
+  onEdit,
+  onDelete,
+}: {
+  rule: CategorizationRule;
+  running: boolean;
+  applyDisabled: boolean;
+  onRun: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const typeLabels: Record<string, string> = {
     any: UI_TEXT.RULE_TYPE_ANY,
     income: UI_TEXT.RULE_TYPE_INCOME,
     expense: UI_TEXT.RULE_TYPE_EXPENSE,
   };
   const needles = needlesDisplay(rule);
+  const canRun = rule.isActive && !applyDisabled;
 
   return (
     <article
@@ -460,7 +536,25 @@ function RuleCard({ rule, onEdit, onDelete }: { rule: CategorizationRule; onEdit
             </div>
           </div>
         </div>
-        <RuleCardMenu onEdit={onEdit} onDelete={onDelete} />
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            leftIcon={<PlayArrowIcon className="h-4 w-4" />}
+            loading={running}
+            disabled={!canRun && !running}
+            title={rule.isActive ? UI_TEXT.APPLY_RULE_ARIA : UI_TEXT.APPLY_RULE_INACTIVE}
+            aria-label={UI_TEXT.APPLY_RULE_ARIA}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRun();
+            }}
+          >
+            {running ? UI_TEXT.APPLY_RULE_RUNNING : UI_TEXT.APPLY_RULE}
+          </Button>
+          <RuleCardMenu onEdit={onEdit} onDelete={onDelete} />
+        </div>
       </div>
 
       <div className="mt-3 rounded-xl bg-surface-low/70 px-3.5 py-2.5 text-sm">

@@ -3,9 +3,10 @@ import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/tool
 import { FIRESTORE_QUERY } from "@constants/firestore";
 
 import { upsertById } from "@store/upsert";
+import { buildRulePatchesForTransactions } from "@utils/applyRulesToTransactions";
 
 import { firestoreApi } from "@/lib/firestore";
-import type { Transaction } from "@/types";
+import type { CategorizationRule, Transaction } from "@/types";
 
 interface TransactionsState {
   items: Transaction[];
@@ -16,6 +17,7 @@ interface TransactionsState {
   loadingOlder: boolean;
   /** Set after a loadOlder page returns fewer than PAGE_SIZE rows. */
   olderExhausted: boolean;
+  applyingRules: boolean;
 }
 
 const initialState: TransactionsState = {
@@ -25,6 +27,7 @@ const initialState: TransactionsState = {
   hasMore: false,
   loadingOlder: false,
   olderExhausted: false,
+  applyingRules: false,
 };
 
 export const fetchTransactions = createAsyncThunk("transactions/fetch", async (userId: string) =>
@@ -73,6 +76,48 @@ export const deleteTransactionsByIds = createAsyncThunk("transactions/deleteById
   firestoreApi.deleteTransactionsByIds(ids),
 );
 
+/**
+ * Apply smart rules to existing transactions (all history, or a subset by id).
+ * Pass a single-rule array to run one rule after creating or editing it.
+ */
+export const applyRulesToTransactions = createAsyncThunk(
+  "transactions/applyRules",
+  async (
+    {
+      userId,
+      rules,
+      transactionIds,
+    }: {
+      userId: string;
+      rules: CategorizationRule[];
+      /** When set, only these ids are considered (e.g. last import batch). */
+      transactionIds?: string[];
+    },
+    { getState },
+  ) => {
+    const state = getState() as { transactions: TransactionsState };
+    let source = state.transactions.items;
+
+    if (transactionIds?.length) {
+      const wanted = new Set(transactionIds);
+      source = source.filter((t) => wanted.has(t.id));
+      if (source.length < transactionIds.length) {
+        const all = await firestoreApi.fetchAllTransactions(userId);
+        source = all.filter((t) => wanted.has(t.id));
+      }
+    } else {
+      source = await firestoreApi.fetchAllTransactions(userId);
+    }
+
+    const patches = buildRulePatchesForTransactions(source, rules);
+    if (patches.length === 0) return { updatedCount: 0, patches };
+
+    await firestoreApi.updateTransactionsBulk(patches.map(({ id, patch }) => ({ id, userId, patch })));
+
+    return { updatedCount: patches.length, patches };
+  },
+);
+
 function mergeWindowWithOlder(windowItems: Transaction[], existing: Transaction[]): Transaction[] {
   const windowIds = new Set(windowItems.map((t) => t.id));
   const oldestWindowDate = windowItems.reduce<string | null>((acc, t) => {
@@ -118,6 +163,7 @@ const transactionsSlice = createSlice({
       state.hasMore = false;
       state.loadingOlder = false;
       state.olderExhausted = false;
+      state.applyingRules = false;
     },
     /** Listener failed — keep existing items so refresh does not wipe data. */
     markTransactionsLoadFailed(state, action: PayloadAction<string>) {
@@ -182,6 +228,21 @@ const transactionsSlice = createSlice({
       .addCase(deleteTransactionsByIds.fulfilled, (state, action) => {
         const removed = new Set(action.payload);
         state.items = state.items.filter((t) => !removed.has(t.id));
+      })
+      .addCase(applyRulesToTransactions.pending, (state) => {
+        state.applyingRules = true;
+      })
+      .addCase(applyRulesToTransactions.fulfilled, (state, action) => {
+        state.applyingRules = false;
+        const byId = new Map(action.payload.patches.map((p) => [p.id, p.patch]));
+        if (byId.size === 0) return;
+        state.items = state.items.map((t) => {
+          const patch = byId.get(t.id);
+          return patch ? { ...t, ...patch } : t;
+        });
+      })
+      .addCase(applyRulesToTransactions.rejected, (state) => {
+        state.applyingRules = false;
       });
   },
 });
