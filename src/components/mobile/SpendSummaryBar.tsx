@@ -25,6 +25,7 @@ export interface SpendSummaryBarProps {
    */
   variant?: "card" | "plain";
   className?: string;
+  /** Max legend chips to show. Omit or pass a high number to show all categories. */
   maxLegend?: number;
   /** Currently selected category filter (empty = all). */
   selectedCategory?: string;
@@ -43,15 +44,15 @@ export function SpendSummaryBar({
   title = UI_TEXT.TOTAL_SPEND,
   variant = "card",
   className,
-  maxLegend = 6,
+  maxLegend,
   selectedCategory = "",
   onSelectCategory,
 }: SpendSummaryBarProps) {
   // Only render meaningful spend slices (prevents zero/negative entries collapsing to 0px).
   const colored = segments
     .map((s, i) => ({
-    ...s,
-    color: resolveColor(s.name, i, s.color),
+      ...s,
+      color: resolveColor(s.name, i, s.color),
     }))
     .filter((s) => Number.isFinite(s.value) && s.value > 0);
 
@@ -68,6 +69,8 @@ export function SpendSummaryBar({
   };
 
   const hasSegments = sum > 0;
+  const legendLimit = maxLegend == null ? colored.length : maxLegend;
+  const legendItems = colored.slice(0, legendLimit);
   const wrapperClass =
     variant === "plain"
       ? cn("rounded-none border-0 bg-transparent p-0 shadow-none", className)
@@ -103,30 +106,30 @@ export function SpendSummaryBar({
       >
         {hasSegments ? (
           colored.map((s) => {
-          const isActive = active === s.name.toLowerCase();
-          const widthPct = sum > 0 ? Math.max((s.value / sum) * 100, 2) : 0;
-          const SegmentTag = interactive ? "button" : "div";
-          return (
-            <SegmentTag
-              key={s.name}
-              type={interactive ? "button" : undefined}
-              role={interactive ? "option" : undefined}
-              aria-selected={interactive ? isActive : undefined}
-              title={`${s.name}: ${CURRENCY_SYMBOL}${formatCurrency(s.value)}`}
-              onClick={interactive ? () => toggle(s.name) : undefined}
-              className={cn(
-                "h-full min-w-1 first:rounded-l-full last:rounded-r-full transition-[filter,opacity,transform]",
-                interactive &&
-                  "cursor-pointer hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-main/40",
-                isActive && "z-1 brightness-110 ring-2 ring-inset ring-white/50",
-                active && !isActive && "opacity-40",
-              )}
-              style={{
-                width: `${widthPct}%`,
-                backgroundColor: s.color,
-              }}
-            />
-          );
+            const isActive = active === s.name.toLowerCase();
+            const widthPct = sum > 0 ? Math.max((s.value / sum) * 100, 2) : 0;
+            const SegmentTag = interactive ? "button" : "div";
+            return (
+              <SegmentTag
+                key={s.name}
+                type={interactive ? "button" : undefined}
+                role={interactive ? "option" : undefined}
+                aria-selected={interactive ? isActive : undefined}
+                title={`${s.name}: ${CURRENCY_SYMBOL}${formatCurrency(s.value)}`}
+                onClick={interactive ? () => toggle(s.name) : undefined}
+                className={cn(
+                  "h-full min-w-1 first:rounded-l-full last:rounded-r-full transition-[filter,opacity,transform]",
+                  interactive &&
+                    "cursor-pointer hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-main/40",
+                  isActive && "z-1 brightness-110 ring-2 ring-inset ring-white/50",
+                  active && !isActive && "opacity-40",
+                )}
+                style={{
+                  width: `${widthPct}%`,
+                  backgroundColor: s.color,
+                }}
+              />
+            );
           })
         ) : (
           // Empty state: keep the bar footprint for layout stability.
@@ -136,14 +139,12 @@ export function SpendSummaryBar({
 
       {hasSegments ? (
         <ul className="mt-3 flex flex-wrap gap-2">
-          {colored.slice(0, maxLegend).map((s) => {
+          {legendItems.map((s) => {
             const isActive = active === s.name.toLowerCase();
             const chipClass = cn(
               "inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition",
               interactive && "cursor-pointer hover:brightness-105",
-              isActive
-                ? "border-transparent shadow-sm ring-2 ring-primary-main/30"
-                : "border-outline-variant/50",
+              isActive ? "border-transparent shadow-sm ring-2 ring-primary-main/30" : "border-outline-variant/50",
               active && !isActive && "opacity-50",
             );
             const chipStyle = {
@@ -184,7 +185,7 @@ export function SpendSummaryBar({
               </li>
             );
           })}
-          {colored.length > maxLegend ? (
+          {colored.length > legendLimit ? (
             <li className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant/50 bg-surface-low px-2.5 py-1 text-xs text-on-surface-variant">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-outline" />
               {UI_TEXT.OTHERS}

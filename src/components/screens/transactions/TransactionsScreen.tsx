@@ -4,18 +4,25 @@ import { startTransition, useCallback, useEffect, useMemo, useState } from "reac
 
 import Link from "next/link";
 
-import { CURRENCY_SYMBOL, UI_MOTION, UI_TEXT, VIEW_PERIODS, VIEW_TYPE_SHORT_LABELS, VIEW_TYPES } from "@constants";
+import {
+  CURRENCY_SYMBOL,
+  EXPENSE_CATEGORIES,
+  UI_MOTION,
+  UI_TEXT,
+  VIEW_PERIODS,
+  VIEW_TYPE_SHORT_LABELS,
+  VIEW_TYPES,
+} from "@constants";
 
 import { APP_ROUTES } from "@constants/routes";
 
-import { Button, EmptyState, PeriodShiftPill, SegmentedPill, Select, Spinner, StatCard } from "@common";
+import { Button, EmptyState, PeriodShiftPill, SegmentedPill, Spinner, StatCard } from "@common";
 
 import { AddIcon, CloseIcon, CloudUploadIcon, ReceiptLongIcon, SearchIcon, TrendingUpIcon } from "@components/icons";
 import { AddTransactionSheet, FilterPills, SpendSummaryBar, TransactionGroup } from "@components/mobile";
 import { PeriodPicker } from "@components/shell/PeriodPicker";
 
 import { periodNeedsCalendarMonthNav, useBudgetCalculations } from "@hooks/useBudgetCalculations";
-import { useCategories } from "@hooks/useCategories";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useUiPeriod } from "@hooks/useUiPeriod";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
@@ -75,7 +82,6 @@ export function TransactionsScreen() {
     shiftNextLabel,
   } = useUiPeriod();
   const { formatCurrency } = useCurrencyFormatter();
-  const categories = useCategories();
 
   const [searchOpen, setSearchOpen] = useState(Boolean(searchQuery));
   const [searchInput, setSearchInput] = useState(searchQuery);
@@ -114,7 +120,7 @@ export function TransactionsScreen() {
     setCalendarYear(selectedYear);
   }, [needsOwnCalendarNav, selectedMonth, selectedYear, viewPeriod]);
 
-  const { filteredTransactions, totalExpense, totalIncome, spendingByCategory } = useBudgetCalculations(
+  const { filteredTransactions, totalExpense, totalIncome } = useBudgetCalculations(
     transactions,
     viewPeriod,
     selectedMonth,
@@ -144,30 +150,39 @@ export function TransactionsScreen() {
 
   const groups = useMemo(() => groupByDate(rows), [rows]);
 
-  const categoryOptions = useMemo(() => {
-    const names = new Set<string>([...categories.income, ...categories.expense]);
-    Object.keys(spendingByCategory).forEach((name) => names.add(name));
-    filteredTransactions.forEach((t) => {
-      if (t.category) names.add(t.category);
-    });
-    return [...names].sort((a, b) => a.localeCompare(b));
-  }, [categories.income, categories.expense, spendingByCategory, filteredTransactions]);
-
+  /** Categories from the active type tab: All = every txn category; Income/Expense/Transfer = that pool only. */
   const spendSegments = useMemo(() => {
-    return Object.entries(spendingByCategory)
+    const pool = filterByTransactionType(filteredTransactions, typeFilter);
+
+    const totals = new Map<string, number>();
+    for (const t of pool) {
+      const name = String(t.category || "").trim() || EXPENSE_CATEGORIES.OTHER;
+      totals.set(name, (totals.get(name) || 0) + (Number(t.amount) || 0));
+    }
+
+    return [...totals.entries()]
       .map(([name, value], i) => ({
         name,
         value,
         color: getCategoryChartColor(name, i),
       }))
       .sort((a, b) => b.value - a.value);
-  }, [spendingByCategory]);
+  }, [filteredTransactions, typeFilter]);
 
-  const filteredSpendTotal = useMemo(() => {
-    if (!selectedCategory) return totalExpense;
+  const spendBarTitle = useMemo(() => {
+    if (typeFilter === "income") return UI_TEXT.INCOME_BY_CATEGORY;
+    if (typeFilter === "expense") return UI_TEXT.SPENDING_BY_CATEGORY;
+    if (typeFilter === "transfer") return UI_TEXT.CATEGORY_BREAKDOWN;
+    return UI_TEXT.CATEGORY_BREAKDOWN;
+  }, [typeFilter]);
+
+  const spendBarTotal = useMemo(() => {
+    if (!selectedCategory) {
+      return spendSegments.reduce((sum, s) => sum + s.value, 0);
+    }
     const match = spendSegments.find((s) => s.name.toLowerCase() === selectedCategory.toLowerCase());
     return match?.value ?? 0;
-  }, [selectedCategory, spendSegments, totalExpense]);
+  }, [selectedCategory, spendSegments]);
 
   const handleSelectCategory = useCallback(
     (category: string | null) => {
@@ -180,6 +195,7 @@ export function TransactionsScreen() {
   const handleTypeFilter = useCallback(
     (value: TransactionFilter) => {
       dispatch(setTypeFilter(value));
+      dispatch(setSelectedCategory(""));
       hapticTap();
     },
     [dispatch],
@@ -326,72 +342,53 @@ export function TransactionsScreen() {
         ]}
       />
 
-      {/* Row 3: Category + active filter chips */}
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex min-w-0 flex-1 items-center gap-2 text-xs font-medium text-on-surface-variant sm:flex-none">
-          <span className="shrink-0">{UI_TEXT.CATEGORY_FILTER_LABEL}</span>
-          <Select
-            className="min-w-0 flex-1 sm:w-48"
-            value={selectedCategory}
-            onChange={(e) => handleSelectCategory(e.target.value || null)}
-            aria-label={UI_TEXT.CATEGORY_FILTER_LABEL}
-          >
-            <option value="">{UI_TEXT.ALL_CATEGORIES}</option>
-            {categoryOptions.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </Select>
-        </label>
-
-        {hasActiveFilters ? (
-          <div className="flex flex-wrap items-center gap-1.5" aria-label={UI_TEXT.ACTIVE_FILTERS_LABEL}>
-            {typeLabel ? (
-              <span className="inline-flex items-center rounded-full bg-surface-container px-2.5 py-1 text-xs font-semibold text-brand-deep">
-                {typeLabel}
-              </span>
-            ) : null}
-            {selectedCategory ? (
-              <button
-                type="button"
-                onClick={() => handleSelectCategory(null)}
-                className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary-main"
-              >
-                {selectedCategory}
-                <CloseIcon className="h-3 w-3" aria-hidden />
-                <span className="sr-only">{UI_TEXT.CLEAR_FILTER}</span>
-              </button>
-            ) : null}
-            {isGlobalSearch ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchInput("");
-                  dispatch(setSearchQuery(""));
-                }}
-                className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary-main"
-              >
-                {UI_TEXT.SEARCH_LABEL}
-                <CloseIcon className="h-3 w-3" aria-hidden />
-                <span className="sr-only">{UI_TEXT.CLEAR_SEARCH}</span>
-              </button>
-            ) : null}
+      {hasActiveFilters ? (
+        <div className="flex flex-wrap items-center gap-1.5" aria-label={UI_TEXT.ACTIVE_FILTERS_LABEL}>
+          {typeLabel ? (
+            <span className="inline-flex items-center rounded-full bg-surface-container px-2.5 py-1 text-xs font-semibold text-brand-deep">
+              {typeLabel}
+            </span>
+          ) : null}
+          {selectedCategory ? (
             <button
               type="button"
-              onClick={clearAllFilters}
-              className="text-xs font-semibold text-primary-main underline-offset-2 hover:underline"
+              onClick={() => handleSelectCategory(null)}
+              className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary-main"
             >
-              {UI_TEXT.CLEAR_ALL_FILTERS}
+              {selectedCategory}
+              <CloseIcon className="h-3 w-3" aria-hidden />
+              <span className="sr-only">{UI_TEXT.CLEAR_FILTER}</span>
             </button>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+          {isGlobalSearch ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchInput("");
+                dispatch(setSearchQuery(""));
+              }}
+              className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary-main"
+            >
+              {UI_TEXT.SEARCH_LABEL}
+              <CloseIcon className="h-3 w-3" aria-hidden />
+              <span className="sr-only">{UI_TEXT.CLEAR_SEARCH}</span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="text-xs font-semibold text-primary-main underline-offset-2 hover:underline"
+          >
+            {UI_TEXT.CLEAR_ALL_FILTERS}
+          </button>
+        </div>
+      ) : null}
 
       <SpendSummaryBar
-        total={filteredSpendTotal}
+        total={spendBarTotal}
         segments={spendSegments}
         formatCurrency={formatCurrency}
+        title={spendBarTitle}
         selectedCategory={selectedCategory}
         onSelectCategory={handleSelectCategory}
         variant="plain"
