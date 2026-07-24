@@ -74,6 +74,7 @@ export { NotificationsIcon } from "./NotificationsIcon";
 export { PaymentsIcon } from "./PaymentsIcon";
 export { PersonIcon } from "./PersonIcon";
 export { PieChartIcon } from "./PieChartIcon";
+export { PlayArrowIcon } from "./PlayArrowIcon";
 export { PreviewIcon } from "./PreviewIcon";
 export { PsychologyIcon } from "./PsychologyIcon";
 export { QrCodeScannerIcon } from "./QrCodeScannerIcon";
