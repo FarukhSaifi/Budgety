@@ -4,23 +4,23 @@ import { startTransition, useCallback, useEffect, useMemo, useState } from "reac
 
 import Link from "next/link";
 
-import {
-  CURRENCY_SYMBOL,
-  EXPENSE_CATEGORIES,
-  UI_MOTION,
-  UI_TEXT,
-  VIEW_PERIODS,
-  VIEW_TYPE_SHORT_LABELS,
-  VIEW_TYPES,
-} from "@constants";
+import { CURRENCY_SYMBOL, EXPENSE_CATEGORIES, UI_MOTION, UI_TEXT, VIEW_TYPE_LABELS, VIEW_TYPES } from "@constants";
 
 import { APP_ROUTES } from "@constants/routes";
 
-import { Button, EmptyState, PeriodShiftPill, SegmentedPill, Spinner, StatCard } from "@common";
+import { Button, EmptyState, PeriodShiftPill, Spinner, StatCard } from "@common";
 
-import { AddIcon, CloseIcon, CloudUploadIcon, ReceiptLongIcon, SearchIcon, TrendingUpIcon } from "@components/icons";
+import {
+  AddIcon,
+  CalendarTodayIcon,
+  CloseIcon,
+  CloudUploadIcon,
+  ListAltIcon,
+  ReceiptLongIcon,
+  SearchIcon,
+  TrendingUpIcon,
+} from "@components/icons";
 import { AddTransactionSheet, FilterPills, SpendSummaryBar, TransactionGroup } from "@components/mobile";
-import { PeriodPicker } from "@components/shell/PeriodPicker";
 
 import { periodNeedsCalendarMonthNav, useBudgetCalculations } from "@hooks/useBudgetCalculations";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
@@ -265,10 +265,24 @@ export function TransactionsScreen() {
         </div>
       </div>
 
-      {/* Row 1: Period + List/Calendar + search */}
-      <header className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <PeriodPicker variant="chip" allowRange className="shrink-0" />
+      {/* Row 1: List/Calendar toggle · period shift · search */}
+      <header className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => handleViewType(viewType === VIEW_TYPES.LIST ? VIEW_TYPES.CALENDAR : VIEW_TYPES.LIST)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-low text-brand-deep ring-1 ring-outline-variant/60 transition hover:bg-primary-soft hover:text-primary-main"
+          aria-label={
+            viewType === VIEW_TYPES.LIST ? VIEW_TYPE_LABELS[VIEW_TYPES.CALENDAR] : VIEW_TYPE_LABELS[VIEW_TYPES.LIST]
+          }
+        >
+          {viewType === VIEW_TYPES.LIST ? (
+            <CalendarTodayIcon className="h-5 w-5" />
+          ) : (
+            <ListAltIcon className="h-5 w-5" />
+          )}
+        </button>
+
+        <div className="flex min-w-0 flex-1 items-center justify-center">
           {canShiftPeriod ? (
             <PeriodShiftPill
               label={periodLabel}
@@ -279,27 +293,12 @@ export function TransactionsScreen() {
               nextLabel={shiftNextLabel}
               className="min-w-0"
             />
-          ) : viewPeriod === VIEW_PERIODS.RANGE || viewPeriod === VIEW_PERIODS.ALL ? (
+          ) : (
             <span className="truncate rounded-full border border-outline-variant/60 bg-card px-3 py-1.5 text-xs font-medium text-on-surface-variant">
               {periodLabel}
             </span>
-          ) : null}
+          )}
         </div>
-
-        <SegmentedPill
-          ariaLabel={UI_TEXT.VIEW_TYPE_LABEL}
-          className="w-auto max-w-full shrink-0 sm:w-48"
-          value={viewType}
-          onChange={handleViewType}
-          options={[
-            { value: VIEW_TYPES.LIST as ViewType, label: VIEW_TYPE_SHORT_LABELS[VIEW_TYPES.LIST], tone: "brand" },
-            {
-              value: VIEW_TYPES.CALENDAR as ViewType,
-              label: VIEW_TYPE_SHORT_LABELS[VIEW_TYPES.CALENDAR],
-              tone: "brand",
-            },
-          ]}
-        />
 
         <button
           type="button"
