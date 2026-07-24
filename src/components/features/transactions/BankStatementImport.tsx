@@ -414,10 +414,6 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, category, userOverridden: true } : row)));
   }, []);
 
-  const handleFieldChange = useCallback((key: string, patch: Partial<StagingRow>) => {
-    setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch, userOverridden: true } : row)));
-  }, []);
-
   const focusUiOnImported = useCallback(
     (saved: Transaction[]) => {
       const buckets = new Map<string, { month: number; year: number }>();
@@ -829,7 +825,6 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                     duplicateReason={duplicateKeys.get(row.key)}
                     onToggle={handleToggle}
                     onCategoryChange={handleCategoryChange}
-                    onFieldChange={handleFieldChange}
                     variant="table"
                   />
                 ))}
@@ -846,7 +841,6 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                 duplicateReason={duplicateKeys.get(row.key)}
                 onToggle={handleToggle}
                 onCategoryChange={handleCategoryChange}
-                onFieldChange={handleFieldChange}
                 variant="card"
               />
             ))}
