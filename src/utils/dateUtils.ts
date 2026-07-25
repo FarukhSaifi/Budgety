@@ -5,7 +5,13 @@
 import dayjs, { type Dayjs } from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 
-import { DATE_FORMAT, DATE_FORMAT_STORAGE, UI_TEXT } from "@constants";
+import {
+  DATE_CONSTANTS,
+  DATE_FORMAT,
+  DATE_FORMAT_HEADER_TODAY,
+  DATE_FORMAT_STORAGE,
+  UI_TEXT,
+} from "@constants";
 
 dayjs.extend(customParseFormat);
 
@@ -180,6 +186,23 @@ export function compareByDateThenCreatedAt(a: DateSortable, b: DateSortable): nu
   const cmp = compareDates(a.date || a.createdAt, b.date || b.createdAt);
   if (cmp !== 0) return cmp;
   return dayjs(a.createdAt || a.date).valueOf() - dayjs(b.createdAt || b.date).valueOf();
+}
+
+/**
+ * Time-of-day greeting based on the local clock (morning / afternoon / evening).
+ */
+export function getTimeOfDayGreeting(now: Dayjs = dayjs()): string {
+  const hour = now.hour();
+  if (hour < DATE_CONSTANTS.GREETING_MORNING_END_HOUR) return UI_TEXT.GREETING_MORNING;
+  if (hour < DATE_CONSTANTS.GREETING_AFTERNOON_END_HOUR) return UI_TEXT.GREETING_AFTERNOON;
+  return UI_TEXT.GREETING_EVENING;
+}
+
+/**
+ * Today’s date for dashboard/header display (e.g. Sat, 25 July 2026).
+ */
+export function formatHeaderToday(now: Dayjs = dayjs()): string {
+  return now.format(DATE_FORMAT_HEADER_TODAY);
 }
 
 /**

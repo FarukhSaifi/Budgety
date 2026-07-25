@@ -625,6 +625,10 @@ export const UI_TEXT = {
   SAVINGS_RATE: "Savings Rate",
   RECENT_TRANSACTIONS: "Recent Transactions",
   DASHBOARD: "Dashboard",
+  GREETING_MORNING: "Good morning",
+  GREETING_AFTERNOON: "Good afternoon",
+  GREETING_EVENING: "Good evening",
+  GREETING_NAME_FALLBACK: "there",
   HOME: "Home",
   TRANSACTION: "Transaction",
   ANALYTICS: "Analytics",
@@ -1262,6 +1266,8 @@ export const DATE_FORMAT = "DD-MM-YYYY";
 export const DATE_FORMAT_LONG = "DD-MMM-YYYY hh:mm A";
 /** Short month + day for list rows (e.g. Oct 12) */
 export const DATE_FORMAT_MONTH_DAY = "MMM D";
+/** Header “today” label, e.g. Sat, 25 July 2026 */
+export const DATE_FORMAT_HEADER_TODAY = "ddd, D MMMM YYYY";
 /** ISO 8601 date-only for DB DATE columns (YYYY-MM-DD) */
 export const DATE_FORMAT_STORAGE = "YYYY-MM-DD";
 
@@ -1366,6 +1372,10 @@ export const DATE_CONSTANTS = {
   MAX_REMINDER_DAYS: 30,
   /** Window used by Bills sticky summary / Pay Selected. */
   BILLS_DUE_WINDOW_DAYS: 7,
+  /** Local hour (0–23) when “Good morning” ends (exclusive). */
+  GREETING_MORNING_END_HOUR: 12,
+  /** Local hour (0–23) when “Good afternoon” ends (exclusive). */
+  GREETING_AFTERNOON_END_HOUR: 17,
 };
 
 // Number Formatting
