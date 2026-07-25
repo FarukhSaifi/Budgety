@@ -32,7 +32,8 @@
   },
   "overrides": {
     "sharp": "^0.35.0",
-    "postcss": "^8.5.19"
+    "postcss": "^8.5.19",
+    "minimatch": "^10.0.3"
   },
   "devDependencies": {
     "@eslint-react/eslint-plugin": "^5.18.0",
