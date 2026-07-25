@@ -19,6 +19,7 @@ import { useAppNavigation } from "@hooks/useAppNavigation";
 import { useCurrencyFormatter } from "@hooks/useCurrencyFormatter";
 import { useAppSelector } from "@store/hooks";
 import { selectPeriodAggregates } from "@store/selectors/periodSelectors";
+import { formatHeaderToday, getTimeOfDayGreeting } from "@utils/dateUtils";
 
 function daysUntil(dueDate: string): number | null {
   const due = new Date(dueDate);
@@ -89,14 +90,11 @@ export function DashboardScreen() {
       .slice(0, DISPLAY_LIMITS.PREVIEW_ITEMS);
   }, [bills]);
 
-  const firstName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || "there";
+  const firstName =
+    user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || UI_TEXT.GREETING_NAME_FALLBACK;
   const initial = firstName.charAt(0).toUpperCase();
-  const todayLabel = new Date().toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const greeting = getTimeOfDayGreeting();
+  const todayLabel = formatHeaderToday();
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 md:max-w-6xl md:space-y-5 lg:max-w-7xl">
@@ -112,8 +110,10 @@ export function DashboardScreen() {
             )}
           </span>
           <div className="min-w-0">
-            <h1 className="truncate text-xl font-bold tracking-tight text-brand-deep">Good morning, {firstName}</h1>
-            <p className="truncate text-sm text-gray-400">Here is your wealth summary · {todayLabel}</p>
+            <h1 className="truncate text-xl font-bold tracking-tight text-brand-deep">
+              {greeting}, {firstName}
+            </h1>
+            <p className="truncate text-sm text-gray-400">{todayLabel}</p>
           </div>
         </div>
         <button
