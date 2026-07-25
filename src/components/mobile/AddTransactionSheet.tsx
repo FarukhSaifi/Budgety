@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { v4 as uuidv4 } from "uuid";
 
@@ -10,14 +10,14 @@ import { PAYMENT_MODES_LIST } from "@constants/firestore";
 
 import { CategoryPicker } from "@common";
 
-import { CalendarTodayIcon, KeyboardArrowDownIcon } from "@components/icons";
+import { CalendarTodayIcon } from "@components/icons";
 
 import { toStorageDate } from "@hooks/useDateFormatter";
 import { useResetOnOpen } from "@hooks/useResetOnOpen";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addTransaction, updateTransaction } from "@store/slices/transactionsSlice";
 import { cn } from "@utils/cn";
-import { parseDate, todayStorage } from "@utils/dateUtils";
+import { todayStorage } from "@utils/dateUtils";
 import { showError, showSuccess } from "@utils/toast";
 
 import type { PaymentMode, Transaction, TransactionType } from "@/types";
@@ -41,12 +41,6 @@ export interface AddTransactionSheetProps {
   budgetPct?: number | null;
 }
 
-function formatDisplayDate(storageDate: string): string {
-  const d = parseDate(storageDate);
-  if (!d) return storageDate;
-  return d.format("DD MMM YYYY");
-}
-
 export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: AddTransactionSheetProps) {
   const dispatch = useAppDispatch();
   const userId = useAppSelector((s) => s.auth.user?.uid);
@@ -59,7 +53,6 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Cash");
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const isEdit = Boolean(transaction);
 
@@ -81,23 +74,6 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
       setPaymentMode("Cash");
     }
   });
-
-  const openDatePicker = () => {
-    const el = dateInputRef.current;
-    if (!el) return;
-    // Native calendar must open from a real control — opacity-0 overlays get
-    // clipped by overflow:hidden sheets and leave parts of the popup unusable.
-    try {
-      if (typeof el.showPicker === "function") {
-        el.showPicker();
-        return;
-      }
-    } catch {
-      // Some browsers throw if showPicker isn't allowed; fall through to click.
-    }
-    el.focus();
-    el.click();
-  };
 
   const txType: TransactionType =
     sheetType === "income" ? TRANSACTION_TYPES.INCOME : TRANSACTION_TYPES.EXPENSE;
@@ -243,29 +219,16 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
             selectClassName="[&>button]:rounded-2xl [&>button]:border-outline-variant [&>button]:px-4 [&>button]:py-3"
           />
 
-          <div className="relative">
-            <button
-              type="button"
-              onClick={openDatePicker}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-2xl border border-outline-variant bg-card px-3 py-3 text-left transition-colors hover:border-primary-main/40 focus:border-primary-main focus:outline-none focus:ring-2 focus:ring-primary-main/20"
-              aria-label={UI_TEXT.DATE}
-            >
-              <CalendarTodayIcon className="h-4 w-4 shrink-0 text-primary-main" />
-              <span className="flex-1 truncate text-sm font-medium text-brand-deep">{formatDisplayDate(date)}</span>
-              <KeyboardArrowDownIcon className="h-4 w-4 shrink-0 text-on-surface-variant" />
-            </button>
-            {/* Keep input in-flow for a11y/autofill; open via showPicker so the
-                native calendar isn't clipped by the sheet overlay. */}
+          <label className="flex w-full cursor-pointer items-center gap-2 rounded-2xl border border-outline-variant bg-card px-3 py-3 transition-colors focus-within:border-primary-main focus-within:ring-2 focus-within:ring-primary-main/20 hover:border-primary-main/40">
+            <CalendarTodayIcon className="h-4 w-4 shrink-0 text-primary-main" aria-hidden />
             <input
-              ref={dateInputRef}
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="pointer-events-none absolute bottom-0 left-3 h-px w-px opacity-0"
-              tabIndex={-1}
-              aria-hidden
+              aria-label={UI_TEXT.DATE}
+              className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-brand-deep outline-none [color-scheme:light] dark:[color-scheme:dark]"
             />
-          </div>
+          </label>
 
           {sheetType !== "transfer" && (
             <div role="radiogroup" aria-label={UI_TEXT.MODE_LABEL} className="flex flex-wrap gap-2">
