@@ -512,8 +512,7 @@ export const firestoreApi = {
   fetchTransactions: (userId: string) => listRecentTransactions(userId),
 
   /** Unbounded fetch for one-shot jobs (e.g. apply rules to all history). */
-  fetchAllTransactions: (userId: string) =>
-    listByUserId(FIRESTORE_COLLECTIONS.TRANSACTIONS, userId, mapTransactionDoc),
+  fetchAllTransactions: (userId: string) => listByUserId(FIRESTORE_COLLECTIONS.TRANSACTIONS, userId, mapTransactionDoc),
 
   /** Load the next older page before `beforeDate` (ISO day or full date string). */
   fetchOlderTransactions: async (userId: string, beforeDate: string): Promise<Transaction[]> => {
@@ -544,12 +543,15 @@ export const firestoreApi = {
     const firestore = requireDb();
     if (!items.length) return [];
 
-    // Firestore batches are capped at 500 ops.
-    const CHUNK = 400;
+    if (items.length > FIRESTORE_QUERY.IMPORT_MAX_ROWS) {
+      throw new Error(`IMPORT_TOO_LARGE:${items.length}:${FIRESTORE_QUERY.IMPORT_MAX_ROWS}`);
+    }
+
+    const chunkSize = FIRESTORE_QUERY.WRITE_BATCH_CHUNK;
     const results: Transaction[] = [];
 
-    for (let offset = 0; offset < items.length; offset += CHUNK) {
-      const chunk = items.slice(offset, offset + CHUNK);
+    for (let offset = 0; offset < items.length; offset += chunkSize) {
+      const chunk = items.slice(offset, offset + chunkSize);
       const batch = writeBatch(firestore);
       for (const tx of chunk) {
         if (!tx.userId) {
@@ -561,6 +563,9 @@ export const firestoreApi = {
         results.push(mapTransactionDoc(id, payload));
       }
       await batch.commit();
+      if (offset + chunkSize < items.length && FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS > 0) {
+        await new Promise((r) => setTimeout(r, FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS));
+      }
     }
 
     return results;
@@ -596,9 +601,9 @@ export const firestoreApi = {
   ): Promise<Array<{ id: string; patch: Partial<Transaction> }>> => {
     const firestore = requireDb();
     if (!updates.length) return [];
-    const CHUNK = 400;
-    for (let offset = 0; offset < updates.length; offset += CHUNK) {
-      const chunk = updates.slice(offset, offset + CHUNK);
+    const chunkSize = FIRESTORE_QUERY.WRITE_BATCH_CHUNK;
+    for (let offset = 0; offset < updates.length; offset += chunkSize) {
+      const chunk = updates.slice(offset, offset + chunkSize);
       const batch = writeBatch(firestore);
       for (const item of chunk) {
         const paymentMode =
@@ -611,6 +616,9 @@ export const firestoreApi = {
         batch.update(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, item.id), payload);
       }
       await batch.commit();
+      if (offset + chunkSize < updates.length && FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS > 0) {
+        await new Promise((r) => setTimeout(r, FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS));
+      }
     }
     return updates.map(({ id, patch }) => ({ id, patch }));
   },
@@ -621,34 +629,46 @@ export const firestoreApi = {
   },
 
   deleteImportedTransactions: async (userId: string) => {
-    const items = await listByUserId(FIRESTORE_COLLECTIONS.TRANSACTIONS, userId, mapTransactionDoc);
-    const imported = items.filter((t) => t.imported);
+    // Use (userId, imported) composite index — do not load all-time history.
     const firestore = requireDb();
-    const CHUNK = 400;
-    for (let offset = 0; offset < imported.length; offset += CHUNK) {
-      const chunk = imported.slice(offset, offset + CHUNK);
+    const q = query(
+      collection(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS),
+      where("userId", "==", userId),
+      where("imported", "==", true),
+    );
+    const snap = await getDocs(q);
+    const importedIds = snap.docs.map((d) => d.id);
+    const chunkSize = FIRESTORE_QUERY.WRITE_BATCH_CHUNK;
+    for (let offset = 0; offset < importedIds.length; offset += chunkSize) {
+      const chunk = importedIds.slice(offset, offset + chunkSize);
       const batch = writeBatch(firestore);
-      chunk.forEach((t) => {
-        batch.delete(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, t.id));
+      chunk.forEach((id) => {
+        batch.delete(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, id));
       });
       await batch.commit();
+      if (offset + chunkSize < importedIds.length && FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS > 0) {
+        await new Promise((r) => setTimeout(r, FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS));
+      }
     }
-    return imported.map((t) => t.id);
+    return importedIds;
   },
 
   deleteTransactionsByIds: async (ids: string[]) => {
     if (!ids.length) return [] as string[];
     const firestore = requireDb();
-    const CHUNK = 400;
+    const chunkSize = FIRESTORE_QUERY.WRITE_BATCH_CHUNK;
     const deleted: string[] = [];
-    for (let offset = 0; offset < ids.length; offset += CHUNK) {
-      const chunk = ids.slice(offset, offset + CHUNK);
+    for (let offset = 0; offset < ids.length; offset += chunkSize) {
+      const chunk = ids.slice(offset, offset + chunkSize);
       const batch = writeBatch(firestore);
       chunk.forEach((id) => {
         batch.delete(doc(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS, id));
         deleted.push(id);
       });
       await batch.commit();
+      if (offset + chunkSize < ids.length && FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS > 0) {
+        await new Promise((r) => setTimeout(r, FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS));
+      }
     }
     return deleted;
   },
@@ -816,10 +836,10 @@ export const firestoreApi = {
   addCategoriesBulk: async (items: Array<Omit<Category, "id"> & { id?: string }>) => {
     const firestore = requireDb();
     if (!items.length) return [];
-    const CHUNK = 400;
+    const chunkSize = FIRESTORE_QUERY.WRITE_BATCH_CHUNK;
     const results: Category[] = [];
-    for (let offset = 0; offset < items.length; offset += CHUNK) {
-      const chunk = items.slice(offset, offset + CHUNK);
+    for (let offset = 0; offset < items.length; offset += chunkSize) {
+      const chunk = items.slice(offset, offset + chunkSize);
       const batch = writeBatch(firestore);
       for (const item of chunk) {
         const payload = toCategoryWrite({
@@ -835,6 +855,9 @@ export const firestoreApi = {
         results.push(mapCategoryDoc(id, payload));
       }
       await batch.commit();
+      if (offset + chunkSize < items.length && FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS > 0) {
+        await new Promise((r) => setTimeout(r, FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS));
+      }
     }
     return results;
   },

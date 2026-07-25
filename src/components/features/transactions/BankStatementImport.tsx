@@ -15,7 +15,7 @@ import {
   VIEW_PERIODS,
 } from "@constants";
 
-import { DEFAULT_CATEGORY_COLOR } from "@constants/firestore";
+import { DEFAULT_CATEGORY_COLOR, FIRESTORE_QUERY } from "@constants/firestore";
 
 import { Button } from "@components/common/Button";
 import { ConfirmDialog } from "@components/common/ConfirmDialog";
@@ -457,6 +457,16 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       return;
     }
 
+    if (selected.length > FIRESTORE_QUERY.IMPORT_MAX_ROWS) {
+      showError(
+        UI_TEXT.IMPORT_TOO_LARGE.replace("{count}", String(selected.length)).replace(
+          "{max}",
+          String(FIRESTORE_QUERY.IMPORT_MAX_ROWS),
+        ),
+      );
+      return;
+    }
+
     // Respect user selection: import every checked row, including ones flagged as duplicates.
     const prepared = stagingToTransactions(selected, userId);
     const selectedDupCount = selected.filter((r) => duplicateKeys.has(r.key)).length;
@@ -488,10 +498,20 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
           : err && typeof err === "object" && "message" in err
             ? String((err as { message?: unknown }).message || "")
             : "";
-      const message = /permission|insufficient/i.test(raw)
-        ? "Firestore blocked the save. Deploy firestore.rules and ensure you are signed in."
-        : raw || ERROR_MESSAGES.SAVE_FAILED;
-      showError(message);
+      if (raw.startsWith("IMPORT_TOO_LARGE:")) {
+        const [, count, max] = raw.split(":");
+        showError(
+          UI_TEXT.IMPORT_TOO_LARGE.replace("{count}", count || String(selected.length)).replace(
+            "{max}",
+            max || String(FIRESTORE_QUERY.IMPORT_MAX_ROWS),
+          ),
+        );
+      } else {
+        const message = /permission|insufficient/i.test(raw)
+          ? "Firestore blocked the save. Deploy firestore.rules and ensure you are signed in."
+          : raw || ERROR_MESSAGES.SAVE_FAILED;
+        showError(message);
+      }
     } finally {
       setImporting(false);
     }

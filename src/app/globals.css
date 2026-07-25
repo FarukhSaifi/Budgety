@@ -534,32 +534,75 @@ body {
   box-shadow: var(--shadow-elevated);
   font-family: inherit;
 }
-.Toastify__toast--success {
-  background-color: var(--color-income);
+
+/*
+ * react-toastify v11 applies theme classes (e.g. .Toastify__toast-theme--light)
+ * with a white background. Older overrides only set color: white on --success,
+ * which made message text invisible (white-on-white). Match theme+type so
+ * background and text contrast correctly.
+ */
+.Toastify__toast-theme--light.Toastify__toast--success,
+.Toastify__toast-theme--dark.Toastify__toast--success,
+.Toastify__toast-theme--colored.Toastify__toast--success {
+  background: var(--color-income);
+  color: #ffffff;
+  --toastify-icon-color-success: #ffffff;
+}
+html.dark .Toastify__toast-theme--dark.Toastify__toast--success,
+html.dark .Toastify__toast-theme--colored.Toastify__toast--success {
+  color: #0e0e0f;
+  --toastify-icon-color-success: #0e0e0f;
+}
+
+.Toastify__toast-theme--light.Toastify__toast--error,
+.Toastify__toast-theme--dark.Toastify__toast--error,
+.Toastify__toast-theme--colored.Toastify__toast--error {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.Toastify__toast-theme--light.Toastify__toast--warning,
+.Toastify__toast-theme--dark.Toastify__toast--warning,
+.Toastify__toast-theme--colored.Toastify__toast--warning {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.Toastify__toast-theme--light.Toastify__toast--info,
+.Toastify__toast-theme--dark.Toastify__toast--info,
+.Toastify__toast-theme--colored.Toastify__toast--info {
+  background: var(--color-primary-container);
+  color: #ffffff;
+}
+
+.Toastify__toast--success .Toastify__progress-bar,
+.Toastify__toast--error .Toastify__progress-bar,
+.Toastify__toast--warning .Toastify__progress-bar,
+.Toastify__toast--info .Toastify__progress-bar,
+.Toastify__toast--success .Toastify__progress-bar--wrp .Toastify__progress-bar,
+.Toastify__toast--error .Toastify__progress-bar--wrp .Toastify__progress-bar,
+.Toastify__toast--warning .Toastify__progress-bar--wrp .Toastify__progress-bar,
+.Toastify__toast--info .Toastify__progress-bar--wrp .Toastify__progress-bar {
+  background: rgba(255, 255, 255, 0.35);
+}
+html.dark .Toastify__toast--success .Toastify__progress-bar,
+html.dark .Toastify__toast--success .Toastify__progress-bar--wrp .Toastify__progress-bar {
+  background: rgba(14, 14, 15, 0.35);
+}
+
+.Toastify__toast--success .Toastify__close-button,
+.Toastify__toast--error .Toastify__close-button,
+.Toastify__toast--warning .Toastify__close-button,
+.Toastify__toast--info .Toastify__close-button {
+  color: #ffffff;
+  opacity: 0.85;
+}
+html.dark .Toastify__toast--success .Toastify__close-button {
   color: #0e0e0f;
 }
-html:not(.dark) .Toastify__toast--success {
-  color: white;
-}
-.Toastify__toast--error {
-  background-color: #ef4444;
-  color: white;
-}
-.Toastify__toast--warning {
-  background-color: #f59e0b;
-  color: white;
-}
-.Toastify__toast--info {
-  background-color: var(--color-primary-container);
-  color: white;
-}
-.Toastify__progress-bar {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-.Toastify__close-button {
-  color: white;
-  opacity: 0.8;
-}
-.Toastify__close-button:hover {
+.Toastify__toast--success .Toastify__close-button:hover,
+.Toastify__toast--error .Toastify__close-button:hover,
+.Toastify__toast--warning .Toastify__close-button:hover,
+.Toastify__toast--info .Toastify__close-button:hover {
   opacity: 1;
 }

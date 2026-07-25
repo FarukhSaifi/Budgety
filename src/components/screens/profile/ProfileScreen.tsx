@@ -14,10 +14,12 @@ import {
   MenuIcon,
   NotificationsIcon,
   PersonIcon,
+  ShieldIcon,
   TuneIcon,
 } from "@components/icons";
 import { ProfileSettingRow } from "@components/mobile";
 
+import { useAdminAccess } from "@hooks/useAdminAccess";
 import { useAppNavigation } from "@hooks/useAppNavigation";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { signOutUser } from "@store/slices/authSlice";
@@ -28,6 +30,7 @@ export function ProfileScreen() {
   const navigateToTab = useAppNavigation();
   const user = useAppSelector((s) => s.auth.user);
   const bills = useAppSelector((s) => s.bills.items);
+  const { isAdmin } = useAdminAccess();
 
   const displayName = user?.displayName || user?.email || "User";
   const initial = displayName.charAt(0).toUpperCase();
@@ -160,6 +163,14 @@ export function ProfileScreen() {
             subtitle={UI_TEXT.RULES_TITLE}
             onClick={() => navigateToTab("rules")}
           />
+          {isAdmin && (
+            <ProfileSettingRow
+              icon={ShieldIcon}
+              title={UI_TEXT.ADMIN}
+              subtitle={UI_TEXT.ADMIN_USERS_TITLE}
+              onClick={() => navigateToTab("admin")}
+            />
+          )}
         </div>
       </section>
 

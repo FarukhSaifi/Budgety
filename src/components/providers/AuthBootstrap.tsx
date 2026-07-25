@@ -78,9 +78,13 @@ export default function AuthBootstrap({ children }: { children: React.ReactNode 
     void (async () => {
       try {
         await migrateLocalCategoriesToFirestore(uid);
+      } catch {
+        // Legacy localStorage migration is best-effort; seeding still runs below.
+      }
+      try {
         await dispatch(ensureDefaultCategories(uid)).unwrap();
       } catch {
-        // Listener still hydrates; seed failure is non-fatal.
+        // Listener may still hydrate; CategoryPicker falls back to defaults if empty.
       }
     })();
 

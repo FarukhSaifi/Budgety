@@ -7,8 +7,18 @@ import { TIMEOUTS, UI_TEXT } from "@constants";
  * Provides consistent toast notifications throughout the app
  */
 
+function resolveToastMessage(message: unknown, fallback: string): string {
+  if (typeof message === "string") {
+    const trimmed = message.trim();
+    return trimmed.length > 0 ? trimmed : fallback;
+  }
+  if (message == null) return fallback;
+  const asString = String(message).trim();
+  return asString.length > 0 ? asString : fallback;
+}
+
 export const showSuccess = (message: string, options: ToastOptions = {}) => {
-  toast.success(message, {
+  toast.success(resolveToastMessage(message, UI_TEXT.TOAST_FALLBACK_SUCCESS), {
     position: "top-right",
     autoClose: TIMEOUTS.TOAST_SUCCESS,
     hideProgressBar: false,
@@ -20,7 +30,7 @@ export const showSuccess = (message: string, options: ToastOptions = {}) => {
 };
 
 export const showError = (message: string, options: ToastOptions = {}) => {
-  toast.error(message, {
+  toast.error(resolveToastMessage(message, UI_TEXT.TOAST_FALLBACK_ERROR), {
     position: "top-right",
     autoClose: TIMEOUTS.TOAST_ERROR,
     hideProgressBar: false,
@@ -32,7 +42,7 @@ export const showError = (message: string, options: ToastOptions = {}) => {
 };
 
 export const showWarning = (message: string, options: ToastOptions = {}) => {
-  toast.warning(message, {
+  toast.warning(resolveToastMessage(message, UI_TEXT.TOAST_FALLBACK_WARNING), {
     position: "top-right",
     autoClose: TIMEOUTS.TOAST_WARNING,
     hideProgressBar: false,
@@ -44,7 +54,7 @@ export const showWarning = (message: string, options: ToastOptions = {}) => {
 };
 
 export const showInfo = (message: string, options: ToastOptions = {}) => {
-  toast.info(message, {
+  toast.info(resolveToastMessage(message, UI_TEXT.TOAST_FALLBACK_INFO), {
     position: "top-right",
     autoClose: TIMEOUTS.TOAST_INFO,
     hideProgressBar: false,
@@ -56,7 +66,7 @@ export const showInfo = (message: string, options: ToastOptions = {}) => {
 };
 
 export const showLoading = (message: string = UI_TEXT.LOADING): Id => {
-  return toast.loading(message, {
+  return toast.loading(resolveToastMessage(message, UI_TEXT.LOADING), {
     position: "top-right",
   });
 };
@@ -67,7 +77,7 @@ export const updateToast = (
   type: TypeOptions = "success",
 ) => {
   toast.update(toastId, {
-    render: message,
+    render: resolveToastMessage(message, UI_TEXT.TOAST_FALLBACK_SUCCESS),
     type,
     isLoading: false,
     autoClose: TIMEOUTS.TOAST_SUCCESS,

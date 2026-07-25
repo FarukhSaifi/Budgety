@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { TRANSACTION_TYPES, UI_TEXT } from "@constants";
 
@@ -14,7 +14,7 @@ import { AddIcon, BoltIcon } from "@components/icons";
 
 import { useCategories } from "@hooks/useCategories";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
-import { addCategoryDoc } from "@store/slices/categoriesSlice";
+import { addCategoryDoc, ensureDefaultCategories } from "@store/slices/categoriesSlice";
 import { cn } from "@utils/cn";
 import { requestCategorySuggestion } from "@utils/suggestCategoryClient";
 import { showError, showSuccess } from "@utils/toast";
@@ -82,6 +82,12 @@ export function CategoryPicker({
 
   const options = categories.getByType(type);
   const canSuggest = Boolean(showAiSuggest && String(titleHint ?? "").trim());
+
+  // If Firestore catalog never seeded (permissions race, etc.), retry once when picker mounts.
+  useEffect(() => {
+    if (!userId || !categories.isCatalogEmpty) return;
+    void dispatch(ensureDefaultCategories(userId));
+  }, [categories.isCatalogEmpty, dispatch, userId]);
 
   const openAddModal = (initialName = "") => {
     setModalName(initialName);

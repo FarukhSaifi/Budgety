@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { v4 as uuidv4 } from "uuid";
 
-import { CURRENCY_SYMBOL, NUMBER_FORMAT, UI_TEXT } from "@constants";
+import { CURRENCY_SYMBOL, NUMBER_FORMAT, TRANSACTION_TYPES, UI_TEXT } from "@constants";
 
 import { PAYMENT_MODES_LIST } from "@constants/firestore";
 
@@ -16,17 +16,23 @@ import { toStorageDate } from "@hooks/useDateFormatter";
 import { useResetOnOpen } from "@hooks/useResetOnOpen";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addTransaction, updateTransaction } from "@store/slices/transactionsSlice";
+import { cn } from "@utils/cn";
 import { parseDate, todayStorage } from "@utils/dateUtils";
 import { showError, showSuccess } from "@utils/toast";
-
 
 import type { PaymentMode, Transaction, TransactionType } from "@/types";
 
 import { AlertBanner } from "./AlertBanner";
+import { FilterPills } from "./FilterPills";
 import { NumericKeypad } from "./NumericKeypad";
-import { SegmentedTabs } from "./SegmentedTabs";
 
 type SheetType = "income" | "expense" | "transfer";
+
+const SHEET_TYPE_OPTIONS = [
+  { value: "income" as const, label: UI_TEXT.INCOME, tone: "income" as const },
+  { value: "expense" as const, label: UI_TEXT.EXPENSE, tone: "expense" as const },
+  { value: "transfer" as const, label: UI_TEXT.TRANSFER, tone: "brand" as const },
+];
 
 export interface AddTransactionSheetProps {
   open: boolean;
@@ -93,7 +99,8 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
     el.click();
   };
 
-  const txType: TransactionType = sheetType === "income" ? "income" : "expense";
+  const txType: TransactionType =
+    sheetType === "income" ? TRANSACTION_TYPES.INCOME : TRANSACTION_TYPES.EXPENSE;
 
   const displayAmount = useMemo(() => {
     const n = Number(amount);
@@ -195,17 +202,14 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
         <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-outline-variant sm:hidden" />
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-6 pt-3">
-          <SegmentedTabs
+          <FilterPills
+            ariaLabel={UI_TEXT.TYPE_LABEL}
             value={sheetType}
             onChange={(next) => {
               setSheetType(next);
               setCategory("");
             }}
-            options={[
-              { value: "income", label: UI_TEXT.INCOME },
-              { value: "expense", label: UI_TEXT.EXPENSE },
-              { value: "transfer", label: UI_TEXT.TRANSFER },
-            ]}
+            options={SHEET_TYPE_OPTIONS}
           />
 
           {budgetPct != null && budgetPct >= 50 && !alertDismissed && (
@@ -236,7 +240,7 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
             titleHint={description}
             amountHint={Number(amount) || undefined}
             showAiSuggest={Boolean(description.trim())}
-            selectClassName="rounded-2xl border-outline-variant py-3"
+            selectClassName="[&>button]:rounded-2xl [&>button]:border-outline-variant [&>button]:px-4 [&>button]:py-3"
           />
 
           <div className="relative">
@@ -264,17 +268,29 @@ export function AddTransactionSheet({ open, onClose, transaction, budgetPct }: A
           </div>
 
           {sheetType !== "transfer" && (
-            <select
-              value={paymentMode}
-              onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
-              className="w-full rounded-2xl border border-outline-variant bg-card px-4 py-3 text-sm text-brand-deep focus:border-primary-main focus:outline-none"
-            >
-              {PAYMENT_MODES_LIST.map((mode) => (
-                <option key={mode} value={mode}>
-                  {mode}
-                </option>
-              ))}
-            </select>
+            <div role="radiogroup" aria-label={UI_TEXT.MODE_LABEL} className="flex flex-wrap gap-2">
+              {PAYMENT_MODES_LIST.map((mode) => {
+                const active = paymentMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setPaymentMode(mode)}
+                    className={cn(
+                      "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring) focus-visible:ring-offset-1",
+                      active
+                        ? "bg-primary-light text-white shadow-sm"
+                        : "bg-surface-low text-on-surface-variant ring-1 ring-outline-variant/70 hover:text-brand-deep",
+                    )}
+                  >
+                    {mode}
+                  </button>
+                );
+              })}
+            </div>
           )}
 
           <NumericKeypad onDigit={appendDigit} onDecimal={appendDecimal} onBackspace={backspace} />

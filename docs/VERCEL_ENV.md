@@ -17,8 +17,21 @@ Secrets live in the **Vercel project**, not in git. Use `.env.example` as the te
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | From Firebase console |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | From Firebase console |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Server-only — bank statement AI import (`/api/parse-statement`) |
+| `FIREBASE_ADMIN_PROJECT_ID` | Server-only — usually same as `NEXT_PUBLIC_FIREBASE_PROJECT_ID` |
+| `FIREBASE_ADMIN_CLIENT_EMAIL` | Server-only — service account email |
+| `FIREBASE_ADMIN_PRIVATE_KEY` | Server-only — service account private key (`\n` escaped newlines OK) |
+| `ADMIN_UIDS` | Server-only — comma-separated Firebase Auth UIDs for bootstrap admins |
 
 `NEXT_PUBLIC_*` values are public (safe in the browser). Never put API secrets in `NEXT_PUBLIC_*`.
+
+### First admin bootstrap
+
+1. Sign in to the app once and copy your UID from Firebase Console → Authentication → Users.
+2. Set `ADMIN_UIDS=<your-uid>` (and the three `FIREBASE_ADMIN_*` vars) on Vercel / `.env.local`.
+3. Redeploy / restart `npm run dev`.
+4. Open **Admin** from the desktop sidebar or Profile → Admin. Promote other users from there (custom claim `admin: true`).
+
+Admin APIs verify the caller’s Firebase ID token and require either the `admin` custom claim or membership in `ADMIN_UIDS`. Firestore rules are unchanged — user listing uses the Auth Admin SDK, not a Firestore `users` collection.
 
 ## Do **not** set on Vercel
 

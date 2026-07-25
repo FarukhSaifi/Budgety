@@ -56,8 +56,11 @@ export function CategorySelect({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((opt) => opt.toLowerCase().includes(q));
+    const list = Array.isArray(options)
+      ? options.filter((opt) => Boolean(opt?.trim()))
+      : [];
+    if (!q) return list;
+    return list.filter((opt) => opt.toLowerCase().includes(q));
   }, [options, query]);
 
   const trimmedQuery = query.trim();

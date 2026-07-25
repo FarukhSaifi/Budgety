@@ -13,7 +13,7 @@ import { shiftMonthYear } from "@utils/periodFilter";
 
 import type { Transaction } from "@/types";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 export interface TransactionCalendarProps {
   transactions: Transaction[];
@@ -67,10 +67,23 @@ export function TransactionCalendar({
     onMonthChange?.(next.month, next.year);
   };
 
+  const formatDayTotal = (dayTotal: number) => {
+    const sign = dayTotal >= 0 ? UI_TEXT.INCOME_SYMBOL : UI_TEXT.EXPENSE_SYMBOL;
+    return `${sign}${formatCurrency(Math.abs(dayTotal), { compact: true })}`;
+  };
+
+  const formatDayTotalFull = (dayTotal: number) => {
+    const sign = dayTotal >= 0 ? UI_TEXT.INCOME_SYMBOL : UI_TEXT.EXPENSE_SYMBOL;
+    return `${sign}${CURRENCY_SYMBOL}${formatCurrency(Math.abs(dayTotal), {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })}`;
+  };
+
   return (
     <div className="space-y-3">
-      <div className="rounded-card border border-outline-variant/50 bg-card p-4 shadow-card">
-        <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="rounded-card border border-outline-variant/50 bg-card p-2 shadow-card sm:p-4">
+        <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
           {showMonthNav ? (
             <button
               type="button"
@@ -100,55 +113,64 @@ export function TransactionCalendar({
           )}
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-on-surface-variant">
-          {WEEKDAYS.map((d) => (
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] font-medium text-on-surface-variant sm:gap-1 sm:text-xs">
+          {WEEKDAYS.map((d, i) => (
             <div key={d} className="py-1">
-              {d}
+              <span className="sm:hidden" aria-hidden>
+                {UI_TEXT.CALENDAR_WEEKDAYS_NARROW[i]}
+              </span>
+              <span className="hidden sm:inline">{d}</span>
+              <span className="sr-only sm:hidden">{d}</span>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
           {cells.map((day, idx) => {
-            if (day === null) return <div key={`blank-${idx}`} className="min-h-16 rounded-lg" />;
+            if (day === null) {
+              return <div key={`blank-${idx}`} className="min-h-14 rounded-md sm:min-h-16 sm:rounded-lg" />;
+            }
             const items = byDay.get(day) ?? [];
-            const dayTotal = items.reduce(
-              (sum, t) => sum + (t.type === "income" ? t.amount : -t.amount),
-              0,
-            );
+            const dayTotal = items.reduce((sum, t) => sum + (t.type === "income" ? t.amount : -t.amount), 0);
             const isSelected = selectedDay === day;
+            const compactAmount = items.length > 0 ? formatDayTotal(dayTotal) : "";
+            const fullAmount = items.length > 0 ? formatDayTotalFull(dayTotal) : "";
+            const countLabel = UI_TEXT.CALENDAR_TX_COUNT_SHORT.replace("{count}", String(items.length));
+            const fullCountLabel = `${items.length} ${UI_TEXT.TRANSACTION_S.toLowerCase()}`;
+
             return (
               <button
                 key={day}
                 type="button"
                 onClick={() => setSelectedDay(day)}
                 className={cn(
-                  "min-h-16 rounded-lg border p-1 text-left transition",
+                  "flex min-h-14 min-w-0 flex-col overflow-hidden rounded-md border p-0.5 text-left transition sm:min-h-16 sm:rounded-lg sm:p-1",
                   isSelected
                     ? "border-primary-main bg-primary-soft/60 ring-1 ring-primary-main/30"
                     : "border-outline-variant/40 hover:border-primary-main/40 hover:bg-surface-low",
                 )}
                 aria-pressed={isSelected}
-                aria-label={`${day} ${MONTHS[month - 1]}`}
+                aria-label={
+                  items.length > 0
+                    ? `${day} ${MONTHS[month - 1]}, ${fullAmount}, ${fullCountLabel}`
+                    : `${day} ${MONTHS[month - 1]}`
+                }
+                title={items.length > 0 ? `${fullAmount} · ${fullCountLabel}` : undefined}
               >
-                <div className="text-xs font-semibold text-on-surface-variant">{day}</div>
+                <div className="text-[10px] font-semibold leading-none text-on-surface-variant sm:text-xs">{day}</div>
                 {items.length > 0 && (
-                  <div className="mt-0.5 space-y-0.5">
+                  <div className="mt-0.5 flex min-w-0 flex-1 flex-col justify-center gap-0.5 overflow-hidden">
                     <span
                       className={cn(
-                        "block px-0.5 text-xs font-semibold tabular-nums",
+                        "block truncate text-[9px] font-semibold leading-tight tabular-nums sm:text-[11px]",
                         dayTotal >= 0 ? "text-income" : "text-expense",
                       )}
                     >
-                      {dayTotal >= 0 ? UI_TEXT.INCOME_SYMBOL : UI_TEXT.EXPENSE_SYMBOL}
-                      {CURRENCY_SYMBOL}
-                      {formatCurrency(Math.abs(dayTotal), {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
+                      {compactAmount}
                     </span>
-                    <span className="block px-0.5 text-xs text-on-surface-variant">
-                      {items.length} {UI_TEXT.TRANSACTION_S.toLowerCase()}
+                    <span className="block truncate text-[9px] leading-tight text-on-surface-variant sm:text-[10px]">
+                      <span className="sm:hidden">{countLabel}</span>
+                      <span className="hidden sm:inline">{fullCountLabel}</span>
                     </span>
                   </div>
                 )}
@@ -160,7 +182,7 @@ export function TransactionCalendar({
 
       {selectedDay != null && (
         <div
-          className="rounded-card border border-outline-variant/50 bg-card p-4 shadow-card"
+          className="rounded-card border border-outline-variant/50 bg-card p-3 shadow-card sm:p-4"
           role="region"
           aria-label={UI_TEXT.CALENDAR_DAY_TRANSACTIONS}
         >
@@ -204,8 +226,7 @@ export function TransactionCalendar({
                         )}
                       >
                         {isIncome ? UI_TEXT.INCOME_SYMBOL : UI_TEXT.EXPENSE_SYMBOL}
-                        {CURRENCY_SYMBOL}
-                        {formatCurrency(Math.abs(t.amount || 0))}
+                        {formatCurrency(Math.abs(t.amount || 0), { compact: true })}
                       </p>
                     </button>
                   </li>

@@ -203,6 +203,18 @@ export interface AuthUser {
   photoURL: string | null;
 }
 
+/** Row shape for the Admin → Users management list (Auth Admin SDK). */
+export interface AdminUserListItem {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  disabled: boolean;
+  role: "admin" | "user";
+  createdAt: string | null;
+  lastSignInAt: string | null;
+}
+
 export type ViewPeriod = "monthly" | "yearly" | "all" | "range";
 export type ViewType = "list" | "calendar";
 
@@ -222,7 +234,8 @@ export type NavTab =
   | "goals"
   | "debt"
   | "split"
-  | "rules";
+  | "rules"
+  | "admin";
 
 /** Transaction list filter pills (Transfer is UI-only; maps to transfer payment modes). */
 export type TransactionFilter = "all" | "income" | "expense" | "transfer";

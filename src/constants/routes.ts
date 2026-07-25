@@ -15,6 +15,7 @@ export const APP_ROUTES = {
   debt: "/debt",
   split: "/split",
   rules: "/rules",
+  admin: "/admin",
   login: "/login",
   register: "/register",
 } as const;
@@ -32,6 +33,7 @@ export const TAB_TO_PATH: Record<NavTab, string> = {
   debt: APP_ROUTES.debt,
   split: APP_ROUTES.split,
   rules: APP_ROUTES.rules,
+  admin: APP_ROUTES.admin,
 };
 
 /**
@@ -55,6 +57,7 @@ export function pathToTab(pathname: string | null | undefined): NavTab {
   if (path.startsWith("/debt")) return "debt";
   if (path.startsWith("/split")) return "split";
   if (path.startsWith("/rules")) return "rules";
+  if (path.startsWith("/admin")) return "admin";
   return "overview";
 }
 
@@ -75,7 +78,14 @@ export function isPrimaryNavPathActive(
     return tab === "analytics" || tab === "budgets";
   }
   if (primaryId === "profile") {
-    return tab === "profile" || tab === "goals" || tab === "debt" || tab === "split" || tab === "rules";
+    return (
+      tab === "profile" ||
+      tab === "goals" ||
+      tab === "debt" ||
+      tab === "split" ||
+      tab === "rules" ||
+      tab === "admin"
+    );
   }
   if (primaryId === "overview") {
     return tab === "overview" || tab === "bills";

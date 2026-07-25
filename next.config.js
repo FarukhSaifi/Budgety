@@ -4,7 +4,7 @@ const firebaseProjectId =
 
 const nextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ["pdfjs-dist"],
+  serverExternalPackages: ["pdfjs-dist", "firebase-admin"],
   experimental: {
     optimizePackageImports: ["recharts", "dayjs", "@reduxjs/toolkit", "react-redux"],
   },

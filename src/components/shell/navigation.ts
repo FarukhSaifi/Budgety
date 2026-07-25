@@ -13,6 +13,7 @@ import {
   HomeIcon,
   PersonIcon,
   ReceiptLongIcon,
+  ShieldIcon,
   TuneIcon,
 } from "@components/icons";
 
@@ -62,7 +63,15 @@ export const SECONDARY_NAV_ITEMS: NavItem[] = [
   { id: "rules", label: UI_TEXT.SMART_RULES, icon: TuneIcon, href: TAB_TO_PATH.rules },
 ];
 
-/** Full nav list for desktop sidebar (primary then secondary). */
+/** Admin-only sidebar entry (not in bottom nav). */
+export const ADMIN_NAV_ITEM: NavItem = {
+  id: "admin",
+  label: UI_TEXT.ADMIN,
+  icon: ShieldIcon,
+  href: TAB_TO_PATH.admin,
+};
+
+/** Full nav list for desktop sidebar (primary then secondary). Admin appended by shell when allowed. */
 export const NAV_ITEMS: NavItem[] = [...PRIMARY_NAV_ITEMS, ...SECONDARY_NAV_ITEMS];
 
 export const TAB_TITLES: Record<NavTab, string> = {
@@ -76,6 +85,7 @@ export const TAB_TITLES: Record<NavTab, string> = {
   debt: UI_TEXT.DEBT_TRACKER,
   split: UI_TEXT.SPLIT_TRACKER,
   rules: UI_TEXT.RULES_TITLE,
+  admin: UI_TEXT.ADMIN_USERS_TITLE,
 };
 
 /** Tabs that render their own mobile header (hide TopBar on small screens). */
@@ -85,4 +95,5 @@ export const SELF_HEADER_TABS: NavTab[] = [
   "analytics",
   "profile",
   "bills",
+  "admin",
 ];

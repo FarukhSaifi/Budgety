@@ -47,19 +47,27 @@ export function PaymentsCalendar({ bills, month, year }: PaymentsCalendarProps) 
       <p className="mb-3 text-sm font-semibold text-gray-900">
         {UI_TEXT.PAYMENTS_CALENDAR} · {MONTHS[month - 1]} {year}
       </p>
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-gray-400">
-        {WEEKDAYS.map((d) => (
+      <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] font-medium text-gray-400 sm:gap-1 sm:text-[11px]">
+        {WEEKDAYS.map((d, i) => (
           <div key={d} className="py-1">
-            {d}
+            <span className="sm:hidden" aria-hidden>
+              {UI_TEXT.CALENDAR_WEEKDAYS_NARROW[i]}
+            </span>
+            <span className="hidden sm:inline">{d}</span>
+            <span className="sr-only sm:hidden">{d}</span>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
         {cells.map((day, idx) => {
-          if (day === null) return <div key={`blank-${idx}`} className="min-h-14 rounded-lg" />;
+          if (day === null)
+            return <div key={`blank-${idx}`} className="min-h-12 rounded-md sm:min-h-14 sm:rounded-lg" />;
           const items = byDay.get(day) ?? [];
           return (
-            <div key={day} className="min-h-14 rounded-lg border border-gray-100 p-1">
+            <div
+              key={day}
+              className="min-h-12 min-w-0 overflow-hidden rounded-md border border-gray-100 p-0.5 sm:min-h-14 sm:rounded-lg sm:p-1"
+            >
               <div className="text-[11px] font-semibold text-gray-500">{day}</div>
               {items.slice(0, 2).map((b) => (
                 <div

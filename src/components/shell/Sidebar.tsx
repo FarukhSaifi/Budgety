@@ -6,12 +6,18 @@ import { usePathname } from "next/navigation";
 
 import { APP_LOGO_ALT, APP_LOGO_SRC, APP_NAME } from "@constants";
 
+import { useAdminAccess } from "@hooks/useAdminAccess";
 import { cn } from "@utils/cn";
 
-import { PRIMARY_NAV_ITEMS, SECONDARY_NAV_ITEMS } from "./navigation";
+
+import { ADMIN_NAV_ITEM, PRIMARY_NAV_ITEMS, SECONDARY_NAV_ITEMS } from "./navigation";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isAdmin } = useAdminAccess();
+  const secondaryItems = isAdmin
+    ? [...SECONDARY_NAV_ITEMS, ADMIN_NAV_ITEM]
+    : SECONDARY_NAV_ITEMS;
 
   return (
     <aside className="glass-nav fixed left-0 top-0 z-1000 hidden h-screen w-20 flex-col items-center border-r border-primary-soft/60 py-4 md:flex">
@@ -53,7 +59,7 @@ export function Sidebar() {
           );
         })}
         <div className="my-2 h-px w-10 bg-primary-soft" />
-        {SECONDARY_NAV_ITEMS.map((item) => {
+        {secondaryItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname?.startsWith(item.href);
           return (
