@@ -113,7 +113,7 @@ export async function generateGeminiJson(options: GeminiGenerateOptions): Promis
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
-        throw new Error("AI_REQUEST_TIMEOUT");
+        throw new Error("AI_REQUEST_TIMEOUT", { cause: err });
       }
       throw err;
     } finally {

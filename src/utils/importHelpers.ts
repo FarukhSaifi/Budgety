@@ -65,7 +65,7 @@ export function sortStagingRows(
   const sorted = rows.slice();
 
   sorted.sort((a, b) => {
-    let cmp = 0;
+    let cmp: number;
 
     switch (sortKey) {
       case IMPORT_PREVIEW_SORT_KEYS.DATE:
