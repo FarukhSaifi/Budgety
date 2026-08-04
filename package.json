@@ -32,6 +32,7 @@
     "uuid": "^14.0.1"
   },
   "overrides": {
+    "eslint": "^10.7.0",
     "sharp": "^0.35.0",
     "postcss": "^8.5.23",
     "brace-expansion": "5.0.9",
@@ -59,6 +60,6 @@
     "globals": "^17.7.0",
     "postcss": "^8.5.23",
     "tailwindcss": "^4.3.3",
-    "typescript": "npm:@typescript/typescript6@^6.0.3"
+    "typescript": "^6.0.3"
   }
 }
