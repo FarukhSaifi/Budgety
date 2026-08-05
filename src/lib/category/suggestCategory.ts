@@ -136,7 +136,9 @@ async function suggestWithGoogle(prompt: string): Promise<unknown> {
     });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "unknown error";
-    throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail));
+    throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail), {
+      cause: err,
+    });
   }
 }
 
