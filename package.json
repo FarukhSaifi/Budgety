@@ -9,8 +9,8 @@
     "start": "next start",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
-    "typecheck:ts7": "node ./node_modules/@typescript/native/bin/tsc --noEmit",
+    "typecheck": "node ./node_modules/@typescript/native/bin/tsc --noEmit",
+    "typecheck:tsc6": "node ./node_modules/typescript/bin/tsc --noEmit",
     "emulators": "npx firebase-tools emulators:start --only auth --project demo-budgety"
   },
   "dependencies": {
@@ -61,6 +61,6 @@
     "globals": "^17.8.0",
     "postcss": "^8.5.24",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   }
 }
