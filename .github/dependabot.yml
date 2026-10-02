@@ -28,3 +28,7 @@ updates:
           - "*"
         update-types:
           - "major"
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+

@@ -18,10 +18,15 @@ jobs:
     name: ESLint
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -31,8 +36,35 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run lint
-        run: npm run lint
+      - name: Run lint (with auto-fix on failure)
+        run: |
+          if ! npm run lint; then
+            echo "::warning::ESLint check failed. Attempting automatic fix using 'npm run lint:fix'..."
+            npm run lint:fix || true
+
+            if [ -n "$(git status --porcelain)" ]; then
+              echo "Applying auto-fixes and committing changes..."
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add -A
+              git commit -m "style: auto-fix eslint issues [skip ci]"
+
+              TARGET_REF="${{ github.head_ref || github.ref_name }}"
+              echo "Target branch: $TARGET_REF"
+
+              if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+                echo "::warning::Pull request originates from a fork repository. Automatic push skipped."
+              else
+                git push origin HEAD:"$TARGET_REF"
+                echo "Auto-fixed lint changes successfully pushed to $TARGET_REF."
+              fi
+            else
+              echo "No auto-fixable changes detected."
+            fi
+
+            echo "Re-running ESLint to verify remaining issues..."
+            npm run lint
+          fi
 
 
   audit:
