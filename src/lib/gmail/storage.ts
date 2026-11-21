@@ -1,9 +1,8 @@
 import { FIRESTORE_COLLECTIONS } from "@constants/firestore";
 import { GMAIL_DEFAULTS } from "@constants/gmail";
 
-import type { GmailConnectionStatus } from "@/types/gmail";
-
 import { getAdminFirestore, isFirebaseAdminConfigured } from "@/lib/firebaseAdmin";
+import type { GmailConnectionStatus } from "@/types/gmail";
 
 export interface StoredGmailAccount {
   userId: string;
@@ -60,9 +59,7 @@ export async function saveGmailTokens(
   }
 }
 
-export async function getStoredGmailAccount(
-  userId: string,
-): Promise<StoredGmailAccount | null> {
+export async function getStoredGmailAccount(userId: string): Promise<StoredGmailAccount | null> {
   if (isFirebaseAdminConfigured()) {
     try {
       const db = getAdminFirestore();

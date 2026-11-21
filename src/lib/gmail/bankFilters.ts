@@ -47,21 +47,13 @@ export const INDIAN_BANK_PATTERNS: BankSenderPattern[] = [
   },
   {
     bank: "Axis Bank",
-    senders: [
-      "alerts@axisbank.com",
-      "estatement@axisbank.com",
-      "creditcards@axisbank.com",
-    ],
+    senders: ["alerts@axisbank.com", "estatement@axisbank.com", "creditcards@axisbank.com"],
     alertSubjects: ["transaction alert", "debited", "credited", "spent"],
     statementSubjects: ["statement", "e-statement", "estatement"],
   },
   {
     bank: "Kotak Mahindra Bank",
-    senders: [
-      "service.kotak@kotak.com",
-      "statements@kotak.com",
-      "alerts@kotak.com",
-    ],
+    senders: ["service.kotak@kotak.com", "statements@kotak.com", "alerts@kotak.com"],
     alertSubjects: ["debited", "credited", "transaction alert", "spent"],
     statementSubjects: ["statement", "e-statement", "credit card statement"],
   },

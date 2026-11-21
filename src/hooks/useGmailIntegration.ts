@@ -3,14 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { GMAIL_DEFAULTS, GMAIL_ERROR_MESSAGES } from "@constants";
-
-import type { GmailConnectionStatus, GmailSyncOptions, GmailSyncResponse } from "@/types/gmail";
-
-import type { DuplicateCheckable } from "@utils/duplicateDetection";
 import { showError, showInfo, showSuccess } from "@utils/toast";
 
+import type { DuplicateCheckable } from "@utils/duplicateDetection";
 
 import type { ParsedStatementTransaction } from "@/lib/statement/types";
+import type { GmailConnectionStatus, GmailSyncOptions, GmailSyncResponse } from "@/types/gmail";
 
 export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER_ID) {
   const [status, setStatus] = useState<GmailConnectionStatus>({ connected: false });
@@ -111,9 +109,7 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
             autoSyncEnabled,
             autoSyncIntervalHours: autoSyncIntervalHours ?? prev.autoSyncIntervalHours,
           }));
-          showSuccess(
-            autoSyncEnabled ? "Auto-sync enabled." : "Auto-sync disabled.",
-          );
+          showSuccess(autoSyncEnabled ? "Auto-sync enabled." : "Auto-sync disabled.");
         }
       } catch {
         showError("Failed to update auto-sync settings.");
@@ -125,10 +121,7 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
   const syncGmail = useCallback(
     async (
       options: GmailSyncOptions & { existingTransactions?: DuplicateCheckable[] },
-      onSuccess?: (
-        transactions: ParsedStatementTransaction[],
-        meta: GmailSyncResponse["meta"],
-      ) => void,
+      onSuccess?: (transactions: ParsedStatementTransaction[], meta: GmailSyncResponse["meta"]) => void,
       silent = false,
     ) => {
       setSyncing(true);
@@ -162,9 +155,7 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
         if (data.transactions.length > 0) {
           onSuccess?.(data.transactions, data.meta);
           if (!silent) {
-            showSuccess(
-              `Found ${data.transactions.length} new transaction(s)! Added to staging for review.`,
-            );
+            showSuccess(`Found ${data.transactions.length} new transaction(s)! Added to staging for review.`);
           }
         } else if (data.meta.duplicatesCount > 0) {
           if (!silent) {
