@@ -2,14 +2,16 @@ import { STATEMENT_IMPORT } from "@constants";
 
 /**
  * Extract plain text from a PDF buffer using pdfjs-dist (Node runtime, no worker).
+ * Supports optional password for protected bank/credit-card statements.
  */
-export async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
+export async function extractPdfText(buffer: ArrayBuffer, password?: string): Promise<string> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(buffer),
     useSystemFonts: true,
     disableFontFace: true,
+    ...(password ? { password } : {}),
   });
 
   const pdf = await loadingTask.promise;
@@ -18,9 +20,7 @@ export async function extractPdfText(buffer: ArrayBuffer): Promise<string> {
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
-    const line = content.items
-      .map((item) => ("str" in item ? String(item.str) : ""))
-      .join(" ");
+    const line = content.items.map((item) => ("str" in item ? String(item.str) : "")).join(" ");
     pages.push(line);
   }
 

@@ -1620,3 +1620,5 @@ export const COLUMN_MAPPING_PATTERNS = {
   BALANCE: ["balance", "closing balance", "running balance", "available balance", "balance amount"],
   TYPE: ["type", "debit/credit", "dr/cr", "cr/dr", "transaction type", "credit/debit"],
 };
+
+export * from "./gmail";

@@ -11,6 +11,7 @@ export const FIRESTORE_COLLECTIONS = {
   NET_WORTH: "netWorthItems",
   SPLIT_EXPENSES: "splitExpenses",
   SPLIT_PARTICIPANTS: "splitParticipants",
+  GMAIL_INTEGRATIONS: "gmailIntegrations",
 } as const;
 
 /** All supported payment modes (baseline + legacy). Mirrors the PaymentMode union. */

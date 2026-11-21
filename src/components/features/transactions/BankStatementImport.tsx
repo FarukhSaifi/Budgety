@@ -17,9 +17,12 @@ import {
 
 import { DEFAULT_CATEGORY_COLOR, FIRESTORE_QUERY } from "@constants/firestore";
 
+import type { GmailSyncResponse } from "@/types/gmail";
+
 import { Button } from "@components/common/Button";
 import { ConfirmDialog } from "@components/common/ConfirmDialog";
 import { Spinner } from "@components/common/Spinner";
+import { GmailSyncPanel } from "@components/features/transactions/GmailSyncPanel";
 import ImportPreviewRow from "@components/features/transactions/ImportPreviewRow";
 import { ImportStepper, type ImportStep } from "@components/features/transactions/ImportStepper";
 import {
@@ -394,6 +397,19 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     [applyStaging, parseExcelClient, parseViaApi, persistDiscoveredCategories],
   );
 
+  const handleGmailTransactions = useCallback(
+    (parsed: ParsedStatementTransaction[], meta: GmailSyncResponse["meta"]) => {
+      setFile(null);
+      setParseError(null);
+      const rows = applySmartRulesToStaging(parsedToStaging(parsed), rules);
+      applyStaging(rows);
+      if (meta.discoveredCategories) {
+        persistDiscoveredCategories(meta.discoveredCategories);
+      }
+    },
+    [applyStaging, persistDiscoveredCategories, rules],
+  );
+
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) void handleFile(selected);
@@ -622,6 +638,8 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       </div>
 
       <ImportStepper activeStep={activeStep} />
+
+      <GmailSyncPanel onTransactionsFetched={handleGmailTransactions} />
 
       {importedCount > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 dark:text-income sm:flex-row sm:items-center sm:justify-between">

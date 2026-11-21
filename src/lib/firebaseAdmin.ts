@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 import { FIREBASE_ADMIN_ENV } from "@constants/admin";
 
@@ -30,11 +31,7 @@ function isAdminConfigured(): boolean {
   if (process.env.FIREBASE_AUTH_EMULATOR_HOST?.trim()) {
     return Boolean(resolveProjectId());
   }
-  return Boolean(
-    resolveProjectId() &&
-      process.env[FIREBASE_ADMIN_ENV.CLIENT_EMAIL]?.trim() &&
-      resolvePrivateKey(),
-  );
+  return Boolean(resolveProjectId() && process.env[FIREBASE_ADMIN_ENV.CLIENT_EMAIL]?.trim() && resolvePrivateKey());
 }
 
 let adminApp: App | null = null;
@@ -71,6 +68,10 @@ export function getFirebaseAdminApp(): App {
 
 export function getAdminAuth(): Auth {
   return getAuth(getFirebaseAdminApp());
+}
+
+export function getAdminFirestore(): Firestore {
+  return getFirestore(getFirebaseAdminApp());
 }
 
 export function isFirebaseAdminConfigured(): boolean {

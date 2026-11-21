@@ -4,6 +4,7 @@ import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
 
 import { ThemeToggle } from "@common";
 
+import { GmailIntegrationCard } from "@components/features/settings/GmailIntegrationCard";
 import {
   AccountBalanceWalletIcon,
   CalendarClockIcon,
@@ -34,9 +35,7 @@ export function ProfileScreen() {
 
   const displayName = user?.displayName || user?.email || "User";
   const initial = displayName.charAt(0).toUpperCase();
-  const pendingNotifs = bills.filter(
-    (b) => !b.isPaid && b.status !== "paid",
-  ).length;
+  const pendingNotifs = bills.filter((b) => !b.isPaid && b.status !== "paid").length;
 
   const handleSignOut = async () => {
     await dispatch(signOutUser());
@@ -68,36 +67,20 @@ export function ProfileScreen() {
         <span className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-primary-soft text-3xl font-bold text-primary-main shadow-card">
           {user?.photoURL ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.photoURL}
-              alt={displayName}
-              className="h-full w-full object-cover"
-            />
+            <img src={user.photoURL} alt={displayName} className="h-full w-full object-cover" />
           ) : (
             initial
           )}
         </span>
         <h2 className="mt-3 text-xl font-bold text-brand-deep">{displayName}</h2>
-        {user?.email && (
-          <p className="text-sm text-gray-400">{user.email}</p>
-        )}
+        {user?.email && <p className="text-sm text-gray-400">{user.email}</p>}
       </div>
 
       <section>
-        <h3 className="mb-1 text-sm font-bold text-brand-deep">
-          {UI_TEXT.ACCOUNT_SETTING}
-        </h3>
+        <h3 className="mb-1 text-sm font-bold text-brand-deep">{UI_TEXT.ACCOUNT_SETTING}</h3>
         <div className="rounded-card bg-card px-3 shadow-card">
-          <ProfileSettingRow
-            icon={PersonIcon}
-            title={UI_TEXT.EDIT_PROFILE}
-            subtitle={user?.email || UI_TEXT.NAME}
-          />
-          <ProfileSettingRow
-            icon={TuneIcon}
-            title={UI_TEXT.SECURITY_PRIVACY}
-            subtitle="PIN, biometric & privacy"
-          />
+          <ProfileSettingRow icon={PersonIcon} title={UI_TEXT.EDIT_PROFILE} subtitle={user?.email || UI_TEXT.NAME} />
+          <ProfileSettingRow icon={TuneIcon} title={UI_TEXT.SECURITY_PRIVACY} subtitle="PIN, biometric & privacy" />
           <ProfileSettingRow
             icon={NotificationsIcon}
             title={UI_TEXT.NOTIFICATIONS}
@@ -115,9 +98,12 @@ export function ProfileScreen() {
       </section>
 
       <section>
-        <h3 className="mb-1 text-sm font-bold text-brand-deep">
-          {UI_TEXT.APP_SETTING}
-        </h3>
+        <h3 className="mb-2 text-sm font-bold text-brand-deep">Connected Services & Automations</h3>
+        <GmailIntegrationCard />
+      </section>
+
+      <section>
+        <h3 className="mb-1 text-sm font-bold text-brand-deep">{UI_TEXT.APP_SETTING}</h3>
         <div className="rounded-card bg-card px-3 shadow-card">
           <div className="border-b border-gray-100 py-3.5">
             <ThemeToggle />

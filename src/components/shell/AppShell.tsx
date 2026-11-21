@@ -8,6 +8,7 @@ import { AskBudgetyWidget } from "@components/features/chat/AskBudgetyWidget";
 import { AddTransactionSheet } from "@components/mobile/AddTransactionSheet";
 
 import { useSyncActiveTabFromPath } from "@hooks/useAppNavigation";
+import { useGmailAutoSync } from "@hooks/useGmailAutoSync";
 import { useAppSelector } from "@store/hooks";
 import { selectPeriodTotalExpense } from "@store/selectors/periodSelectors";
 import { cn } from "@utils/cn";
@@ -27,6 +28,7 @@ export interface AppShellProps {
  */
 export function AppShell({ children }: AppShellProps) {
   useSyncActiveTabFromPath();
+  useGmailAutoSync();
 
   const pathname = usePathname();
   const activeTab = useAppSelector((state) => state.ui.activeTab);
