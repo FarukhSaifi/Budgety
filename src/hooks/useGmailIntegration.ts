@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { GMAIL_DEFAULTS, GMAIL_ERROR_MESSAGES } from "@constants";
-import { showError, showInfo, showSuccess } from "@utils/toast";
+
+import type { GmailConnectionStatus, GmailSyncOptions, GmailSyncResponse } from "@/types/gmail";
 
 import type { DuplicateCheckable } from "@utils/duplicateDetection";
+import { showError, showInfo, showSuccess } from "@utils/toast";
+
 
 import type { ParsedStatementTransaction } from "@/lib/statement/types";
-import type { GmailConnectionStatus, GmailSyncOptions, GmailSyncResponse } from "@/types/gmail";
 
 export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER_ID) {
   const [status, setStatus] = useState<GmailConnectionStatus>({ connected: false });

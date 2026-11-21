@@ -10,6 +10,8 @@ import {
   GMAIL_UI_TEXT,
 } from "@constants";
 
+import type { GmailSyncResponse } from "@/types/gmail";
+
 import { Button } from "@components/common/Button";
 import { Spinner } from "@components/common/Spinner";
 import { CheckCircleIcon, CloseIcon, CloudUploadIcon, RefreshIcon, WarningIcon } from "@components/icons";
@@ -19,7 +21,6 @@ import { useAppSelector } from "@store/hooks";
 import { showError } from "@utils/toast";
 
 import type { ParsedStatementTransaction } from "@/lib/statement/types";
-import type { GmailSyncResponse } from "@/types/gmail";
 
 interface GmailSyncPanelProps {
   onTransactionsFetched: (transactions: ParsedStatementTransaction[], meta: GmailSyncResponse["meta"]) => void;

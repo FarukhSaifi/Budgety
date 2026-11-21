@@ -1,8 +1,9 @@
 import { FIRESTORE_COLLECTIONS } from "@constants/firestore";
 import { GMAIL_DEFAULTS } from "@constants/gmail";
 
-import { getAdminFirestore, isFirebaseAdminConfigured } from "@/lib/firebaseAdmin";
 import type { GmailConnectionStatus } from "@/types/gmail";
+
+import { getAdminFirestore, isFirebaseAdminConfigured } from "@/lib/firebaseAdmin";
 
 export interface StoredGmailAccount {
   userId: string;
