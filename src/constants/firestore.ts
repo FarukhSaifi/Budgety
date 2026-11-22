@@ -39,7 +39,7 @@ export const DEFAULT_CATEGORY_COLOR = "#f2f2f2";
 export const FIRESTORE_QUERY = {
   /** Recent listener / load-older page size (newest first). */
   TRANSACTIONS_PAGE_SIZE: 250,
-  /** Firestore batch write limit is 500; stay under it (aligned with IMPORT_STREAM.BATCH_SIZE). */
+  /** Firestore batch write limit is 500; stay under it (IMPORT_STREAM.BATCH_SIZE reuses this). */
   WRITE_BATCH_CHUNK: 400,
   /** Brief pause between write chunks (ms) to spread quota usage. */
   WRITE_CHUNK_PAUSE_MS: 75,

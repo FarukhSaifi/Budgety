@@ -1056,6 +1056,7 @@ export const ERROR_MESSAGES = {
   SAVE_FAILED: "Failed to save",
   IMPORT_REQUIRES_SIGN_IN: "You must be signed in to import transactions. Please refresh and log in again.",
   IMPORT_FIRESTORE_BLOCKED: "Firestore blocked the save. Deploy firestore.rules and ensure you are signed in.",
+  IMPORT_USER_MISMATCH: "Cannot import transactions for a different signed-in user.",
   SERVER_ERROR: "An error occurred. Please try again.",
   DB_NOT_CONFIGURED: "Database not configured",
   BOUNDARY_FALLBACK: "Something went wrong. Please refresh the page.",

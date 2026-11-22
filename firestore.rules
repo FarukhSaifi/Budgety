@@ -22,61 +22,81 @@ service cloud.firestore {
       return isSignedIn() && isCreatingAsOwner();
     }
 
+    // Blocks ownership transfer by rewriting userId on update.
+    function userIdUnchanged() {
+      return request.resource.data.userId == resource.data.userId;
+    }
+
+    function ownsAndKeepsUserId() {
+      return ownsDoc() && userIdUnchanged();
+    }
+
     // Collections from src/constants/firestore.ts (FIRESTORE_COLLECTIONS).
     // List queries must include where('userId','==',request.auth.uid) so the
     // rule can prove every matched doc satisfies ownsDoc().
     match /transactions/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /budgets/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /bills/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /goals/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /recurringTransactions/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /categories/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /rules/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /debts/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /netWorthItems/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /splitExpenses/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
 
     match /splitParticipants/{docId} {
-      allow read, update, delete: if ownsDoc();
+      allow read, delete: if ownsDoc();
+      allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
   }

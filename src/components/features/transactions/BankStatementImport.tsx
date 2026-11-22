@@ -100,6 +100,7 @@ import {
   listFailedFileNames,
   listFailedRecordSamples,
   markJobInterrupted,
+  preferFresherImportJob,
   readImportStreamJob,
   writeImportStreamJob,
 } from "@utils/importStreamJob";
@@ -347,6 +348,12 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   );
 
   const resetStaging = useCallback(() => {
+    // Never clear mid-stream — wiping sessionStorage while batches are in flight
+    // would let the runner re-persist a zombie job and race UI state.
+    if (importInFlightRef.current) {
+      showError(IMPORT_STREAM_UI.BUSY_DISCARD);
+      return;
+    }
     setStaging([]);
     setFile(null);
     setParsing(false);
@@ -354,7 +361,6 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     setImportProgress(null);
     setStreamJobSnapshot(null);
     activeStreamJobRef.current = null;
-    importInFlightRef.current = false;
     setParseError(null);
     setPdfLocked(false);
     setPdfPassword("");
@@ -640,11 +646,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       }
 
       shouldScrollToPreviewRef.current = true;
-      void enrichStagingCategoriesWithAi(
-        pending,
-        { income: catalogLists.income, expense: catalogLists.expense },
-        rules,
-      )
+      void enrichStagingCategoriesWithAi(pending, { income: catalogLists.income, expense: catalogLists.expense }, rules)
         .then(({ rows, discovered }) => {
           appendStagingRows(rows);
           persistDiscoveredCategories(discovered);
@@ -677,14 +679,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       window.removeEventListener(GMAIL_DEFAULTS.WINDOW_FOCUS_EVENT, hydrateReviewQueue);
       document.removeEventListener(GMAIL_DEFAULTS.DOCUMENT_VISIBILITY_EVENT, onVisible);
     };
-  }, [
-    appendStagingRows,
-    catalogLists.expense,
-    catalogLists.income,
-    persistDiscoveredCategories,
-    rules,
-    userId,
-  ]);
+  }, [appendStagingRows, catalogLists.expense, catalogLists.income, persistDiscoveredCategories, rules, userId]);
 
   const unlockInFlightRef = useRef(false);
 
@@ -721,11 +716,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       };
 
       if (!res.ok) {
-        const mapped = mapStatementApiError(
-          res.status,
-          data,
-          GMAIL_ERROR_MESSAGES.UNLOCK_ATTACHMENT_FAILED,
-        );
+        const mapped = mapStatementApiError(res.status, data, GMAIL_ERROR_MESSAGES.UNLOCK_ATTACHMENT_FAILED);
         if (mapped.kind === "pdf_password") {
           setPdfPasswordError(mapped.message);
           return;
@@ -786,9 +777,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     setGmailLockedQueue(nextQueue);
     setPdfPassword("");
     setPdfPasswordError(null);
-    showInfo(
-      IMPORT_STREAM_UI.FILE_FAILURE_BANNER.replace("{count}", "1").replace("{names}", skippedName),
-    );
+    showInfo(IMPORT_STREAM_UI.FILE_FAILURE_BANNER.replace("{count}", "1").replace("{names}", skippedName));
   }, [activeGmailLocked, userId]);
 
   const handleUnlockSubmit = useCallback(() => {
@@ -837,14 +826,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         persistDiscoveredCategories(meta.discoveredCategories);
       }
     },
-    [
-      appendStagingRows,
-      catalogLists.expense,
-      catalogLists.income,
-      persistDiscoveredCategories,
-      rules,
-      userId,
-    ],
+    [appendStagingRows, catalogLists.expense, catalogLists.income, persistDiscoveredCategories, rules, userId],
   );
 
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -864,9 +846,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   }, []);
 
   const handleRowChange = useCallback((key: string, patch: Partial<StagingRow>) => {
-    setStaging((prev) =>
-      prev.map((row) => (row.key === key ? { ...row, ...patch, userOverridden: true } : row)),
-    );
+    setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch, userOverridden: true } : row)));
   }, []);
 
   const finishStreamResult = useCallback(
@@ -899,27 +879,29 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         resetStaging();
         if (selectedDupCount > 0) {
           showSuccess(
-            UI_TEXT.IMPORT_SUCCESS_WITH_DUPLICATES.replace(
-              "{count}",
-              String(counts.importedRecords),
-            ).replace("{duplicates}", String(selectedDupCount)),
+            UI_TEXT.IMPORT_SUCCESS_WITH_DUPLICATES.replace("{count}", String(counts.importedRecords)).replace(
+              "{duplicates}",
+              String(selectedDupCount),
+            ),
           );
         } else {
-          showSuccess(
-            UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(counts.importedRecords)),
-          );
+          showSuccess(UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(counts.importedRecords)));
         }
         window.setTimeout(() => setImportedCount(0), TIMEOUTS.IMPORT_SUCCESS);
         return;
+      }
+
+      if (job.lastError === IMPORT_STREAM.PERSIST_FAILED_REASON) {
+        showError(IMPORT_STREAM_UI.PERSIST_FAILED);
+        // Mid-stream interrupt: persist warning is enough. After completed_with_errors, keep banners.
+        if (job.status === IMPORT_JOB_STATUS.INTERRUPTED) return;
       }
 
       const failedFiles = listFailedFileNames(job);
       const failedSamples = listFailedRecordSamples(job);
 
       if (counts.pendingRecords > 0) {
-        showError(
-          IMPORT_STREAM_UI.COMPLETE_GATE_BLOCKED.replace("{pending}", String(counts.pendingRecords)),
-        );
+        showError(IMPORT_STREAM_UI.COMPLETE_GATE_BLOCKED.replace("{pending}", String(counts.pendingRecords)));
       } else if (counts.failedRecords > 0) {
         showError(
           IMPORT_STREAM_UI.PARTIAL_FAILURE.replace("{imported}", String(counts.importedRecords))
@@ -941,10 +923,10 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
       if (counts.failedRecords > 0 && failedSamples.length > 0) {
         showInfo(
-          IMPORT_STREAM_UI.RECORD_FAILURE_BANNER.replace(
-            "{count}",
-            String(counts.failedRecords),
-          ).replace("{sample}", failedSamples.join(", ")),
+          IMPORT_STREAM_UI.RECORD_FAILURE_BANNER.replace("{count}", String(counts.failedRecords)).replace(
+            "{sample}",
+            failedSamples.join(", "),
+          ),
         );
       }
     },
@@ -954,6 +936,10 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   const executeImportStream = useCallback(
     async (job: ImportStreamJob, selectedDupCount: number) => {
       if (!userId || importInFlightRef.current) return;
+      if (job.userId !== userId) {
+        showError(ERROR_MESSAGES.IMPORT_USER_MISMATCH);
+        return;
+      }
       importInFlightRef.current = true;
       setImporting(true);
       activeStreamJobRef.current = job;
@@ -969,6 +955,8 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
             setImportProgress(progress);
           },
         });
+        // Release before finishStreamResult so full-success resetStaging is not blocked.
+        importInFlightRef.current = false;
         finishStreamResult(result, selectedDupCount);
       } catch (err) {
         const raw =
@@ -981,7 +969,9 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
           ? ERROR_MESSAGES.IMPORT_FIRESTORE_BLOCKED
           : raw || ERROR_MESSAGES.SAVE_FAILED;
         const interrupted = markJobInterrupted(activeStreamJobRef.current || job);
-        writeImportStreamJob(userId, interrupted);
+        if (!writeImportStreamJob(userId, interrupted)) {
+          showInfo(IMPORT_STREAM_UI.PERSIST_FAILED);
+        }
         activeStreamJobRef.current = interrupted;
         setStreamJobSnapshot(interrupted);
         setImportProgress(countRecordsByStatus(interrupted));
@@ -1008,14 +998,15 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
     const selectedKeys = selected.map((r) => r.key);
     const fingerprint = buildImportFingerprint(selectedKeys);
-    const existing = readImportStreamJob(userId);
+    // Prefer live snapshot over sessionStorage when persist failed mid-stream (stale resume map).
+    const existing = preferFresherImportJob(streamJobSnapshot, readImportStreamJob(userId));
     // Only auto-resume when the pending job matches the current selection fingerprint.
     if (existing && jobHasRetryableWork(existing) && existing.fingerprint === fingerprint) {
       showInfo(
-        IMPORT_STREAM_UI.RESUMING.replace(
-          "{current}",
-          String(existing.completedBatches + 1),
-        ).replace("{total}", String(Math.max(existing.totalBatches, 1))),
+        IMPORT_STREAM_UI.RESUMING.replace("{current}", String(existing.completedBatches + 1)).replace(
+          "{total}",
+          String(Math.max(existing.totalBatches, 1)),
+        ),
       );
       await executeImportStream(existing, selected.filter((r) => duplicateKeys.has(r.key)).length);
       return;
@@ -1023,14 +1014,17 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
     // Account for every staging row: selected → pending, deselected → skipped (flagged).
     const job = createImportStreamJob(userId, staging);
-    writeImportStreamJob(userId, job);
+    // Persist best-effort; runImportStream + finishStreamResult warn if resume map is not durable.
+    if (!writeImportStreamJob(userId, job)) {
+      showInfo(IMPORT_STREAM_UI.PERSIST_FAILED);
+    }
     const selectedDupCount = selected.filter((r) => duplicateKeys.has(r.key)).length;
     await executeImportStream(job, selectedDupCount);
   };
 
   const handleRetryFailedImport = useCallback(async () => {
     if (!userId) return;
-    const job = readImportStreamJob(userId) || streamJobSnapshot;
+    const job = preferFresherImportJob(streamJobSnapshot, readImportStreamJob(userId));
     if (!job || !jobHasRetryableWork(job)) {
       showError(UI_TEXT.IMPORT_NONE_SELECTED);
       return;
@@ -1059,10 +1053,10 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       setStreamJobSnapshot(existing);
       setImportProgress(countRecordsByStatus(existing));
       showInfo(
-        IMPORT_STREAM_UI.RESUMING.replace(
-          "{current}",
-          String(existing.completedBatches + 1),
-        ).replace("{total}", String(Math.max(existing.totalBatches, 1))),
+        IMPORT_STREAM_UI.RESUMING.replace("{current}", String(existing.completedBatches + 1)).replace(
+          "{total}",
+          String(Math.max(existing.totalBatches, 1)),
+        ),
       );
       void executeImportStream(existing, 0);
     } else if (existing) {
@@ -1364,9 +1358,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
             </h2>
             <div className="flex min-w-0 flex-col items-start gap-1 sm:items-end">
               {pdfLocked && file ? (
-                <span className="truncate text-xs font-medium text-gray-500 sm:max-w-[280px] sm:text-sm">
-                  {file.name}
-                </span>
+                <span className="truncate text-xs font-medium text-gray-500 sm:max-w-70 sm:text-sm">{file.name}</span>
               ) : null}
               {!pdfLocked && activeGmailLocked ? (
                 <>
@@ -1378,7 +1370,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                       {activeGmailLocked.bankLabel || GMAIL_UI_TEXT.IMPORT_GMAIL_BANK_LABEL_FALLBACK}
                     </span>
                   </div>
-                  <span className="truncate text-xs font-medium text-gray-500 sm:max-w-[280px] sm:text-sm">
+                  <span className="truncate text-xs font-medium text-gray-500 sm:max-w-70 sm:text-sm">
                     {activeGmailLocked.filename}
                   </span>
                 </>
@@ -1409,10 +1401,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
             />
 
             {!pdfLocked && gmailLockedQueue.length > 1 ? (
-              <ul
-                className="flex max-w-md flex-wrap gap-1.5"
-                aria-label={GMAIL_UI_TEXT.IMPORT_GMAIL_LOCKED_QUEUE_ARIA}
-              >
+              <ul className="flex max-w-md flex-wrap gap-1.5" aria-label={GMAIL_UI_TEXT.IMPORT_GMAIL_LOCKED_QUEUE_ARIA}>
                 {gmailLockedQueue.map((item, index) => (
                   <li
                     key={item.id}
@@ -1466,7 +1455,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                   loading={parsing || unlockingGmail}
                   disabled={parsing || unlockingGmail || !pdfPassword.trim()}
                   onClick={handleUnlockSubmit}
-                  className="sm:min-w-[140px]"
+                  className="sm:min-w-35"
                 >
                   {UI_TEXT.IMPORT_PDF_UNLOCK}
                 </Button>
@@ -1489,7 +1478,13 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
             <div className="flex flex-wrap gap-2 pt-1">
               {pdfLocked ? (
                 <>
-                  <Button type="button" variant="ghost" size="sm" disabled={parsing} onClick={resetStaging}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={parsing || importing}
+                    onClick={resetStaging}
+                  >
                     {UI_TEXT.IMPORT_DISCARD_ALL}
                   </Button>
                   <Button
@@ -1527,10 +1522,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
       {/* Preview */}
       {staging.length > 0 && (
-        <section
-          ref={previewRef}
-          className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-card"
-        >
+        <section ref={previewRef} className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-card">
           <div
             role="status"
             className="border-b border-primary-main/15 bg-primary-main/5 px-4 py-3 text-sm font-semibold text-brand-deep sm:px-6"
@@ -1671,7 +1663,9 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                   value={importProgress.percent}
                   label={IMPORT_STREAM_UI.PROGRESS.replace(
                     "{current}",
-                    String(Math.min(importProgress.completedBatches + (importing ? 1 : 0), importProgress.totalBatches)),
+                    String(
+                      Math.min(importProgress.completedBatches + (importing ? 1 : 0), importProgress.totalBatches),
+                    ),
                   )
                     .replace("{total}", String(importProgress.totalBatches))
                     .replace("{imported}", String(importProgress.importedRecords))
@@ -1679,10 +1673,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                   ariaLabel={IMPORT_STREAM_UI.PROGRESS_ARIA}
                 />
                 <p className="text-xs text-gray-500">
-                  {IMPORT_STREAM_UI.RECORDS_SUMMARY.replace(
-                    "{imported}",
-                    String(importProgress.importedRecords),
-                  )
+                  {IMPORT_STREAM_UI.RECORDS_SUMMARY.replace("{imported}", String(importProgress.importedRecords))
                     .replace("{failed}", String(importProgress.failedRecords))
                     .replace("{skipped}", String(importProgress.skippedRecords))
                     .replace("{pending}", String(importProgress.pendingRecords))}
@@ -1691,32 +1682,21 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                   <p className="text-xs text-gray-500">
                     {IMPORT_STREAM_UI.FILES_SUMMARY.replace(
                       "{imported}",
-                      String(
-                        streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.IMPORTED)
-                          .length,
-                      ),
+                      String(streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.IMPORTED).length),
                     )
                       .replace(
                         "{failed}",
-                        String(
-                          streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.FAILED)
-                            .length,
-                        ),
+                        String(streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.FAILED).length),
                       )
                       .replace(
                         "{skipped}",
-                        String(
-                          streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.SKIPPED)
-                            .length,
-                        ),
+                        String(streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.SKIPPED).length),
                       )
                       .replace(
                         "{pending}",
                         String(
                           streamJobSnapshot.files.filter(
-                            (f) =>
-                              f.status === IMPORT_FILE_STATUS.PENDING ||
-                              f.status === IMPORT_FILE_STATUS.IMPORTING,
+                            (f) => f.status === IMPORT_FILE_STATUS.PENDING || f.status === IMPORT_FILE_STATUS.IMPORTING,
                           ).length,
                         ),
                       )}
@@ -1734,7 +1714,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                 </p>
               </div>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                <Button onClick={resetImport} variant="ghost" disabled={importing} className="sm:min-w-[120px]">
+                <Button onClick={resetImport} variant="ghost" disabled={importing} className="sm:min-w-30">
                   {UI_TEXT.IMPORT_DISCARD_ALL}
                 </Button>
                 {streamJobSnapshot &&
@@ -1743,11 +1723,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                 (streamJobSnapshot.status === IMPORT_JOB_STATUS.FAILED ||
                   streamJobSnapshot.status === IMPORT_JOB_STATUS.INTERRUPTED ||
                   streamJobSnapshot.status === IMPORT_JOB_STATUS.COMPLETED_WITH_ERRORS) ? (
-                  <Button
-                    onClick={() => void handleRetryFailedImport()}
-                    variant="primary"
-                    className="sm:min-w-[160px]"
-                  >
+                  <Button onClick={() => void handleRetryFailedImport()} variant="primary" className="sm:min-w-40">
                     {IMPORT_STREAM_UI.RETRY_FAILED.replace(
                       "{count}",
                       String(importProgress?.failedRecords || importProgress?.pendingRecords || 0),
@@ -1758,7 +1734,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                     onClick={() => void handleImport()}
                     variant="primary"
                     loading={importing}
-                    className="sm:min-w-[160px]"
+                    className="sm:min-w-40"
                   >
                     {UI_TEXT.IMPORT_ITEMS.replace("{count}", String(selectedCount))}
                   </Button>

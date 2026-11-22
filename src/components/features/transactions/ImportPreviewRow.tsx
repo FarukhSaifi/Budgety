@@ -127,9 +127,7 @@ function ImportPreviewRowInner({
     <span
       className={cn(
         "inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ring-1",
-        isIncome
-          ? "bg-income-soft text-income ring-income/25"
-          : "bg-expense-soft text-expense ring-expense/25",
+        isIncome ? "bg-income-soft text-income ring-income/25" : "bg-expense-soft text-expense ring-expense/25",
       )}
     >
       {isIncome ? UI_TEXT.INCOME : UI_TEXT.EXPENSE}
@@ -250,9 +248,7 @@ function ImportPreviewRowInner({
                 <p className="text-xs font-medium tabular-nums text-on-surface-variant">
                   {prettyDate || UI_TEXT.DATE_PLACEHOLDER}
                 </p>
-                <p className="truncate text-sm font-semibold text-brand-deep">
-                  {titleHint || UI_TEXT.NO_DESCRIPTION}
-                </p>
+                <p className="truncate text-sm font-semibold text-brand-deep">{titleHint || UI_TEXT.NO_DESCRIPTION}</p>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className={cn("text-sm font-bold tabular-nums", isIncome ? "text-income" : "text-expense")}>
                     {amountLabel}
@@ -285,9 +281,7 @@ function ImportPreviewRowInner({
         </div>
         {!editing ? (
           <>
-            <label className="mb-1.5 block text-xs font-semibold text-brand-deep">
-              {UI_TEXT.CATEGORY_PLACEHOLDER}
-            </label>
+            <label className="mb-1.5 block text-xs font-semibold text-brand-deep">{UI_TEXT.CATEGORY_PLACEHOLDER}</label>
             {categorySelect}
           </>
         ) : null}
@@ -318,11 +312,9 @@ function ImportPreviewRowInner({
         <td className="whitespace-nowrap px-4 py-3 text-sm tabular-nums text-brand-deep sm:px-6">
           {prettyDate || "—"}
         </td>
-        <td className="max-w-[280px] px-4 py-3 sm:px-6">
+        <td className="max-w-70 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 flex-col gap-1.5">
-            <p className="truncate text-sm font-semibold text-brand-deep">
-              {titleHint || UI_TEXT.NO_DESCRIPTION}
-            </p>
+            <p className="truncate text-sm font-semibold text-brand-deep">{titleHint || UI_TEXT.NO_DESCRIPTION}</p>
             {typeBadge}
             <span
               className={cn(

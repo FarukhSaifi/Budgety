@@ -193,9 +193,9 @@ export function getRetryableRows(job: ImportStreamJob): ImportStreamRowPayload[]
 }
 
 export function recomputeTotalBatches(job: ImportStreamJob, batchSize = job.batchSize): number {
-  const remaining = getRetryableRows(job).length;
-  if (remaining === 0) return Math.max(job.completedBatches, 1);
-  return job.completedBatches + chunkArray(getRetryableRows(job), batchSize).length;
+  const remaining = getRetryableRows(job);
+  if (remaining.length === 0) return Math.max(job.completedBatches, 1);
+  return job.completedBatches + chunkArray(remaining, batchSize).length;
 }
 
 /**
@@ -307,8 +307,10 @@ export function readImportStreamJob(userId: string): ImportStreamJob | null {
   }
 }
 
-export function writeImportStreamJob(userId: string, job: ImportStreamJob | null): void {
-  if (!userId || !canUseSessionStorage()) return;
+/** Persist job for resume. Returns false when storage is unavailable or quota write fails. */
+export function writeImportStreamJob(userId: string, job: ImportStreamJob | null): boolean {
+  if (!userId || !canUseSessionStorage()) return false;
+  if (job && job.userId !== userId) return false;
   try {
     if (!job) {
       sessionStorage.removeItem(storageKey(userId));
@@ -316,9 +318,38 @@ export function writeImportStreamJob(userId: string, job: ImportStreamJob | null
       sessionStorage.setItem(storageKey(userId), JSON.stringify(job));
     }
     notifyJobChanged(userId);
+    return true;
   } catch {
+    // QuotaExceeded / private mode — caller must not assume resume state is durable.
     notifyJobChanged(userId);
+    return false;
   }
+}
+
+/**
+ * Prefer the in-memory (or otherwise newer) job when sessionStorage lag/quota left a
+ * stale resume map behind — critical after PERSIST_FAILED mid-stream.
+ */
+export function preferFresherImportJob(
+  a: ImportStreamJob | null | undefined,
+  b: ImportStreamJob | null | undefined,
+): ImportStreamJob | null {
+  const left = a ?? null;
+  const right = b ?? null;
+  if (!left) return right;
+  if (!right) return left;
+  if (left.jobId === right.jobId) {
+    if (left.completedBatches !== right.completedBatches) {
+      return left.completedBatches >= right.completedBatches ? left : right;
+    }
+    const leftImported = countRecordsByStatus(left).importedRecords;
+    const rightImported = countRecordsByStatus(right).importedRecords;
+    if (leftImported !== rightImported) {
+      return leftImported >= rightImported ? left : right;
+    }
+    return (left.updatedAt || "") >= (right.updatedAt || "") ? left : right;
+  }
+  return (left.updatedAt || "") >= (right.updatedAt || "") ? left : right;
 }
 
 export function clearImportStreamJob(userId: string): void {

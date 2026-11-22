@@ -93,7 +93,7 @@ export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
   };
 
   return (
-    <div className="mb-6 rounded-card border border-brand-primary/10 bg-gradient-to-r from-brand-primary/5 via-card to-card p-5 shadow-card">
+    <div className="mb-6 rounded-card border border-brand-primary/10 bg-linear-to-r from-brand-primary/5 via-card to-card p-5 shadow-card">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">

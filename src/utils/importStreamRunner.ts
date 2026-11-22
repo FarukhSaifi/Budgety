@@ -86,8 +86,18 @@ function markFilesImporting(job: ImportStreamJob, fileIds: Set<string>): ImportS
   return { ...job, files };
 }
 
-function persist(userId: string, job: ImportStreamJob, enabled: boolean): void {
-  if (enabled) writeImportStreamJob(userId, job);
+function persist(userId: string, job: ImportStreamJob, enabled: boolean): boolean {
+  if (!enabled) return true;
+  return writeImportStreamJob(userId, job);
+}
+
+function markPersistFailure(job: ImportStreamJob): ImportStreamJob {
+  return {
+    ...syncFileStatuses(job),
+    status: IMPORT_JOB_STATUS.INTERRUPTED,
+    lastError: IMPORT_STREAM.PERSIST_FAILED_REASON,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /**
@@ -108,7 +118,13 @@ export async function runImportStream(
   };
   job.totalBatches = recomputeTotalBatches(job);
   job = syncFileStatuses(job);
-  persist(job.userId, job, persistEnabled);
+  if (!persist(job.userId, job, persistEnabled)) {
+    job = markPersistFailure(job);
+    // Best-effort write of the failure marker; ignore a second quota miss.
+    persist(job.userId, job, persistEnabled);
+    options.onProgress?.(countRecordsByStatus(job), job);
+    return { job, savedIds: [...job.importedTxIds], fullySuccessful: false };
+  }
 
   const createdAt = nowISO();
   const savedIds: string[] = [...job.importedTxIds];
@@ -138,7 +154,12 @@ export async function runImportStream(
 
     const fileIds = new Set(chunk.map((row) => row.sourceFileId));
     job = markFilesImporting(job, fileIds);
-    persist(job.userId, job, persistEnabled);
+    if (!persist(job.userId, job, persistEnabled)) {
+      job = markPersistFailure(job);
+      persist(job.userId, job, persistEnabled);
+      emitProgress();
+      return { job, savedIds, fullySuccessful: false };
+    }
     emitProgress();
 
     const keys = chunk.map((row) => row.key);
@@ -158,7 +179,32 @@ export async function runImportStream(
       };
       job = syncFileStatuses(job);
       job.totalBatches = recomputeTotalBatches(job);
-      persist(job.userId, job, persistEnabled);
+      if (!persist(job.userId, job, persistEnabled)) {
+        // Firestore writes already landed — keep imported marks; warn that resume map may be stale.
+        // Last batch: finalize success instead of false INTERRUPTED (which blocks staging reset).
+        if (getRetryableRows(job).length === 0) {
+          job = finalizeJobStatus(job);
+          if (job.status === IMPORT_JOB_STATUS.COMPLETED) {
+            clearOnFullSuccess(job.userId, persistEnabled);
+          } else {
+            job = {
+              ...job,
+              lastError: IMPORT_STREAM.PERSIST_FAILED_REASON,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          emitProgress();
+          return {
+            job,
+            savedIds,
+            fullySuccessful: job.status === IMPORT_JOB_STATUS.COMPLETED,
+          };
+        }
+        job = markPersistFailure(job);
+        persist(job.userId, job, persistEnabled);
+        emitProgress();
+        return { job, savedIds, fullySuccessful: false };
+      }
       emitProgress();
 
       batchCursor += 1;
@@ -177,7 +223,14 @@ export async function runImportStream(
         updatedAt: new Date().toISOString(),
       };
       job = syncFileStatuses(job);
-      persist(job.userId, job, persistEnabled);
+      if (!persist(job.userId, job, persistEnabled)) {
+        // Keep FAILED + flagged rows; surface that resume map may be stale.
+        job = {
+          ...job,
+          lastError: IMPORT_STREAM.PERSIST_FAILED_REASON,
+          updatedAt: new Date().toISOString(),
+        };
+      }
       emitProgress();
 
       return { job, savedIds, fullySuccessful: false };
@@ -195,7 +248,13 @@ export async function runImportStream(
       lastError: `PENDING_RECORDS:${gate.pendingRecords}`,
       updatedAt: new Date().toISOString(),
     };
-    persist(job.userId, job, persistEnabled);
+    if (!persist(job.userId, job, persistEnabled)) {
+      job = {
+        ...job,
+        lastError: IMPORT_STREAM.PERSIST_FAILED_REASON,
+        updatedAt: new Date().toISOString(),
+      };
+    }
     emitProgress();
     return { job, savedIds, fullySuccessful: false };
   }
@@ -203,8 +262,13 @@ export async function runImportStream(
   job = finalizeJobStatus(job);
   if (job.status === IMPORT_JOB_STATUS.COMPLETED) {
     clearOnFullSuccess(job.userId, persistEnabled);
-  } else {
-    persist(job.userId, job, persistEnabled);
+  } else if (!persist(job.userId, job, persistEnabled)) {
+    // Import accounting finished in-memory — keep completed_with_errors; only flag resume map.
+    job = {
+      ...job,
+      lastError: IMPORT_STREAM.PERSIST_FAILED_REASON,
+      updatedAt: new Date().toISOString(),
+    };
   }
   emitProgress();
 

@@ -51,6 +51,11 @@ export const GMAIL_DEFAULTS = {
   MAX_SEARCH_RESULTS: 150,
   /** Gmail list API page size (API max 500). */
   SEARCH_PAGE_SIZE: 100,
+  /**
+   * Gmail sync / unlock route `maxDuration`.
+   * Next.js segment config requires a numeric literal in the route file — keep
+   * `export const maxDuration = 120` in those routes equal to this value.
+   */
   MAX_DURATION_SECONDS: 120,
   TOKEN_REFRESH_EXPIRY_THRESHOLD_MS: 60_000,
   /** Signed OAuth `state` lifetime (HMAC payload expiry). */

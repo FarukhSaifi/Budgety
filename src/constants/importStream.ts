@@ -1,12 +1,15 @@
+import { FIRESTORE_QUERY } from "./firestore";
+
 /**
  * Streaming / resumable Review → Import pipeline.
  * Batch size stays under Firestore’s 500-write limit; job state lives in sessionStorage.
+ * BATCH_SIZE / BATCH_PAUSE_MS stay locked to FIRESTORE_QUERY so stream + bulk writer never diverge.
  */
 export const IMPORT_STREAM = {
   /** Rows per Firestore write batch (must stay ≤ 500). */
-  BATCH_SIZE: 400,
+  BATCH_SIZE: FIRESTORE_QUERY.WRITE_BATCH_CHUNK,
   /** Brief pause between successful batches (ms). */
-  BATCH_PAUSE_MS: 75,
+  BATCH_PAUSE_MS: FIRESTORE_QUERY.WRITE_CHUNK_PAUSE_MS,
   STORAGE_PREFIX: "budgety.import.streamJob.",
   JOB_CHANGED_EVENT: "budgety:import-stream-changed",
   /** Synthetic file id when a row has no upload/Gmail source. */
@@ -22,6 +25,8 @@ export const IMPORT_STREAM = {
   MAX_BATCH_ITERATIONS: 10_000,
   /** Generic reason stored when a Firestore batch write fails (no provider detail). */
   BATCH_FAILED_REASON: "IMPORT_BATCH_FAILED",
+  /** sessionStorage quota / write failure — resume state may be incomplete. */
+  PERSIST_FAILED_REASON: "IMPORT_PERSIST_FAILED",
 } as const;
 
 export const IMPORT_RECORD_STATUS = {
@@ -68,6 +73,10 @@ export const IMPORT_STREAM_UI = {
     "{count} transaction(s) failed and were flagged (not dropped). Sample: {sample}",
   COMPLETE_GATE_BLOCKED:
     "Import cannot finish successfully while {pending} transaction(s) are still pending.",
+  BUSY_DISCARD:
+    "Import is still running. Wait for it to finish before discarding the review session.",
+  PERSIST_FAILED:
+    "Could not save import progress for resume (browser storage full or blocked). Keep this tab open and retry failed rows if interrupted.",
   RETRY_FAILED: "Retry failed ({count})",
   RESUME_IMPORT: "Resume import",
   FILES_SUMMARY: "Files: {imported} imported, {failed} failed, {skipped} skipped, {pending} pending",

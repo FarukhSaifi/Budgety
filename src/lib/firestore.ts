@@ -19,12 +19,14 @@ import {
   type QuerySnapshot,
 } from "firebase/firestore";
 
+import { ERROR_MESSAGES } from "@constants";
+
 import { FIRESTORE_COLLECTIONS, FIRESTORE_QUERY, PAYMENT_MODES_LIST } from "@constants/firestore";
 
 import { toStorageDate, todayStorage } from "@utils/dateUtils";
 
 import { buildCategorySeedDocs, resolveCategoryColor } from "@/lib/categoryDefaults";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import type {
   Bill,
   BillStatus,
@@ -549,6 +551,11 @@ export const firestoreApi = {
     const firestore = requireDb();
     if (!items.length) return [];
 
+    const uid = auth?.currentUser?.uid;
+    if (!uid) {
+      throw new Error(ERROR_MESSAGES.IMPORT_REQUIRES_SIGN_IN);
+    }
+
     // Callers should stream in WRITE_BATCH_CHUNK sizes; we still chunk defensively.
     const chunkSize = FIRESTORE_QUERY.WRITE_BATCH_CHUNK;
     const results: Transaction[] = [];
@@ -558,7 +565,10 @@ export const firestoreApi = {
       const batch = writeBatch(firestore);
       for (const tx of chunk) {
         if (!tx.userId) {
-          throw new Error("Cannot import transactions without a signed-in user.");
+          throw new Error(ERROR_MESSAGES.IMPORT_REQUIRES_SIGN_IN);
+        }
+        if (tx.userId !== uid) {
+          throw new Error(ERROR_MESSAGES.IMPORT_USER_MISMATCH);
         }
         const payload = toTransactionWrite(tx);
         const id = tx.id || doc(collection(firestore, FIRESTORE_COLLECTIONS.TRANSACTIONS)).id;

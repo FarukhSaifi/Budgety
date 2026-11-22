@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { ERROR_MESSAGES, GMAIL_DEFAULTS, GMAIL_ERROR_MESSAGES, STATEMENT_IMPORT } from "@constants";
+import { ERROR_MESSAGES, GMAIL_ERROR_MESSAGES, STATEMENT_IMPORT } from "@constants";
 
 import type { GmailUnlockAttachmentRequest } from "@/types/gmail";
 
@@ -16,7 +16,8 @@ import { requireOwnedUserId, UserAuthError } from "@/lib/userAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = GMAIL_DEFAULTS.MAX_DURATION_SECONDS;
+/** Must be a literal — Next.js segment config is statically analyzed (see GMAIL_DEFAULTS.MAX_DURATION_SECONDS). */
+export const maxDuration = 120;
 
 function jsonError(message: string, status: number, code?: string) {
   const body: ParseStatementError = code ? { error: message, code } : { error: message };
@@ -53,11 +54,7 @@ export async function POST(request: Request) {
           authErr.status === 401 ? STATEMENT_IMPORT.AUTH_UNAUTHORIZED_CODE : undefined,
         );
       }
-      return jsonError(
-        GMAIL_ERROR_MESSAGES.ACCOUNT_NOT_CONNECTED,
-        401,
-        STATEMENT_IMPORT.AUTH_UNAUTHORIZED_CODE,
-      );
+      return jsonError(GMAIL_ERROR_MESSAGES.ACCOUNT_NOT_CONNECTED, 401, STATEMENT_IMPORT.AUTH_UNAUTHORIZED_CODE);
     }
 
     let data: Uint8Array;

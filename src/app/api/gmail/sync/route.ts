@@ -33,7 +33,8 @@ import type { MessageParseResult, SyncRequestBody } from "./route.types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = GMAIL_DEFAULTS.MAX_DURATION_SECONDS;
+/** Must be a literal — Next.js segment config is statically analyzed (see GMAIL_DEFAULTS.MAX_DURATION_SECONDS). */
+export const maxDuration = 120;
 
 function lockedAttachmentId(messageId: string, attachmentId: string): string {
   return `${messageId}:${attachmentId}`;
@@ -223,11 +224,7 @@ export async function POST(request: Request) {
       includeAlerts,
       includeStatements: includeAttachments,
     });
-    const messages = await searchGmailMessages(
-      accessToken,
-      query,
-      body.maxEmails || GMAIL_DEFAULTS.MAX_SEARCH_RESULTS,
-    );
+    const messages = await searchGmailMessages(accessToken, query, body.maxEmails || GMAIL_DEFAULTS.MAX_SEARCH_RESULTS);
 
     const messageResults = await runWithConcurrency(messages, GMAIL_DEFAULTS.SYNC_MESSAGE_CONCURRENCY, (item) =>
       processMessage(accessToken, item.id, {
@@ -289,10 +286,9 @@ export async function POST(request: Request) {
     }
 
     // Second pass: AI near-duplicates — flag for Review, never drop.
-    const { transactions: flaggedBatch, meta: aiNearDuplicate } = await flagNearDuplicatesWithAi(
-      uniqueBatch,
-      { existingTransactions },
-    );
+    const { transactions: flaggedBatch, meta: aiNearDuplicate } = await flagNearDuplicatesWithAi(uniqueBatch, {
+      existingTransactions,
+    });
 
     const hadUsableOutcome =
       flaggedBatch.length > 0 ||
