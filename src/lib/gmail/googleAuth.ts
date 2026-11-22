@@ -69,8 +69,7 @@ export async function exchangeCodeForTokens(code: string, redirectUriOverride?: 
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`${GMAIL_ERROR_MESSAGES.OAUTH_EXCHANGE_FAILED}: ${response.status} ${errorText}`);
+    throw new Error(GMAIL_ERROR_MESSAGES.OAUTH_EXCHANGE_FAILED);
   }
 
   return (await response.json()) as GoogleTokens;
@@ -94,8 +93,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<GoogleTo
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`${GMAIL_ERROR_MESSAGES.TOKEN_REFRESH_FAILED}: ${response.status} ${errorText}`);
+    throw new Error(GMAIL_ERROR_MESSAGES.TOKEN_REFRESH_FAILED);
   }
 
   return (await response.json()) as GoogleTokens;

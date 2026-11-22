@@ -5,6 +5,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { VIEW_PERIODS } from "@constants";
 
 import { useAppDispatch, useAppSelector } from "@store/hooks";
+import { loadOlderTransactions } from "@store/slices/transactionsSlice";
 import { setViewPeriod } from "@store/slices/uiSlice";
 import { filterTransactionsByPeriod, mostRecentTransactionMonth } from "@utils/periodFilter";
 import { loadPersistedUiPeriod, savePersistedUiPeriod } from "@utils/uiPeriodStorage";
@@ -41,12 +42,18 @@ function markHydrated() {
  * Hydrates viewPeriod/month/year/range from localStorage, persists changes, and
  * one-shot auto-adjusts when the active filter hides all loaded transactions
  * (typical after import into a non-current statement month + refresh).
+ *
+ * Also pages older transactions when the selected month is empty but more
+ * history may exist on the server (Oct/Nov outside the first 250-row window).
  */
 export function useUiPeriodSync(): void {
   const dispatch = useAppDispatch();
+  const userId = useAppSelector((s) => s.auth.user?.uid);
   const { viewPeriod, selectedMonth, selectedYear, rangeStart, rangeEnd } = useAppSelector((s) => s.ui);
   const transactions = useAppSelector((s) => s.transactions.items);
   const txStatus = useAppSelector((s) => s.transactions.status);
+  const hasMore = useAppSelector((s) => s.transactions.hasMore);
+  const loadingOlder = useAppSelector((s) => s.transactions.loadingOlder);
 
   const hydrated = useSyncExternalStore(subscribeHydration, getHydrationSnapshot, getHydrationServerSnapshot);
   const hadPersistedRef = useRef(false);
@@ -94,13 +101,7 @@ export function useUiPeriodSync(): void {
     }
 
     const periodOptions = { rangeStart, rangeEnd };
-    const filtered = filterTransactionsByPeriod(
-      transactions,
-      viewPeriod,
-      selectedMonth,
-      selectedYear,
-      periodOptions,
-    );
+    const filtered = filterTransactionsByPeriod(transactions, viewPeriod, selectedMonth, selectedYear, periodOptions);
     if (filtered.length > 0) {
       didAutoAdjustRef.current = true;
       return;
@@ -133,6 +134,9 @@ export function useUiPeriodSync(): void {
       }
     }
 
+    // Keep waiting while older pages may still fill the selected month.
+    if (hasMore || loadingOlder) return;
+
     didAutoAdjustRef.current = true;
 
     const recent = mostRecentTransactionMonth(transactions);
@@ -158,5 +162,37 @@ export function useUiPeriodSync(): void {
     selectedYear,
     rangeStart,
     rangeEnd,
+    hasMore,
+    loadingOlder,
+  ]);
+
+  // When the selected month is empty but more history exists, page older txs
+  // until the month has rows or the server is exhausted.
+  useEffect(() => {
+    if (!hydrated || !userId) return;
+    if (txStatus !== "succeeded") return;
+    if (viewPeriod !== VIEW_PERIODS.MONTHLY) return;
+    if (!hasMore || loadingOlder) return;
+
+    const filtered = filterTransactionsByPeriod(transactions, viewPeriod, selectedMonth, selectedYear, {
+      rangeStart,
+      rangeEnd,
+    });
+    if (filtered.length > 0) return;
+
+    void dispatch(loadOlderTransactions(userId));
+  }, [
+    hydrated,
+    userId,
+    txStatus,
+    viewPeriod,
+    selectedMonth,
+    selectedYear,
+    rangeStart,
+    rangeEnd,
+    transactions,
+    hasMore,
+    loadingOlder,
+    dispatch,
   ]);
 }

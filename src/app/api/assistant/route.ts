@@ -4,6 +4,7 @@ import { DISPLAY_LIMITS, ERROR_MESSAGES, STATEMENT_IMPORT } from "@constants";
 
 import { generateGeminiText, hasGeminiApiKey } from "@/lib/ai/geminiClient";
 import { buildAssistantSystemPrompt, formatSnapshotForPrompt, type FinanceSnapshot } from "@/lib/assistant/prompt";
+import { requireUserFromRequest, UserAuthError } from "@/lib/userAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ function jsonError(message: string, status: number) {
 
 export async function POST(request: Request) {
   try {
+    await requireUserFromRequest(request);
+
     let body: AssistantBody;
     try {
       body = (await request.json()) as AssistantBody;
@@ -60,6 +63,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ reply });
   } catch (err) {
+    if (err instanceof UserAuthError) {
+      return jsonError(
+        err.message === "UNAUTHORIZED" ? ERROR_MESSAGES.AUTH_REQUIRED : err.message,
+        err.status,
+      );
+    }
     const message = err instanceof Error && err.message ? err.message : ERROR_MESSAGES.ASSISTANT_FAILED;
     if (message === "AI_REQUEST_TIMEOUT" || message === ERROR_MESSAGES.ASSISTANT_TIMEOUT) {
       return jsonError(ERROR_MESSAGES.ASSISTANT_TIMEOUT, 504);
@@ -67,6 +76,7 @@ export async function POST(request: Request) {
     if (message === ERROR_MESSAGES.AI_API_KEY_MISSING) {
       return jsonError(message, 503);
     }
+    // Never forward unexpected Error.message (may embed upstream bodies).
     return jsonError(ERROR_MESSAGES.ASSISTANT_FAILED, 500);
   }
 }

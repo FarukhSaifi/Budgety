@@ -51,7 +51,11 @@ function requireDb() {
   return db;
 }
 
-/** Normalize any date input to YYYY-MM-DD for storage and month filters. */
+/**
+ * Normalize any date input to YYYY-MM-DD for storage and month filters.
+ * Prefer calendar-local parsing via toStorageDate — never invent "today" for
+ * unparseable non-empty values (that wrongly buckets Oct/Nov imports into the current month).
+ */
 function normalizeTxDate(value: unknown): string {
   const raw = String(value ?? "").trim();
   if (!raw) return todayStorage();
@@ -167,6 +171,7 @@ export function mapBillDoc(id: string, data: DocumentData): Bill {
     isRecurring: data.isRecurring !== false,
     reminderDays: Number(data.reminderDays) || 3,
     category: data.category ? String(data.category) : undefined,
+    source: data.source ? String(data.source) : undefined,
     createdAt: data.createdAt ? String(data.createdAt) : undefined,
   };
 }
@@ -186,6 +191,7 @@ export function toBillWrite(b: Partial<Bill> & { userId: string }) {
     isRecurring: b.isRecurring !== false,
     reminderDays: b.reminderDays ?? 3,
     category: b.category ?? null,
+    source: b.source ?? null,
     createdAt: b.createdAt ?? new Date().toISOString(),
   };
 }
@@ -543,10 +549,7 @@ export const firestoreApi = {
     const firestore = requireDb();
     if (!items.length) return [];
 
-    if (items.length > FIRESTORE_QUERY.IMPORT_MAX_ROWS) {
-      throw new Error(`IMPORT_TOO_LARGE:${items.length}:${FIRESTORE_QUERY.IMPORT_MAX_ROWS}`);
-    }
-
+    // Callers should stream in WRITE_BATCH_CHUNK sizes; we still chunk defensively.
     const chunkSize = FIRESTORE_QUERY.WRITE_BATCH_CHUNK;
     const results: Transaction[] = [];
 
@@ -740,6 +743,7 @@ export const firestoreApi = {
     if (patch.isRecurring != null) payload.isRecurring = patch.isRecurring !== false;
     if (patch.reminderDays != null) payload.reminderDays = patch.reminderDays;
     if (patch.category !== undefined) payload.category = patch.category ?? null;
+    if (patch.source !== undefined) payload.source = patch.source ?? null;
     const ref = doc(firestore, FIRESTORE_COLLECTIONS.BILLS, id);
     await updateDoc(ref, payload);
     const snap = await getDoc(ref);

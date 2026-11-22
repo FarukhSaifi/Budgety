@@ -1,27 +1,45 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 
 import readXlsxFile from "read-excel-file/browser";
 
 import {
   ERROR_MESSAGES,
+  GMAIL_DEFAULTS,
+  GMAIL_ERROR_MESSAGES,
+  GMAIL_UI_TEXT,
+  IMPORT_FILE_STATUS,
+  IMPORT_JOB_STATUS,
   IMPORT_PREVIEW_SORT,
   IMPORT_PREVIEW_SORT_KEYS,
+  IMPORT_PROGRESS_STAGES,
+  IMPORT_RECORD_STATUS,
+  IMPORT_STREAM,
+  IMPORT_STREAM_UI,
+  PERCENTAGE_THRESHOLDS,
   SORT_DIRECTIONS,
   STATEMENT_IMPORT,
   TIMEOUTS,
   UI_TEXT,
-  VIEW_PERIODS,
 } from "@constants";
 
-import { DEFAULT_CATEGORY_COLOR, FIRESTORE_QUERY } from "@constants/firestore";
+import { DEFAULT_CATEGORY_COLOR } from "@constants/firestore";
 
-import type { GmailSyncResponse } from "@/types/gmail";
+import type { GmailLockedAttachment, GmailSyncResponse } from "@/types/gmail";
 
 import { Button } from "@components/common/Button";
 import { ConfirmDialog } from "@components/common/ConfirmDialog";
-import { Spinner } from "@components/common/Spinner";
+import { ProgressPercent } from "@components/common/ProgressPercent";
 import { GmailSyncPanel } from "@components/features/transactions/GmailSyncPanel";
 import ImportPreviewRow from "@components/features/transactions/ImportPreviewRow";
 import { ImportStepper, type ImportStep } from "@components/features/transactions/ImportStepper";
@@ -36,13 +54,16 @@ import {
   DownloadIcon,
   HealthAndSafetyIcon,
   HelpOutlineIcon,
+  KeyIcon,
   ListAltIcon,
+  ShieldLockIcon,
   VisibilityIcon,
   WarningIcon,
 } from "@components/icons";
 import { TransactionModal } from "@components/screens/transactions/TransactionModal";
 
 import { useDuplicateKeys } from "@hooks/useDuplicateKeys";
+import { useEstimatedProgress } from "@hooks/useEstimatedProgress";
 import { useAppDispatch, useAppSelector } from "@store/hooks";
 import { addCategoriesBulk } from "@store/slices/categoriesSlice";
 import {
@@ -50,47 +71,47 @@ import {
   deleteImportedTransactions,
   deleteTransactionsByIds,
 } from "@store/slices/transactionsSlice";
-import { setSearchQuery, setSelectedCategory, setViewPeriod } from "@store/slices/uiSlice";
 import { detectColumnMapping, extractTransactionData } from "@utils/bankStatementParser";
 import { collectNovelCategories } from "@utils/categoryNormalize";
 import { cn } from "@utils/cn";
-import { getMonthYear } from "@utils/dateUtils";
 import { filterDuplicates } from "@utils/duplicateDetection";
-import { applySmartRulesToStaging, enrichStagingCategoriesWithAi } from "@utils/enrichStagingCategories";
+import { enrichStagingCategoriesWithAi } from "@utils/enrichStagingCategories";
+import { focusUiOnImported } from "@utils/focusUiOnImported";
+import { clearLockedQueue, mergeLockedQueue, readLockedQueue, removeLockedItem } from "@utils/gmailLockedQueue";
+import { clearReviewStaging, readReviewStaging, takeReviewStaging } from "@utils/gmailReviewQueue";
 import {
+  parsedToStaging,
   prepareRowForDuplicateCheck,
   rawRowsToStaging,
   sortStagingRows,
-  stagingToTransactions,
   validateColumnMapping,
   type ImportPreviewSortKey,
   type SortDirection,
   type StagingRow,
 } from "@utils/importHelpers";
+import type { ImportStreamJob, ImportStreamProgress } from "@utils/importStream.types";
+import {
+  attachSourceToRows,
+  buildImportFingerprint,
+  clearImportStreamJob,
+  countRecordsByStatus,
+  createImportStreamJob,
+  jobHasRetryableWork,
+  listFailedFileNames,
+  listFailedRecordSamples,
+  markJobInterrupted,
+  readImportStreamJob,
+  writeImportStreamJob,
+} from "@utils/importStreamJob";
+import { interruptImportStream, runImportStream } from "@utils/importStreamRunner";
 import { showError, showInfo, showSuccess } from "@utils/toast";
 
+import { authedFetch } from "@/lib/authedApiClient";
+import { mapStatementApiError } from "@/lib/statement/pdfPasswordError";
 import type { DiscoveredCategories, ParsedStatementTransaction } from "@/lib/statement/types";
-import type { Transaction, ViewPeriod } from "@/types";
+import type { Transaction } from "@/types";
 
-export interface BankStatementImportProps {
-  onClose?: () => void;
-}
-
-function parsedToStaging(rows: ParsedStatementTransaction[]): StagingRow[] {
-  return rows.map((row) => ({
-    key:
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    title: row.title || row.description || "",
-    amount: Number(row.amount) || 0,
-    type: row.type === "income" ? "income" : "expense",
-    category: row.category,
-    paymentMode: row.paymentMode,
-    date: row.date,
-    selected: true,
-  }));
-}
+import type { BankStatementImportProps } from "./BankStatementImport.types";
 
 function isAcceptedFile(file: File): boolean {
   const name = file.name.toLowerCase();
@@ -126,17 +147,93 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   const [staging, setStaging] = useState<StagingRow[]>([]);
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<ImportStreamProgress | null>(null);
+  const [streamJobSnapshot, setStreamJobSnapshot] = useState<ImportStreamJob | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
   const [lastImportBatchIds, setLastImportBatchIds] = useState<string[]>([]);
+  const importInFlightRef = useRef(false);
+  const activeStreamJobRef = useRef<ImportStreamJob | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [pdfLocked, setPdfLocked] = useState(false);
+  const [pdfPassword, setPdfPassword] = useState("");
+  const [pdfPasswordError, setPdfPasswordError] = useState<string | null>(null);
+  const [gmailLockedQueue, setGmailLockedQueue] = useState<GmailLockedAttachment[]>([]);
+  /** Session baseline for unlock progress (unlocked = baseline − remaining). */
+  const [initialLockedTotal, setInitialLockedTotal] = useState(0);
+  const [unlockingGmail, setUnlockingGmail] = useState(false);
   const [showCleanupDialog, setShowCleanupDialog] = useState(false);
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
   const [sortKey, setSortKey] = useState<ImportPreviewSortKey>(IMPORT_PREVIEW_SORT.DEFAULT_KEY);
   const [sortDirection, setSortDirection] = useState<SortDirection>(IMPORT_PREVIEW_SORT.DEFAULT_DIRECTION);
   const [canRetryParse, setCanRetryParse] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLElement>(null);
+  const unlockPanelRef = useRef<HTMLElement>(null);
+  const shouldScrollToPreviewRef = useRef(false);
+  const shouldScrollToUnlockRef = useRef(false);
   const lastFailedFileRef = useRef<File | null>(null);
+  const prevGmailLockedCountRef = useRef(0);
+  const parseProgress = useEstimatedProgress(parsing, { stages: IMPORT_PROGRESS_STAGES });
+
+  useEffect(() => {
+    if (!userId) {
+      setGmailLockedQueue([]);
+      setInitialLockedTotal(0);
+      prevGmailLockedCountRef.current = 0;
+      return;
+    }
+
+    const refreshQueue = () => {
+      setGmailLockedQueue(readLockedQueue(userId));
+    };
+
+    refreshQueue();
+
+    const onQueueChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string }>).detail;
+      if (detail?.userId && detail.userId !== userId) return;
+      refreshQueue();
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === GMAIL_DEFAULTS.DOCUMENT_VISIBLE_STATE) refreshQueue();
+    };
+
+    window.addEventListener(GMAIL_DEFAULTS.LOCKED_QUEUE_CHANGED_EVENT, onQueueChanged);
+    window.addEventListener(GMAIL_DEFAULTS.WINDOW_FOCUS_EVENT, refreshQueue);
+    document.addEventListener(GMAIL_DEFAULTS.DOCUMENT_VISIBILITY_EVENT, onVisible);
+    return () => {
+      window.removeEventListener(GMAIL_DEFAULTS.LOCKED_QUEUE_CHANGED_EVENT, onQueueChanged);
+      window.removeEventListener(GMAIL_DEFAULTS.WINDOW_FOCUS_EVENT, refreshQueue);
+      document.removeEventListener(GMAIL_DEFAULTS.DOCUMENT_VISIBILITY_EVENT, onVisible);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    const remaining = gmailLockedQueue.length;
+    if (remaining === 0) {
+      setInitialLockedTotal(0);
+      prevGmailLockedCountRef.current = 0;
+      return;
+    }
+    setInitialLockedTotal((prev) => {
+      if (prev === 0) {
+        shouldScrollToUnlockRef.current = true;
+        return remaining;
+      }
+      const grewBy = Math.max(0, remaining - prevGmailLockedCountRef.current);
+      if (grewBy > 0) shouldScrollToUnlockRef.current = true;
+      return prev + grewBy;
+    });
+    prevGmailLockedCountRef.current = remaining;
+  }, [gmailLockedQueue]);
+
+  useEffect(() => {
+    if (!shouldScrollToPreviewRef.current || staging.length === 0) return;
+    shouldScrollToPreviewRef.current = false;
+    previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [staging.length]);
 
   const duplicateKeys = useDuplicateKeys(staging, transactions);
 
@@ -158,13 +255,42 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     [staging, duplicateKeys],
   );
 
+  const aiDuplicateCount = useMemo(
+    () => staging.filter((r) => r.possibleAiDuplicate && !duplicateKeys.has(r.key)).length,
+    [staging, duplicateKeys],
+  );
+  const selectedAiDuplicateCount = useMemo(
+    () => staging.filter((r) => r.selected && r.possibleAiDuplicate && !duplicateKeys.has(r.key)).length,
+    [staging, duplicateKeys],
+  );
+
   const categorizedPct = useMemo(() => {
     if (!staging.length) return 0;
     const withCat = staging.filter((r) => Boolean(r.category)).length;
     return Math.round((withCat / staging.length) * 100);
   }, [staging]);
 
-  const activeStep: ImportStep = importing || importedCount > 0 ? 3 : staging.length > 0 ? 2 : 1;
+  const activeGmailLocked = gmailLockedQueue[0] ?? null;
+  const showUnlockPanel = pdfLocked || gmailLockedQueue.length > 0;
+
+  useEffect(() => {
+    if (!shouldScrollToUnlockRef.current || !showUnlockPanel) return;
+    shouldScrollToUnlockRef.current = false;
+    unlockPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showUnlockPanel, gmailLockedQueue.length]);
+
+  const gmailLockedRemaining = gmailLockedQueue.length;
+  const gmailLockedTotal = Math.max(initialLockedTotal, gmailLockedRemaining);
+  const gmailUnlockedCount = Math.max(0, gmailLockedTotal - gmailLockedRemaining);
+  const unlockProgressPercent = pdfLocked
+    ? PERCENTAGE_THRESHOLDS.MIN
+    : gmailLockedTotal > 0
+      ? (gmailUnlockedCount / gmailLockedTotal) * PERCENTAGE_THRESHOLDS.MAX
+      : PERCENTAGE_THRESHOLDS.MIN;
+  const unlockWaitingCount = pdfLocked ? 1 : gmailLockedRemaining;
+  const unlockProgressUnlocked = pdfLocked ? 0 : gmailUnlockedCount;
+  const unlockProgressTotal = pdfLocked ? 1 : gmailLockedTotal;
+  const activeStep: ImportStep = importing || importedCount > 0 ? 3 : staging.length > 0 || showUnlockPanel ? 2 : 1;
 
   const persistDiscoveredCategories = useCallback(
     (discovered: DiscoveredCategories | undefined) => {
@@ -220,20 +346,49 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     [sortKey],
   );
 
-  const resetImport = useCallback(() => {
+  const resetStaging = useCallback(() => {
     setStaging([]);
     setFile(null);
     setParsing(false);
     setImporting(false);
+    setImportProgress(null);
+    setStreamJobSnapshot(null);
+    activeStreamJobRef.current = null;
+    importInFlightRef.current = false;
     setParseError(null);
+    setPdfLocked(false);
+    setPdfPassword("");
+    setPdfPasswordError(null);
+    setUnlockingGmail(false);
     lastFailedFileRef.current = null;
     setCanRetryParse(false);
+    if (userId) {
+      clearReviewStaging(userId);
+      clearImportStreamJob(userId);
+    }
     if (inputRef.current) inputRef.current.value = "";
-  }, []);
+  }, [userId]);
+
+  const resetImport = useCallback(() => {
+    resetStaging();
+    if (userId) {
+      clearLockedQueue(userId);
+      clearReviewStaging(userId);
+    }
+    setGmailLockedQueue([]);
+    setInitialLockedTotal(0);
+    prevGmailLockedCountRef.current = 0;
+  }, [resetStaging, userId]);
 
   const applyStaging = useCallback(
-    (rows: StagingRow[]) => {
-      setStaging(withDuplicatesUnchecked(rows, transactions));
+    (rows: StagingRow[], sourceName?: string) => {
+      const named = sourceName
+        ? attachSourceToRows(rows, {
+            id: `local:${sourceName}`,
+            name: sourceName,
+          })
+        : rows;
+      setStaging(withDuplicatesUnchecked(named, transactions));
     },
     [transactions],
   );
@@ -247,11 +402,14 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   );
 
   const parseViaApi = useCallback(
-    async (selected: File) => {
+    async (selected: File, password?: string) => {
       const form = new FormData();
       form.append(STATEMENT_IMPORT.FIELD_NAME, selected);
+      if (password?.trim()) {
+        form.append(STATEMENT_IMPORT.PASSWORD_FIELD_NAME, password.trim());
+      }
 
-      const res = await fetch("/api/parse-statement", {
+      const res = await authedFetch("/api/parse-statement", {
         method: "POST",
         body: form,
       });
@@ -260,19 +418,30 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         transactions?: ParsedStatementTransaction[];
         meta?: { discoveredCategories?: DiscoveredCategories };
         error?: string;
+        code?: string;
       };
 
       if (!res.ok) {
-        throw new Error(data.error || ERROR_MESSAGES.PARSE_STATEMENT_FAILED);
+        const mapped = mapStatementApiError(res.status, data, ERROR_MESSAGES.PARSE_STATEMENT_FAILED);
+        const err = new Error(mapped.message) as Error & { code?: string };
+        if (mapped.kind === "pdf_password" && mapped.code) {
+          err.code = mapped.code;
+        }
+        throw err;
       }
 
       if (!data.transactions?.length) {
         throw new Error(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS);
       }
 
-      const rows = applySmartRulesToStaging(parsedToStaging(data.transactions), rules);
+      const { rows, discovered: enrichedDiscovered } = await enrichStagingCategoriesWithAi(
+        parsedToStaging(data.transactions),
+        { income: catalogLists.income, expense: catalogLists.expense },
+        rules,
+      );
       const discovered =
         data.meta?.discoveredCategories ??
+        enrichedDiscovered ??
         collectNovelCategories(rows, {
           income: catalogLists.income,
           expense: catalogLists.expense,
@@ -281,6 +450,14 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     },
     [catalogLists.expense, catalogLists.income, rules],
   );
+
+  const isPdfPasswordError = useCallback((err: unknown): err is Error & { code: string } => {
+    if (!(err instanceof Error)) return false;
+    const code = (err as Error & { code?: string }).code;
+    return (
+      code === STATEMENT_IMPORT.PDF_PASSWORD_CODES.REQUIRED || code === STATEMENT_IMPORT.PDF_PASSWORD_CODES.INCORRECT
+    );
+  }, []);
 
   const parseExcelClient = useCallback(
     async (selected: File) => {
@@ -344,7 +521,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
   );
 
   const handleFile = useCallback(
-    async (selected: File) => {
+    async (selected: File, password?: string) => {
       if (!isAcceptedFile(selected)) {
         showError(ERROR_MESSAGES.STATEMENT_UNSUPPORTED_TYPE);
         return;
@@ -359,6 +536,11 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       setParsing(true);
       setStaging([]);
       setParseError(null);
+      setPdfPasswordError(null);
+      if (!password) {
+        setPdfLocked(false);
+        setPdfPassword("");
+      }
       lastFailedFileRef.current = selected;
       setCanRetryParse(true);
 
@@ -375,39 +557,294 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         } else if (name.endsWith(".xls") && !name.endsWith(".xlsx")) {
           throw new Error(ERROR_MESSAGES.EXCEL_LEGACY_XLS_UNSUPPORTED);
         } else {
-          showInfo(UI_TEXT.IMPORT_PARSING);
-          const result = await parseViaApi(selected);
+          showInfo(password ? UI_TEXT.IMPORT_PDF_UNLOCKING : UI_TEXT.IMPORT_PARSING);
+          const result = await parseViaApi(selected, password);
           rows = result.rows;
           discovered = result.discovered;
         }
 
         persistDiscoveredCategories(discovered);
-        applyStaging(rows);
+        applyStaging(rows, selected.name);
         lastFailedFileRef.current = null;
         setCanRetryParse(false);
+        setPdfLocked(false);
+        setPdfPassword("");
+        setPdfPasswordError(null);
       } catch (err) {
+        if (isPdfPasswordError(err)) {
+          setPdfLocked(true);
+          setParseError(null);
+          setPdfPasswordError(
+            err.code === STATEMENT_IMPORT.PDF_PASSWORD_CODES.INCORRECT
+              ? ERROR_MESSAGES.PDF_PASSWORD_INCORRECT
+              : ERROR_MESSAGES.PDF_PASSWORD_REQUIRED,
+          );
+          setCanRetryParse(true);
+          return;
+        }
+
         const message = err instanceof Error && err.message ? err.message : ERROR_MESSAGES.PARSE_STATEMENT_FAILED;
         setParseError(message);
         showError(message);
         setFile(null);
+        setPdfLocked(false);
       } finally {
         setParsing(false);
       }
     },
-    [applyStaging, parseExcelClient, parseViaApi, persistDiscoveredCategories],
+    [applyStaging, isPdfPasswordError, parseExcelClient, parseViaApi, persistDiscoveredCategories],
   );
+
+  const handleUnlockPdf = useCallback(() => {
+    const lockedFile = lastFailedFileRef.current ?? file;
+    if (!lockedFile) return;
+    if (!pdfPassword.trim()) {
+      setPdfPasswordError(ERROR_MESSAGES.PDF_PASSWORD_REQUIRED);
+      return;
+    }
+    void handleFile(lockedFile, pdfPassword);
+  }, [file, handleFile, pdfPassword]);
+
+  const appendStagingRows = useCallback(
+    (rows: StagingRow[]) => {
+      const withSource = rows.map((row) =>
+        row.sourceFileId
+          ? row
+          : {
+              ...row,
+              sourceFileId: IMPORT_STREAM.FALLBACK_FILE_ID,
+              sourceFileName: IMPORT_STREAM.FALLBACK_FILE_NAME,
+            },
+      );
+      setStaging((prev) => withDuplicatesUnchecked([...prev, ...withSource], transactions));
+    },
+    [transactions],
+  );
+
+  /** Hydrate session review queue (auto-sync / cross-route handoff) into the staging table. */
+  useEffect(() => {
+    if (!userId) return;
+
+    let hydrating = false;
+
+    const hydrateReviewQueue = () => {
+      if (hydrating) return;
+      // Peek first so concurrent focus/visibility events cannot drain a partial write mid-merge.
+      if (readReviewStaging(userId).length === 0) return;
+
+      hydrating = true;
+      const pending = takeReviewStaging(userId);
+      if (pending.length === 0) {
+        hydrating = false;
+        return;
+      }
+
+      shouldScrollToPreviewRef.current = true;
+      void enrichStagingCategoriesWithAi(
+        pending,
+        { income: catalogLists.income, expense: catalogLists.expense },
+        rules,
+      )
+        .then(({ rows, discovered }) => {
+          appendStagingRows(rows);
+          persistDiscoveredCategories(discovered);
+        })
+        .catch(() => {
+          appendStagingRows(pending);
+        })
+        .finally(() => {
+          hydrating = false;
+        });
+    };
+
+    hydrateReviewQueue();
+
+    const onReviewChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string }>).detail;
+      if (detail?.userId && detail.userId !== userId) return;
+      hydrateReviewQueue();
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === GMAIL_DEFAULTS.DOCUMENT_VISIBLE_STATE) hydrateReviewQueue();
+    };
+
+    window.addEventListener(GMAIL_DEFAULTS.REVIEW_QUEUE_CHANGED_EVENT, onReviewChanged);
+    window.addEventListener(GMAIL_DEFAULTS.WINDOW_FOCUS_EVENT, hydrateReviewQueue);
+    document.addEventListener(GMAIL_DEFAULTS.DOCUMENT_VISIBILITY_EVENT, onVisible);
+    return () => {
+      window.removeEventListener(GMAIL_DEFAULTS.REVIEW_QUEUE_CHANGED_EVENT, onReviewChanged);
+      window.removeEventListener(GMAIL_DEFAULTS.WINDOW_FOCUS_EVENT, hydrateReviewQueue);
+      document.removeEventListener(GMAIL_DEFAULTS.DOCUMENT_VISIBILITY_EVENT, onVisible);
+    };
+  }, [
+    appendStagingRows,
+    catalogLists.expense,
+    catalogLists.income,
+    persistDiscoveredCategories,
+    rules,
+    userId,
+  ]);
+
+  const unlockInFlightRef = useRef(false);
+
+  const handleUnlockGmailAttachment = useCallback(async () => {
+    if (!userId || !activeGmailLocked) return;
+    if (unlockInFlightRef.current) return;
+    if (!pdfPassword.trim()) {
+      setPdfPasswordError(ERROR_MESSAGES.PDF_PASSWORD_REQUIRED);
+      return;
+    }
+
+    unlockInFlightRef.current = true;
+    setUnlockingGmail(true);
+    setPdfPasswordError(null);
+    showInfo(UI_TEXT.IMPORT_PDF_UNLOCKING);
+
+    try {
+      const res = await authedFetch("/api/gmail/unlock-attachment", {
+        method: "POST",
+        body: JSON.stringify({
+          userId,
+          messageId: activeGmailLocked.messageId,
+          attachmentId: activeGmailLocked.attachmentId,
+          filename: activeGmailLocked.filename,
+          pdfPassword: pdfPassword.trim(),
+        }),
+      });
+
+      const data = (await res.json()) as {
+        transactions?: ParsedStatementTransaction[];
+        meta?: { discoveredCategories?: DiscoveredCategories };
+        error?: string;
+        code?: string;
+      };
+
+      if (!res.ok) {
+        const mapped = mapStatementApiError(
+          res.status,
+          data,
+          GMAIL_ERROR_MESSAGES.UNLOCK_ATTACHMENT_FAILED,
+        );
+        if (mapped.kind === "pdf_password") {
+          setPdfPasswordError(mapped.message);
+          return;
+        }
+        // Auth 401 / UNAUTHORIZED — never show incorrect-password copy.
+        setPdfPasswordError(mapped.message);
+        showError(mapped.message);
+        return;
+      }
+
+      if (!data.transactions?.length) {
+        throw new Error(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS);
+      }
+
+      const { rows, discovered } = await enrichStagingCategoriesWithAi(
+        parsedToStaging(data.transactions),
+        { income: catalogLists.income, expense: catalogLists.expense },
+        rules,
+      );
+      const sourced = attachSourceToRows(rows, {
+        id: `gmail:${activeGmailLocked.messageId}:${activeGmailLocked.attachmentId}`,
+        name: activeGmailLocked.filename || IMPORT_STREAM.FALLBACK_FILE_NAME,
+        messageId: activeGmailLocked.messageId,
+        attachmentId: activeGmailLocked.attachmentId,
+      });
+      shouldScrollToPreviewRef.current = true;
+      appendStagingRows(sourced);
+      // Prefer AI-enriched discoveries from staging; skip duplicate meta persist.
+      persistDiscoveredCategories(discovered);
+
+      const nextQueue = removeLockedItem(userId, activeGmailLocked.id);
+      setGmailLockedQueue(nextQueue);
+      setPdfPassword("");
+      setPdfPasswordError(null);
+    } catch (err) {
+      const message = err instanceof Error && err.message ? err.message : GMAIL_ERROR_MESSAGES.UNLOCK_ATTACHMENT_FAILED;
+      setPdfPasswordError(message);
+      showError(message);
+    } finally {
+      unlockInFlightRef.current = false;
+      setUnlockingGmail(false);
+    }
+  }, [
+    activeGmailLocked,
+    appendStagingRows,
+    catalogLists.expense,
+    catalogLists.income,
+    pdfPassword,
+    persistDiscoveredCategories,
+    rules,
+    userId,
+  ]);
+
+  const handleSkipGmailLocked = useCallback(() => {
+    if (!userId || !activeGmailLocked) return;
+    const skippedName = activeGmailLocked.filename || IMPORT_STREAM.FALLBACK_FILE_NAME;
+    const nextQueue = removeLockedItem(userId, activeGmailLocked.id);
+    setGmailLockedQueue(nextQueue);
+    setPdfPassword("");
+    setPdfPasswordError(null);
+    showInfo(
+      IMPORT_STREAM_UI.FILE_FAILURE_BANNER.replace("{count}", "1").replace("{names}", skippedName),
+    );
+  }, [activeGmailLocked, userId]);
+
+  const handleUnlockSubmit = useCallback(() => {
+    if (pdfLocked) {
+      handleUnlockPdf();
+      return;
+    }
+    void handleUnlockGmailAttachment();
+  }, [handleUnlockGmailAttachment, handleUnlockPdf, pdfLocked]);
 
   const handleGmailTransactions = useCallback(
     (parsed: ParsedStatementTransaction[], meta: GmailSyncResponse["meta"]) => {
       setFile(null);
       setParseError(null);
-      const rows = applySmartRulesToStaging(parsedToStaging(parsed), rules);
-      applyStaging(rows);
-      if (meta.discoveredCategories) {
+      setPdfLocked(false);
+      setPdfPassword("");
+      setPdfPasswordError(null);
+
+      const locked = meta.lockedAttachments ?? [];
+      if (userId && locked.length > 0) {
+        setGmailLockedQueue(mergeLockedQueue(userId, locked));
+      } else if (userId) {
+        setGmailLockedQueue(readLockedQueue(userId));
+      }
+
+      if (parsed.length > 0) {
+        shouldScrollToPreviewRef.current = true;
+        // Same AI/keyword enrichment as Excel import — Gmail alerts often land as Other.
+        void enrichStagingCategoriesWithAi(
+          parsedToStaging(parsed),
+          { income: catalogLists.income, expense: catalogLists.expense },
+          rules,
+        ).then(({ rows, discovered }) => {
+          appendStagingRows(
+            attachSourceToRows(rows, {
+              id: `gmail:sync:${Date.now()}`,
+              name: GMAIL_UI_TEXT.SECTION_AUTOMATION,
+            }),
+          );
+          persistDiscoveredCategories(discovered);
+          if (meta.discoveredCategories) {
+            persistDiscoveredCategories(meta.discoveredCategories);
+          }
+        });
+      } else if (meta.discoveredCategories) {
         persistDiscoveredCategories(meta.discoveredCategories);
       }
     },
-    [applyStaging, persistDiscoveredCategories, rules],
+    [
+      appendStagingRows,
+      catalogLists.expense,
+      catalogLists.income,
+      persistDiscoveredCategories,
+      rules,
+      userId,
+    ],
   );
 
   const onInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -426,44 +863,140 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, selected } : row)));
   }, []);
 
-  const handleCategoryChange = useCallback((key: string, category: string) => {
-    setStaging((prev) => prev.map((row) => (row.key === key ? { ...row, category, userOverridden: true } : row)));
+  const handleRowChange = useCallback((key: string, patch: Partial<StagingRow>) => {
+    setStaging((prev) =>
+      prev.map((row) => (row.key === key ? { ...row, ...patch, userOverridden: true } : row)),
+    );
   }, []);
 
-  const focusUiOnImported = useCallback(
-    (saved: Transaction[]) => {
-      const buckets = new Map<string, { month: number; year: number }>();
-      saved.forEach((tx) => {
-        const my = getMonthYear(tx.date);
-        if (!my) return;
-        buckets.set(`${my.year}-${my.month}`, my);
-      });
+  const finishStreamResult = useCallback(
+    (result: Awaited<ReturnType<typeof runImportStream>>, selectedDupCount: number) => {
+      const { job, savedIds, fullySuccessful } = result;
+      const counts = countRecordsByStatus(job);
+      setStreamJobSnapshot(job);
+      setImportProgress(counts);
+      activeStreamJobRef.current = job;
 
-      dispatch(setSelectedCategory(""));
-      dispatch(setSearchQuery(""));
+      if (savedIds.length > 0) {
+        setLastImportBatchIds(savedIds);
+        setImportedCount(counts.importedRecords);
+        const focusRows = job.rows
+          .filter((row) => job.records[row.key]?.status === IMPORT_RECORD_STATUS.IMPORTED)
+          .map(
+            (row) =>
+              ({
+                id: row.key,
+                date: row.date,
+                amount: row.amount,
+                type: row.type,
+                title: row.title,
+              }) as Transaction,
+          );
+        focusUiOnImported(dispatch, focusRows);
+      }
 
-      if (buckets.size === 1) {
-        const only = [...buckets.values()][0];
-        dispatch(
-          setViewPeriod({
-            viewPeriod: VIEW_PERIODS.MONTHLY as ViewPeriod,
-            selectedMonth: only.month,
-            selectedYear: only.year,
-          }),
-        );
+      if (fullySuccessful) {
+        resetStaging();
+        if (selectedDupCount > 0) {
+          showSuccess(
+            UI_TEXT.IMPORT_SUCCESS_WITH_DUPLICATES.replace(
+              "{count}",
+              String(counts.importedRecords),
+            ).replace("{duplicates}", String(selectedDupCount)),
+          );
+        } else {
+          showSuccess(
+            UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(counts.importedRecords)),
+          );
+        }
+        window.setTimeout(() => setImportedCount(0), TIMEOUTS.IMPORT_SUCCESS);
         return;
       }
 
-      if (buckets.size > 1) {
-        dispatch(setViewPeriod({ viewPeriod: VIEW_PERIODS.ALL as ViewPeriod }));
+      const failedFiles = listFailedFileNames(job);
+      const failedSamples = listFailedRecordSamples(job);
+
+      if (counts.pendingRecords > 0) {
+        showError(
+          IMPORT_STREAM_UI.COMPLETE_GATE_BLOCKED.replace("{pending}", String(counts.pendingRecords)),
+        );
+      } else if (counts.failedRecords > 0) {
+        showError(
+          IMPORT_STREAM_UI.PARTIAL_FAILURE.replace("{imported}", String(counts.importedRecords))
+            .replace("{rows}", String(counts.totalRecords))
+            .replace("{failed}", String(counts.failedRecords))
+            .replace("{skipped}", String(counts.skippedRecords))
+            .replace("{sample}", failedSamples.join(", ") || "—"),
+        );
+      }
+
+      if (failedFiles.length > 0) {
+        showInfo(
+          IMPORT_STREAM_UI.FILE_FAILURE_BANNER.replace("{count}", String(failedFiles.length)).replace(
+            "{names}",
+            failedFiles.join(", "),
+          ),
+        );
+      }
+
+      if (counts.failedRecords > 0 && failedSamples.length > 0) {
+        showInfo(
+          IMPORT_STREAM_UI.RECORD_FAILURE_BANNER.replace(
+            "{count}",
+            String(counts.failedRecords),
+          ).replace("{sample}", failedSamples.join(", ")),
+        );
       }
     },
-    [dispatch],
+    [dispatch, resetStaging],
+  );
+
+  const executeImportStream = useCallback(
+    async (job: ImportStreamJob, selectedDupCount: number) => {
+      if (!userId || importInFlightRef.current) return;
+      importInFlightRef.current = true;
+      setImporting(true);
+      activeStreamJobRef.current = job;
+      setStreamJobSnapshot(job);
+      setImportProgress(countRecordsByStatus(job));
+
+      try {
+        const result = await runImportStream(job, {
+          commitBatch: async (items) => dispatch(addTransactionsBulk(items)).unwrap(),
+          onProgress: (progress, liveJob) => {
+            activeStreamJobRef.current = liveJob;
+            setStreamJobSnapshot(liveJob);
+            setImportProgress(progress);
+          },
+        });
+        finishStreamResult(result, selectedDupCount);
+      } catch (err) {
+        const raw =
+          typeof err === "string"
+            ? err
+            : err && typeof err === "object" && "message" in err
+              ? String((err as { message?: unknown }).message || "")
+              : "";
+        const message = /permission|insufficient/i.test(raw)
+          ? ERROR_MESSAGES.IMPORT_FIRESTORE_BLOCKED
+          : raw || ERROR_MESSAGES.SAVE_FAILED;
+        const interrupted = markJobInterrupted(activeStreamJobRef.current || job);
+        writeImportStreamJob(userId, interrupted);
+        activeStreamJobRef.current = interrupted;
+        setStreamJobSnapshot(interrupted);
+        setImportProgress(countRecordsByStatus(interrupted));
+        showError(message);
+      } finally {
+        importInFlightRef.current = false;
+        setImporting(false);
+      }
+    },
+    [dispatch, finishStreamResult, userId],
   );
 
   const handleImport = async () => {
     if (!userId) {
-      showError("You must be signed in to import transactions. Please refresh and log in again.");
+      showError(ERROR_MESSAGES.IMPORT_REQUIRES_SIGN_IN);
       return;
     }
 
@@ -473,65 +1006,88 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       return;
     }
 
-    if (selected.length > FIRESTORE_QUERY.IMPORT_MAX_ROWS) {
-      showError(
-        UI_TEXT.IMPORT_TOO_LARGE.replace("{count}", String(selected.length)).replace(
-          "{max}",
-          String(FIRESTORE_QUERY.IMPORT_MAX_ROWS),
-        ),
+    const selectedKeys = selected.map((r) => r.key);
+    const fingerprint = buildImportFingerprint(selectedKeys);
+    const existing = readImportStreamJob(userId);
+    // Only auto-resume when the pending job matches the current selection fingerprint.
+    if (existing && jobHasRetryableWork(existing) && existing.fingerprint === fingerprint) {
+      showInfo(
+        IMPORT_STREAM_UI.RESUMING.replace(
+          "{current}",
+          String(existing.completedBatches + 1),
+        ).replace("{total}", String(Math.max(existing.totalBatches, 1))),
       );
+      await executeImportStream(existing, selected.filter((r) => duplicateKeys.has(r.key)).length);
       return;
     }
 
-    // Respect user selection: import every checked row, including ones flagged as duplicates.
-    const prepared = stagingToTransactions(selected, userId);
+    // Account for every staging row: selected → pending, deselected → skipped (flagged).
+    const job = createImportStreamJob(userId, staging);
+    writeImportStreamJob(userId, job);
     const selectedDupCount = selected.filter((r) => duplicateKeys.has(r.key)).length;
-
-    setImporting(true);
-    try {
-      const saved = await dispatch(addTransactionsBulk(prepared)).unwrap();
-      const count = saved.length;
-      setImportedCount(count);
-      setLastImportBatchIds(saved.map((t) => t.id));
-      focusUiOnImported(saved);
-      resetImport();
-
-      if (selectedDupCount > 0) {
-        showSuccess(
-          UI_TEXT.IMPORT_SUCCESS_WITH_DUPLICATES.replace("{count}", String(count)).replace(
-            "{duplicates}",
-            String(selectedDupCount),
-          ),
-        );
-      } else {
-        showSuccess(UI_TEXT.IMPORT_SUCCESS_COUNT.replace("{count}", String(count)));
-      }
-      setTimeout(() => setImportedCount(0), TIMEOUTS.IMPORT_SUCCESS);
-    } catch (err) {
-      const raw =
-        typeof err === "string"
-          ? err
-          : err && typeof err === "object" && "message" in err
-            ? String((err as { message?: unknown }).message || "")
-            : "";
-      if (raw.startsWith("IMPORT_TOO_LARGE:")) {
-        const [, count, max] = raw.split(":");
-        showError(
-          UI_TEXT.IMPORT_TOO_LARGE.replace("{count}", count || String(selected.length)).replace(
-            "{max}",
-            max || String(FIRESTORE_QUERY.IMPORT_MAX_ROWS),
-          ),
-        );
-      } else {
-        const message = /permission|insufficient/i.test(raw)
-          ? "Firestore blocked the save. Deploy firestore.rules and ensure you are signed in."
-          : raw || ERROR_MESSAGES.SAVE_FAILED;
-        showError(message);
-      }
-    } finally {
-      setImporting(false);
-    }
+    await executeImportStream(job, selectedDupCount);
   };
+
+  const handleRetryFailedImport = useCallback(async () => {
+    if (!userId) return;
+    const job = readImportStreamJob(userId) || streamJobSnapshot;
+    if (!job || !jobHasRetryableWork(job)) {
+      showError(UI_TEXT.IMPORT_NONE_SELECTED);
+      return;
+    }
+    showInfo(
+      IMPORT_STREAM_UI.RESUMING.replace("{current}", String(job.completedBatches + 1)).replace(
+        "{total}",
+        String(Math.max(job.totalBatches, 1)),
+      ),
+    );
+    await executeImportStream(job, 0);
+  }, [executeImportStream, streamJobSnapshot, userId]);
+
+  /** Auto-resume interrupted streaming imports; persist interrupt on page hide. */
+  useEffect(() => {
+    if (!userId) return;
+
+    const existing = readImportStreamJob(userId);
+    if (
+      existing &&
+      jobHasRetryableWork(existing) &&
+      (existing.status === IMPORT_JOB_STATUS.INTERRUPTED ||
+        existing.status === IMPORT_JOB_STATUS.FAILED ||
+        existing.status === IMPORT_JOB_STATUS.STREAMING)
+    ) {
+      setStreamJobSnapshot(existing);
+      setImportProgress(countRecordsByStatus(existing));
+      showInfo(
+        IMPORT_STREAM_UI.RESUMING.replace(
+          "{current}",
+          String(existing.completedBatches + 1),
+        ).replace("{total}", String(Math.max(existing.totalBatches, 1))),
+      );
+      void executeImportStream(existing, 0);
+    } else if (existing) {
+      setStreamJobSnapshot(existing);
+      setImportProgress(countRecordsByStatus(existing));
+    }
+
+    const onHide = () => {
+      if (document.visibilityState === GMAIL_DEFAULTS.DOCUMENT_VISIBLE_STATE) return;
+      const live = activeStreamJobRef.current;
+      if (!live || !importInFlightRef.current) return;
+      const interrupted = interruptImportStream(live);
+      activeStreamJobRef.current = interrupted;
+      setStreamJobSnapshot(interrupted);
+    };
+
+    document.addEventListener(GMAIL_DEFAULTS.DOCUMENT_VISIBILITY_EVENT, onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener(GMAIL_DEFAULTS.DOCUMENT_VISIBILITY_EVENT, onHide);
+      window.removeEventListener("pagehide", onHide);
+    };
+    // One-shot resume per signed-in user; avoid re-firing on callback identity churn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [userId]);
 
   const confirmCleanup = async () => {
     if (!userId) return;
@@ -639,7 +1195,15 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
       <ImportStepper activeStep={activeStep} />
 
-      <GmailSyncPanel onTransactionsFetched={handleGmailTransactions} />
+      <section className="space-y-2" aria-labelledby="import-automation-heading">
+        <div>
+          <h2 id="import-automation-heading" className="text-sm font-semibold text-brand-deep">
+            {GMAIL_UI_TEXT.SECTION_AUTOMATION}
+          </h2>
+          <p className="mt-0.5 text-xs text-gray-500">{GMAIL_UI_TEXT.SECTION_AUTOMATION_HINT}</p>
+        </div>
+        <GmailSyncPanel onTransactionsFetched={handleGmailTransactions} />
+      </section>
 
       {importedCount > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 dark:text-income sm:flex-row sm:items-center sm:justify-between">
@@ -699,61 +1263,73 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         </div>
       )}
 
-      {/* Drop zone */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-        className={cn(
-          "group relative cursor-pointer rounded-3xl border-2 border-dashed bg-white/60 px-4 py-10 text-center transition-all sm:py-14",
-          dragOver
-            ? "border-primary-main bg-primary-soft/40"
-            : "border-primary-main/20 hover:border-primary-main/50 hover:bg-white",
-          parsing && "pointer-events-none opacity-70",
-        )}
-        onClick={() => inputRef.current?.click()}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
+      <section className="space-y-2" aria-labelledby="import-manual-heading">
+        <div>
+          <h2 id="import-manual-heading" className="text-sm font-semibold text-brand-deep">
+            {GMAIL_UI_TEXT.SECTION_MANUAL}
+          </h2>
+          <p className="mt-0.5 text-xs text-gray-500">{GMAIL_UI_TEXT.SECTION_MANUAL_HINT}</p>
+        </div>
+        {/* Drop zone */}
+        <div
+          onDragOver={(e) => {
             e.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
-      >
-        <input ref={inputRef} type="file" accept=".csv,.pdf,.xlsx" onChange={onInputChange} className="hidden" />
-        {parsing ? (
-          <div className="flex flex-col items-center gap-3">
-            <Spinner label={UI_TEXT.IMPORT_PARSING} />
-          </div>
-        ) : (
-          <>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-main/5 text-primary-main transition-transform duration-300 group-hover:scale-110 sm:h-20 sm:w-20">
-              <CloudUploadIcon className="h-10 w-10 sm:h-12 sm:w-12" />
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+          className={cn(
+            "group relative cursor-pointer rounded-3xl border-2 border-dashed bg-white/60 px-4 py-10 text-center transition-all sm:py-14",
+            dragOver
+              ? "border-primary-main bg-primary-soft/40"
+              : "border-primary-main/20 hover:border-primary-main/50 hover:bg-white",
+            (parsing || parseProgress.visible) && "pointer-events-none opacity-70",
+          )}
+          onClick={() => inputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+        >
+          <input ref={inputRef} type="file" accept=".csv,.pdf,.xlsx" onChange={onInputChange} className="hidden" />
+          {parseProgress.visible ? (
+            <div className="mx-auto w-full max-w-sm px-2">
+              <ProgressPercent
+                value={parseProgress.percent}
+                label={parseProgress.label || UI_TEXT.IMPORT_PARSING}
+                ariaLabel={UI_TEXT.IMPORT_PROGRESS_ARIA}
+              />
             </div>
-            <h3 className="text-lg font-semibold text-brand-deep sm:text-xl">
-              {file ? <span className="break-all">{file.name}</span> : UI_TEXT.UPLOAD_DROP_HINT}
-            </h3>
-            <p className="mt-1 text-sm text-gray-500 md:text-base">
-              {UI_TEXT.UPLOAD_BROWSE_HINT.replace("{maxMb}", String(maxFileMb()))}
-            </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-              <span className="rounded-lg bg-surface-low px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {UI_TEXT.IMPORT_EXT_CSV}
-              </span>
-              <span className="rounded-lg bg-surface-low px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {UI_TEXT.IMPORT_EXT_XLSX}
-              </span>
-              <span className="rounded-lg bg-surface-low px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {UI_TEXT.IMPORT_EXT_PDF}
-              </span>
-            </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-main/5 text-primary-main transition-transform duration-300 group-hover:scale-110 sm:h-20 sm:w-20">
+                <CloudUploadIcon className="h-10 w-10 sm:h-12 sm:w-12" />
+              </div>
+              <h3 className="text-lg font-semibold text-brand-deep sm:text-xl">
+                {file ? <span className="break-all">{file.name}</span> : UI_TEXT.UPLOAD_DROP_HINT}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 md:text-base">
+                {UI_TEXT.UPLOAD_BROWSE_HINT.replace("{maxMb}", String(maxFileMb()))}
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                <span className="rounded-lg bg-surface-low px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {UI_TEXT.IMPORT_EXT_CSV}
+                </span>
+                <span className="rounded-lg bg-surface-low px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {UI_TEXT.IMPORT_EXT_XLSX}
+                </span>
+                <span className="rounded-lg bg-surface-low px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {UI_TEXT.IMPORT_EXT_PDF}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
 
       {/* Manual add fallback */}
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -771,9 +1347,196 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
       <TransactionModal open={isAddTransactionModalOpen} onClose={() => setIsAddTransactionModalOpen(false)} />
 
+      {/* Password-locked PDF — unlock in Review (manual upload and/or Gmail queue) */}
+      {showUnlockPanel && (
+        <section
+          ref={unlockPanelRef}
+          className="overflow-hidden rounded-3xl border border-amber-200/80 bg-white shadow-card dark:border-amber-500/30 dark:bg-card"
+          aria-labelledby="import-pdf-locked-heading"
+        >
+          <div className="flex flex-col gap-3 border-b border-amber-100 bg-amber-50/80 px-4 py-4 dark:border-amber-500/20 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <h2
+              id="import-pdf-locked-heading"
+              className="flex items-center gap-2 text-lg font-semibold text-brand-deep"
+            >
+              <ShieldLockIcon className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+              {UI_TEXT.IMPORT_PDF_LOCKED_TITLE}
+            </h2>
+            <div className="flex min-w-0 flex-col items-start gap-1 sm:items-end">
+              {pdfLocked && file ? (
+                <span className="truncate text-xs font-medium text-gray-500 sm:max-w-[280px] sm:text-sm">
+                  {file.name}
+                </span>
+              ) : null}
+              {!pdfLocked && activeGmailLocked ? (
+                <>
+                  <div className="flex flex-wrap items-center justify-start gap-1.5 sm:justify-end">
+                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
+                      {GMAIL_UI_TEXT.IMPORT_GMAIL_FROM_LABEL}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-primary-main/10 px-2 py-0.5 text-[11px] font-semibold text-primary-main dark:bg-primary-main/20 dark:text-primary-light">
+                      {activeGmailLocked.bankLabel || GMAIL_UI_TEXT.IMPORT_GMAIL_BANK_LABEL_FALLBACK}
+                    </span>
+                  </div>
+                  <span className="truncate text-xs font-medium text-gray-500 sm:max-w-[280px] sm:text-sm">
+                    {activeGmailLocked.filename}
+                  </span>
+                </>
+              ) : null}
+              <span className="text-[11px] font-medium text-amber-800/80 dark:text-amber-200/80">
+                {(pdfLocked ? UI_TEXT.IMPORT_PDF_LOCKED_WAITING : GMAIL_UI_TEXT.IMPORT_GMAIL_LOCKED_WAITING).replace(
+                  "{count}",
+                  String(unlockWaitingCount),
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-4 px-4 py-5 sm:px-6">
+            <p className="text-sm text-gray-600 dark:text-on-surface-variant">
+              {pdfLocked ? UI_TEXT.IMPORT_PDF_LOCKED_BODY : GMAIL_UI_TEXT.IMPORT_GMAIL_LOCKED_BODY}
+            </p>
+
+            <ProgressPercent
+              value={unlockProgressPercent}
+              label={(pdfLocked ? UI_TEXT.IMPORT_PDF_LOCKED_PROGRESS : GMAIL_UI_TEXT.IMPORT_GMAIL_LOCKED_PROGRESS)
+                .replace("{unlocked}", String(unlockProgressUnlocked))
+                .replace("{total}", String(unlockProgressTotal))}
+              ariaLabel={
+                pdfLocked ? UI_TEXT.IMPORT_PDF_LOCKED_PROGRESS_ARIA : GMAIL_UI_TEXT.IMPORT_GMAIL_LOCKED_PROGRESS_ARIA
+              }
+              className="max-w-md"
+            />
+
+            {!pdfLocked && gmailLockedQueue.length > 1 ? (
+              <ul
+                className="flex max-w-md flex-wrap gap-1.5"
+                aria-label={GMAIL_UI_TEXT.IMPORT_GMAIL_LOCKED_QUEUE_ARIA}
+              >
+                {gmailLockedQueue.map((item, index) => (
+                  <li
+                    key={item.id}
+                    className={cn(
+                      "inline-flex max-w-full items-center gap-1 truncate rounded-md px-2 py-0.5 text-[11px] font-medium",
+                      index === 0
+                        ? "bg-amber-100 text-amber-900 dark:bg-amber-500/25 dark:text-amber-100"
+                        : "bg-surface-low text-gray-500 dark:text-on-surface-variant",
+                    )}
+                  >
+                    <span className="shrink-0 font-semibold text-primary-main dark:text-primary-light">
+                      {item.bankLabel || GMAIL_UI_TEXT.IMPORT_GMAIL_BANK_LABEL_FALLBACK}
+                    </span>
+                    <span className="truncate">{item.filename}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <div className="max-w-md space-y-2">
+              <label htmlFor="import-pdf-password" className="block text-sm font-semibold text-brand-deep">
+                {UI_TEXT.IMPORT_PDF_PASSWORD_LABEL}
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <KeyIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    id="import-pdf-password"
+                    type="password"
+                    autoComplete="off"
+                    value={pdfPassword}
+                    disabled={parsing || unlockingGmail}
+                    placeholder={UI_TEXT.IMPORT_PDF_PASSWORD_PLACEHOLDER}
+                    onChange={(e) => {
+                      setPdfPassword(e.target.value);
+                      if (pdfPasswordError) setPdfPasswordError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleUnlockSubmit();
+                      }
+                    }}
+                    className="h-10 w-full rounded-xl border border-outline-variant bg-surface-low pl-9 pr-3 text-sm text-brand-deep outline-none ring-primary-main/30 placeholder:text-gray-400 focus:ring-2 disabled:opacity-60"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  loading={parsing || unlockingGmail}
+                  disabled={parsing || unlockingGmail || !pdfPassword.trim()}
+                  onClick={handleUnlockSubmit}
+                  className="sm:min-w-[140px]"
+                >
+                  {UI_TEXT.IMPORT_PDF_UNLOCK}
+                </Button>
+              </div>
+              {!pdfLocked && activeGmailLocked ? (
+                <p className="text-xs leading-relaxed text-gray-500 dark:text-on-surface-variant">
+                  <span className="font-semibold text-brand-deep/80 dark:text-on-surface">
+                    {GMAIL_UI_TEXT.IMPORT_GMAIL_PASSWORD_HINT_LABEL}:{" "}
+                  </span>
+                  {activeGmailLocked.passwordHint || GMAIL_UI_TEXT.IMPORT_GMAIL_PASSWORD_HINT_FALLBACK}
+                </p>
+              ) : null}
+              {pdfPasswordError ? (
+                <p role="alert" className="text-sm text-expense">
+                  {pdfPasswordError}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {pdfLocked ? (
+                <>
+                  <Button type="button" variant="ghost" size="sm" disabled={parsing} onClick={resetStaging}>
+                    {UI_TEXT.IMPORT_DISCARD_ALL}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={parsing}
+                    onClick={() => {
+                      setPdfLocked(false);
+                      setPdfPassword("");
+                      setPdfPasswordError(null);
+                      setFile(null);
+                      lastFailedFileRef.current = null;
+                      inputRef.current?.click();
+                    }}
+                  >
+                    {UI_TEXT.IMPORT_PARSE_CHOOSE_ANOTHER}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={unlockingGmail}
+                  onClick={handleSkipGmailLocked}
+                >
+                  {GMAIL_UI_TEXT.IMPORT_GMAIL_LOCKED_SKIP}
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Preview */}
       {staging.length > 0 && (
-        <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-card">
+        <section
+          ref={previewRef}
+          className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-card"
+        >
+          <div
+            role="status"
+            className="border-b border-primary-main/15 bg-primary-main/5 px-4 py-3 text-sm font-semibold text-brand-deep sm:px-6"
+          >
+            {UI_TEXT.IMPORT_READY_TO_REVIEW.replace("{count}", String(staging.length))}
+          </div>
           <div className="flex flex-col gap-3 border-b border-gray-100 bg-white/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <h2 className="flex items-center gap-2 text-lg font-semibold text-brand-deep">
               <ListAltIcon className="h-5 w-5 text-primary-main" />
@@ -808,6 +1571,23 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                       String(selectedDuplicateCount),
                     )
                   : UI_TEXT.IMPORT_DUPLICATE_BANNER_NONE_SELECTED.replace("{count}", String(duplicateCount))}
+              </p>
+            </div>
+          ) : null}
+
+          {aiDuplicateCount > 0 ? (
+            <div
+              role="status"
+              className="flex items-start gap-3 border-b border-sky-200/80 bg-sky-50 px-4 py-3 text-sm text-sky-950 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100 sm:px-6"
+            >
+              <WarningIcon className="mt-0.5 h-5 w-5 shrink-0 text-sky-700 dark:text-sky-300" />
+              <p className="font-medium">
+                {selectedAiDuplicateCount > 0
+                  ? UI_TEXT.IMPORT_AI_DUPLICATE_BANNER.replace("{count}", String(aiDuplicateCount)).replace(
+                      "{selected}",
+                      String(selectedAiDuplicateCount),
+                    )
+                  : UI_TEXT.IMPORT_AI_DUPLICATE_BANNER_NONE_SELECTED.replace("{count}", String(aiDuplicateCount))}
               </p>
             </div>
           ) : null}
@@ -862,7 +1642,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                     isDuplicate={duplicateKeys.has(row.key)}
                     duplicateReason={duplicateKeys.get(row.key)}
                     onToggle={handleToggle}
-                    onCategoryChange={handleCategoryChange}
+                    onRowChange={handleRowChange}
                     variant="table"
                   />
                 ))}
@@ -878,40 +1658,119 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                 isDuplicate={duplicateKeys.has(row.key)}
                 duplicateReason={duplicateKeys.get(row.key)}
                 onToggle={handleToggle}
-                onCategoryChange={handleCategoryChange}
+                onRowChange={handleRowChange}
                 variant="card"
               />
             ))}
           </div>
 
-          <div className="flex flex-col gap-4 border-t border-gray-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-main/10 text-primary-main">
-                <BoltIcon className="h-4 w-4" />
+          <div className="flex flex-col gap-4 border-t border-gray-100 bg-white px-4 py-4 sm:px-6">
+            {(importing || importProgress) && importProgress ? (
+              <div className="w-full space-y-2">
+                <ProgressPercent
+                  value={importProgress.percent}
+                  label={IMPORT_STREAM_UI.PROGRESS.replace(
+                    "{current}",
+                    String(Math.min(importProgress.completedBatches + (importing ? 1 : 0), importProgress.totalBatches)),
+                  )
+                    .replace("{total}", String(importProgress.totalBatches))
+                    .replace("{imported}", String(importProgress.importedRecords))
+                    .replace("{rows}", String(importProgress.totalRecords))}
+                  ariaLabel={IMPORT_STREAM_UI.PROGRESS_ARIA}
+                />
+                <p className="text-xs text-gray-500">
+                  {IMPORT_STREAM_UI.RECORDS_SUMMARY.replace(
+                    "{imported}",
+                    String(importProgress.importedRecords),
+                  )
+                    .replace("{failed}", String(importProgress.failedRecords))
+                    .replace("{skipped}", String(importProgress.skippedRecords))
+                    .replace("{pending}", String(importProgress.pendingRecords))}
+                </p>
+                {streamJobSnapshot ? (
+                  <p className="text-xs text-gray-500">
+                    {IMPORT_STREAM_UI.FILES_SUMMARY.replace(
+                      "{imported}",
+                      String(
+                        streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.IMPORTED)
+                          .length,
+                      ),
+                    )
+                      .replace(
+                        "{failed}",
+                        String(
+                          streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.FAILED)
+                            .length,
+                        ),
+                      )
+                      .replace(
+                        "{skipped}",
+                        String(
+                          streamJobSnapshot.files.filter((f) => f.status === IMPORT_FILE_STATUS.SKIPPED)
+                            .length,
+                        ),
+                      )
+                      .replace(
+                        "{pending}",
+                        String(
+                          streamJobSnapshot.files.filter(
+                            (f) =>
+                              f.status === IMPORT_FILE_STATUS.PENDING ||
+                              f.status === IMPORT_FILE_STATUS.IMPORTING,
+                          ).length,
+                        ),
+                      )}
+                  </p>
+                ) : null}
               </div>
-              <p className="text-xs font-medium text-gray-500 sm:text-sm">
-                {UI_TEXT.IMPORT_AI_SUGGESTED.replace("{pct}", String(categorizedPct))}
-              </p>
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-              <Button onClick={resetImport} variant="ghost" disabled={importing} className="sm:min-w-[120px]">
-                {UI_TEXT.IMPORT_DISCARD_ALL}
-              </Button>
-              <Button
-                onClick={() => void handleImport()}
-                variant="primary"
-                loading={importing}
-                className="sm:min-w-[160px]"
-              >
-                {UI_TEXT.IMPORT_ITEMS.replace("{count}", String(selectedCount))}
-              </Button>
+            ) : null}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-main/10 text-primary-main">
+                  <BoltIcon className="h-4 w-4" />
+                </div>
+                <p className="text-xs font-medium text-gray-500 sm:text-sm">
+                  {UI_TEXT.IMPORT_AI_SUGGESTED.replace("{pct}", String(categorizedPct))}
+                </p>
+              </div>
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <Button onClick={resetImport} variant="ghost" disabled={importing} className="sm:min-w-[120px]">
+                  {UI_TEXT.IMPORT_DISCARD_ALL}
+                </Button>
+                {streamJobSnapshot &&
+                !importing &&
+                jobHasRetryableWork(streamJobSnapshot) &&
+                (streamJobSnapshot.status === IMPORT_JOB_STATUS.FAILED ||
+                  streamJobSnapshot.status === IMPORT_JOB_STATUS.INTERRUPTED ||
+                  streamJobSnapshot.status === IMPORT_JOB_STATUS.COMPLETED_WITH_ERRORS) ? (
+                  <Button
+                    onClick={() => void handleRetryFailedImport()}
+                    variant="primary"
+                    className="sm:min-w-[160px]"
+                  >
+                    {IMPORT_STREAM_UI.RETRY_FAILED.replace(
+                      "{count}",
+                      String(importProgress?.failedRecords || importProgress?.pendingRecords || 0),
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => void handleImport()}
+                    variant="primary"
+                    loading={importing}
+                    className="sm:min-w-[160px]"
+                  >
+                    {UI_TEXT.IMPORT_ITEMS.replace("{count}", String(selectedCount))}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </section>
       )}
 
       {/* Info cards */}
-      {staging.length === 0 && !parsing && (
+      {staging.length === 0 && !parsing && !showUnlockPanel && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
           <InfoCard
             icon={<HealthAndSafetyIcon className="h-6 w-6" />}
@@ -936,7 +1795,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         onCancel={() => setShowCleanupDialog(false)}
         onConfirm={() => void confirmCleanup()}
         title={UI_TEXT.CLEANUP_IMPORTED_TITLE}
-        message={`${UI_TEXT.CONFIRM_CLEANUP_IMPORTED} ${importedTransactionsCount} transaction(s) will be deleted.`}
+        message={`${UI_TEXT.CONFIRM_CLEANUP_IMPORTED} ${UI_TEXT.CONFIRM_CLEANUP_IMPORTED_COUNT.replace("{count}", String(importedTransactionsCount))}`}
         confirmLabel={UI_TEXT.DELETE}
         danger
       />

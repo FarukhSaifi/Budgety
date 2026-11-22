@@ -1,4 +1,4 @@
-import { GMAIL_ENDPOINTS } from "@constants";
+import { GMAIL_DEFAULTS, GMAIL_ENDPOINTS, GMAIL_ERROR_MESSAGES } from "@constants";
 
 export interface GmailMessageSummary {
   id: string;
@@ -69,28 +69,49 @@ function base64UrlToString(base64Url: string): string {
 }
 
 /**
- * Searches messages matching the query.
+ * Searches messages matching the query, following nextPageToken until maxResults.
+ * Single-page fetches (old maxResults=35) truncated inboxes with dense UPI alerts.
  */
 export async function searchGmailMessages(
   accessToken: string,
   query: string,
-  maxResults = 30,
+  maxResults: number = GMAIL_DEFAULTS.MAX_SEARCH_RESULTS,
 ): Promise<GmailMessageSummary[]> {
-  const url = new URL(`${GMAIL_ENDPOINTS.API_BASE}/messages`);
-  url.searchParams.set("q", query);
-  url.searchParams.set("maxResults", String(Math.min(maxResults, 100)));
+  const collected: GmailMessageSummary[] = [];
+  let pageToken: string | undefined;
+  const pageSize = Math.min(GMAIL_DEFAULTS.SEARCH_PAGE_SIZE, 500);
 
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  while (collected.length < maxResults) {
+    const url = new URL(`${GMAIL_ENDPOINTS.API_BASE}/messages`);
+    url.searchParams.set("q", query);
+    url.searchParams.set("maxResults", String(Math.min(pageSize, maxResults - collected.length)));
+    if (pageToken) {
+      url.searchParams.set("pageToken", pageToken);
+    }
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gmail API error (${res.status}): ${err}`);
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!res.ok) {
+      // Do not include provider response bodies — they can leak into API 500s.
+      throw new Error(GMAIL_ERROR_MESSAGES.SEARCH_FAILED);
+    }
+
+    const json = (await res.json()) as {
+      messages?: GmailMessageSummary[];
+      nextPageToken?: string;
+    };
+
+    const batch = json.messages || [];
+    if (batch.length === 0) break;
+
+    collected.push(...batch);
+    pageToken = json.nextPageToken;
+    if (!pageToken) break;
   }
 
-  const json = (await res.json()) as { messages?: GmailMessageSummary[] };
-  return json.messages || [];
+  return collected.slice(0, maxResults);
 }
 
 /**
@@ -107,9 +128,22 @@ function walkParts(
   const mimeType = (part.mimeType || "").toLowerCase();
   const filename = part.filename || "";
 
-  if (part.body?.attachmentId && filename) {
+  // Some bank MIME parts expose attachmentId with empty filename but application/pdf.
+  // Dropping those silently missed statement PDFs.
+  const looksLikeFile =
+    Boolean(filename) ||
+    mimeType.includes("pdf") ||
+    mimeType.includes("csv") ||
+    mimeType === "application/octet-stream";
+
+  if (part.body?.attachmentId && looksLikeFile) {
+    const fallbackName = mimeType.includes("pdf")
+      ? GMAIL_DEFAULTS.FALLBACK_PDF_FILENAME
+      : mimeType.includes("csv")
+        ? GMAIL_DEFAULTS.FALLBACK_CSV_FILENAME
+        : GMAIL_DEFAULTS.FALLBACK_ATTACHMENT_FILENAME;
     result.attachments.push({
-      filename,
+      filename: filename || fallbackName,
       mimeType,
       attachmentId: part.body.attachmentId,
     });
@@ -133,15 +167,14 @@ function walkParts(
  * Gets message details including headers, body, and attachment metadata.
  */
 export async function getGmailMessage(accessToken: string, messageId: string): Promise<GmailFetchedMessage> {
-  const url = `${GMAIL_ENDPOINTS.API_BASE}/messages/${messageId}?format=full`;
+  const url = `${GMAIL_ENDPOINTS.API_BASE}/messages/${encodeURIComponent(messageId)}?format=full`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to get Gmail message ${messageId}: ${res.status} ${err}`);
+    throw new Error(GMAIL_ERROR_MESSAGES.MESSAGE_FETCH_FAILED);
   }
 
   const data = (await res.json()) as GmailMessageDetail;
@@ -180,20 +213,19 @@ export async function downloadGmailAttachment(
   messageId: string,
   attachmentId: string,
 ): Promise<Uint8Array> {
-  const url = `${GMAIL_ENDPOINTS.API_BASE}/messages/${messageId}/attachments/${attachmentId}`;
+  const url = `${GMAIL_ENDPOINTS.API_BASE}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to download attachment ${attachmentId}: ${res.status} ${err}`);
+    throw new Error(GMAIL_ERROR_MESSAGES.ATTACHMENT_DOWNLOAD_FAILED);
   }
 
   const json = (await res.json()) as { data?: string };
   if (!json.data) {
-    throw new Error("Empty attachment data received from Gmail API");
+    throw new Error(GMAIL_ERROR_MESSAGES.ATTACHMENT_EMPTY);
   }
 
   return base64UrlToUint8Array(json.data);

@@ -164,6 +164,8 @@ export interface Bill {
   isRecurring?: boolean;
   reminderDays?: number;
   category?: string;
+  /** Origin marker, e.g. `cred` for CRED Protect sync. */
+  source?: string;
   createdAt?: string;
 }
 

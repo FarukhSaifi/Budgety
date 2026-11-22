@@ -49,6 +49,11 @@ const BILL_ICONS: { match: RegExp; Icon: IconComponent; wrap: string }[] = [
     wrap: "bg-primary-soft text-primary-main",
   },
   {
+    match: /cred|credit\s*card|amex|icici|hdfc|kotak|indusind|axis|sbicard/i,
+    Icon: ScheduleIcon,
+    wrap: "bg-amber-50 text-amber-800",
+  },
+  {
     match: /router|modem/i,
     Icon: RouterIcon,
     wrap: "bg-rose-100 text-expense",

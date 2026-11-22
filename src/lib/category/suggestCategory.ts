@@ -135,8 +135,9 @@ async function suggestWithGoogle(prompt: string): Promise<unknown> {
       timeoutMs: 20_000,
     });
   } catch (err) {
-    const detail = err instanceof Error ? err.message : "unknown error";
-    throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail), {
+    if (err instanceof Error && err.message === "AI_REQUEST_TIMEOUT") throw err;
+    // Keep client messages generic — do not nest provider/parse error bodies.
+    throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", "please try again"), {
       cause: err,
     });
   }
@@ -164,14 +165,10 @@ async function suggestWithOpenAi(prompt: string, apiKey: string): Promise<unknow
   });
 
   if (!response.ok) {
-    let detail = `HTTP ${response.status}`;
-    try {
-      const errBody = (await response.json()) as { error?: { message?: string } };
-      if (errBody?.error?.message) detail = errBody.error.message;
-    } catch {
-      // ignore
-    }
-    throw new Error(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", detail));
+    // Status only — never forward provider response bodies to API clients.
+    throw new Error(
+      ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", `HTTP ${response.status}`),
+    );
   }
 
   const data = (await response.json()) as {

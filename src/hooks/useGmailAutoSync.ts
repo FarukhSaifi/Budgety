@@ -1,70 +1,86 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { GMAIL_DEFAULTS } from "@constants";
+import { useRouter } from "next/navigation";
+
+import { GMAIL_DEFAULTS, GMAIL_UI_TEXT } from "@constants";
+
+import { APP_ROUTES } from "@constants/routes";
 
 import type { GmailConnectionStatus, GmailSyncResponse } from "@/types/gmail";
 
-import { useAppDispatch, useAppSelector } from "@store/hooks";
-import { addCategoriesBulk } from "@store/slices/categoriesSlice";
-import { addTransactionsBulk } from "@store/slices/transactionsSlice";
-import { applySmartRulesToStaging } from "@utils/enrichStagingCategories";
-import { stagingToTransactions, type StagingRow } from "@utils/importHelpers";
-import { showSuccess } from "@utils/toast";
+import { useAppSelector } from "@store/hooks";
+import { applyCredBills, credBillsToastMessage } from "@utils/applyCredBills";
+import { toDuplicateCheckPayload } from "@utils/duplicatePayload";
+import { mergeLockedQueue } from "@utils/gmailLockedQueue";
+import { mergeReviewStaging } from "@utils/gmailReviewQueue";
+import { showSuccess, showWarning } from "@utils/toast";
 
-import type { ParsedStatementTransaction } from "@/lib/statement/types";
-
-function parsedToStaging(rows: ParsedStatementTransaction[]): StagingRow[] {
-  return rows.map((row) => ({
-    key:
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    title: row.title || row.description || "",
-    amount: Number(row.amount) || 0,
-    type: row.type === "income" ? "income" : "expense",
-    category: row.category,
-    paymentMode: row.paymentMode,
-    date: row.date,
-    selected: true,
-  }));
-}
+import { authedFetch } from "@/lib/authedApiClient";
 
 /**
- * Automatically syncs bank statement and alert transactions from Gmail
- * on app open when the last sync is older than the configured threshold (default: 12h).
+ * Background Gmail auto-sync on app open when:
+ * - user is signed in
+ * - transactions have loaded (dedupe-ready)
+ * - Gmail is connected
+ * - auto-sync is enabled in settings
+ * - last sync is older than the configured interval
+ *
+ * Unlocked transactions are staged into Import Review (never persisted directly).
+ * Password-locked PDFs are queued for Import Review unlock.
  */
 export function useGmailAutoSync() {
-  const dispatch = useAppDispatch();
+  const router = useRouter();
   const userId = useAppSelector((s) => s.auth.user?.uid);
   const existingTransactions = useAppSelector((s) => s.transactions.items);
-  const rules = useAppSelector((s) => s.rules.items);
+  const existingBills = useAppSelector((s) => s.bills.items);
+  const txStatus = useAppSelector((s) => s.transactions.status);
   const hasTriggeredRef = useRef(false);
+  const retryCountRef = useRef(0);
+  const transactionsRef = useRef(existingTransactions);
+  const billsRef = useRef(existingBills);
+  const [autoSyncing, setAutoSyncing] = useState(false);
+
+  useEffect(() => {
+    transactionsRef.current = existingTransactions;
+  }, [existingTransactions]);
+
+  useEffect(() => {
+    billsRef.current = existingBills;
+  }, [existingBills]);
 
   useEffect(() => {
     if (!userId || hasTriggeredRef.current) return;
+    if (txStatus !== "succeeded") return;
 
-    // Check session storage to avoid multiple auto-syncs on fast route transitions
-    const sessionKey = `gmail_auto_synced_${userId}`;
-    const lastSessionSync = sessionStorage.getItem(sessionKey);
-    const now = Date.now();
-    const intervalMs = GMAIL_DEFAULTS.AUTO_SYNC_INTERVAL_HOURS * 60 * 60 * 1000;
-
-    if (lastSessionSync && now - Number(lastSessionSync) < intervalMs) {
-      return;
-    }
-
+    const sessionKey = `${GMAIL_DEFAULTS.SESSION_SYNC_KEY_PREFIX}${userId}`;
     hasTriggeredRef.current = true;
+
+    let cancelled = false;
+    let retryTimeoutId: number | undefined;
 
     async function runAutoSync() {
       try {
-        // 1. Check if Gmail is connected and when it was last synced
-        const statusRes = await fetch(`/api/gmail/status?userId=${encodeURIComponent(userId!)}`);
-        if (!statusRes.ok) return;
+        const statusRes = await authedFetch(`/api/gmail/status?userId=${encodeURIComponent(userId!)}`);
+        if (!statusRes.ok) {
+          throw new Error(GMAIL_UI_TEXT.AUTO_SYNC_FAILED);
+        }
 
         const status = (await statusRes.json()) as GmailConnectionStatus;
-        if (!status.connected) return;
+        if (!status.connected || status.autoSyncEnabled === false) {
+          sessionStorage.setItem(sessionKey, String(Date.now()));
+          return;
+        }
+
+        const intervalHours = status.autoSyncIntervalHours ?? GMAIL_DEFAULTS.AUTO_SYNC_INTERVAL_HOURS;
+        const intervalMs = intervalHours * 60 * 60 * 1000;
+        const now = Date.now();
+
+        const lastSessionSync = sessionStorage.getItem(sessionKey);
+        if (lastSessionSync && now - Number(lastSessionSync) < intervalMs) {
+          return;
+        }
 
         if (status.lastSyncAt) {
           const lastSyncTime = new Date(status.lastSyncAt).getTime();
@@ -74,50 +90,97 @@ export function useGmailAutoSync() {
           }
         }
 
-        // 2. Trigger background sync for the past 7 days
-        const syncRes = await fetch("/api/gmail/sync", {
+        if (!cancelled) setAutoSyncing(true);
+
+        const syncRes = await authedFetch("/api/gmail/sync", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId,
             daysBack: GMAIL_DEFAULTS.AUTO_SYNC_DAYS_BACK,
             includeAlerts: true,
             includeAttachments: true,
-            existingTransactions,
+            existingTransactions: toDuplicateCheckPayload(transactionsRef.current),
           }),
         });
 
-        if (!syncRes.ok) return;
+        if (!syncRes.ok) {
+          throw new Error(GMAIL_UI_TEXT.AUTO_SYNC_FAILED);
+        }
+
+        if (cancelled) return;
 
         const data = (await syncRes.json()) as GmailSyncResponse;
         sessionStorage.setItem(sessionKey, String(now));
 
-        // 3. If new transactions were discovered, save them automatically to Firestore
-        if (data.transactions && data.transactions.length > 0) {
-          const staging = applySmartRulesToStaging(parsedToStaging(data.transactions), rules);
-          const toSave = stagingToTransactions(staging, userId!);
+        const locked = data.meta?.lockedAttachments ?? [];
+        if (locked.length > 0) {
+          mergeLockedQueue(userId!, locked);
+        }
 
-          await dispatch(addTransactionsBulk(toSave)).unwrap();
+        const syncedCount = data.transactions?.length ?? 0;
+        if (syncedCount > 0) {
+          mergeReviewStaging(userId!, data.transactions);
+        }
 
-          // Auto-seed novel categories if any were discovered
-          if (data.meta?.discoveredCategories) {
-            const { income = [], expense = [] } = data.meta.discoveredCategories;
-            const novel = [
-              ...income.map((name) => ({ name, type: "income" as const, color: "#f2f2f2", userId: userId! })),
-              ...expense.map((name) => ({ name, type: "expense" as const, color: "#f2f2f2", userId: userId! })),
-            ];
-            if (novel.length > 0) {
-              void dispatch(addCategoriesBulk(novel));
-            }
-          }
+        const credBills = data.credBills ?? [];
+        let credUpserted = 0;
+        if (credBills.length > 0) {
+          const applied = await applyCredBills(userId!, credBills, billsRef.current);
+          credUpserted = applied.upserted;
+        }
 
-          showSuccess(`Auto-synced ${data.transactions.length} new transaction(s) from Gmail!`);
+        if (cancelled) return;
+
+        if (syncedCount > 0 && locked.length > 0) {
+          showWarning(
+            GMAIL_UI_TEXT.AUTO_SYNC_PARTIAL.replace("{count}", String(syncedCount)).replace(
+              "{locked}",
+              String(locked.length),
+            ),
+          );
+          router.push(APP_ROUTES.transactionsImport);
+        } else if (syncedCount > 0) {
+          showSuccess(GMAIL_UI_TEXT.AUTO_SYNC_SUCCESS.replace("{count}", String(syncedCount)));
+          router.push(APP_ROUTES.transactionsImport);
+        } else if (locked.length > 0) {
+          showWarning(GMAIL_UI_TEXT.AUTO_SYNC_LOCKED_ONLY.replace("{locked}", String(locked.length)));
+          router.push(APP_ROUTES.transactionsImport);
+        } else if (credUpserted > 0) {
+          showSuccess(credBillsToastMessage(credUpserted));
         }
       } catch {
-        // Silent failure on auto-sync: manual sync button remains available
+        if (cancelled) return;
+
+        if (retryCountRef.current < GMAIL_DEFAULTS.AUTO_SYNC_MAX_RETRIES) {
+          retryCountRef.current += 1;
+          await new Promise<void>((resolve) => {
+            retryTimeoutId = window.setTimeout(resolve, GMAIL_DEFAULTS.AUTO_SYNC_RETRY_DELAY_MS);
+          });
+          if (cancelled) return;
+          await runAutoSync();
+          return;
+        }
+        // Allow a later session/navigation to retry after terminal failure.
+        hasTriggeredRef.current = false;
+        showWarning(GMAIL_UI_TEXT.AUTO_SYNC_FAILED);
+      } finally {
+        if (!cancelled) setAutoSyncing(false);
       }
     }
 
     void runAutoSync();
-  }, [dispatch, existingTransactions, rules, userId]);
+
+    return () => {
+      cancelled = true;
+      if (retryTimeoutId !== undefined) {
+        window.clearTimeout(retryTimeoutId);
+      }
+      // If cleanup aborted an in-flight attempt, allow a fresh trigger on remount.
+      if (hasTriggeredRef.current && !sessionStorage.getItem(sessionKey)) {
+        hasTriggeredRef.current = false;
+      }
+    };
+  }, [router, txStatus, userId]);
+
+  return { autoSyncing };
 }

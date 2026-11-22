@@ -4,16 +4,20 @@ import { ERROR_MESSAGES, STATEMENT_IMPORT } from "@constants";
 
 import { collectNovelCategories } from "@utils/categoryNormalize";
 
-import { parseStatementWithAi } from "@/lib/statement/aiParse";
-import { extractPdfText, normalizeStatementText } from "@/lib/statement/extractText";
+import { flagNearDuplicatesWithAi } from "@/lib/statement/aiNearDuplicate";
+import { classifyAiParseError, parseStatementWithAi } from "@/lib/statement/aiParse";
+import { parsePdfStatementChunked } from "@/lib/statement/chunkedParse";
+import { normalizeStatementText } from "@/lib/statement/extractText";
+import { isPdfPasswordError } from "@/lib/statement/pdfPasswordError";
 import type { ParseStatementError, ParseStatementSuccess, StatementFileKind } from "@/lib/statement/types";
+import { requireUserFromRequest, UserAuthError } from "@/lib/userAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function jsonError(message: string, status: number) {
-  const body: ParseStatementError = { error: message };
+function jsonError(message: string, status: number, code?: string) {
+  const body: ParseStatementError = code ? { error: message, code } : { error: message };
   return NextResponse.json(body, { status });
 }
 
@@ -27,8 +31,17 @@ function detectKind(file: File): StatementFileKind | null {
   return null;
 }
 
+function readPdfPassword(form: FormData): string | undefined {
+  const raw = form.get(STATEMENT_IMPORT.PASSWORD_FIELD_NAME);
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed || undefined;
+}
+
 export async function POST(request: Request) {
   try {
+    await requireUserFromRequest(request);
+
     let form: FormData;
     try {
       form = await request.formData();
@@ -56,24 +69,65 @@ export async function POST(request: Request) {
       return jsonError(ERROR_MESSAGES.STATEMENT_UNSUPPORTED_TYPE, 415);
     }
 
-    let text = "";
+    const pdfPassword = readPdfPassword(form);
+
     if (kind === "pdf") {
       const buffer = await entry.arrayBuffer();
-      text = await extractPdfText(buffer);
-    } else {
-      text = normalizeStatementText(await entry.text());
+      let chunked;
+      try {
+        chunked = await parsePdfStatementChunked(buffer, { password: pdfPassword });
+      } catch (err) {
+        if (isPdfPasswordError(err)) {
+          const status =
+            err.code === STATEMENT_IMPORT.PDF_PASSWORD_CODES.INCORRECT
+              ? STATEMENT_IMPORT.PDF_PASSWORD_INCORRECT_HTTP_STATUS
+              : STATEMENT_IMPORT.PDF_PASSWORD_REQUIRED_HTTP_STATUS;
+          return jsonError(err.message, status, err.code);
+        }
+        throw err;
+      }
+
+      if (chunked.transactions.length === 0) {
+        if (chunked.meta.parseFailureCode && chunked.meta.parseFailureMessage) {
+          const status =
+            chunked.meta.parseFailureCode === STATEMENT_IMPORT.AI_ERROR_CODES.RATE_LIMITED ||
+            chunked.meta.parseFailureCode === STATEMENT_IMPORT.AI_ERROR_CODES.UNAVAILABLE
+              ? STATEMENT_IMPORT.AI_UNAVAILABLE_HTTP_STATUS
+              : 502;
+          return jsonError(chunked.meta.parseFailureMessage, status, chunked.meta.parseFailureCode);
+        }
+        if (chunked.meta.chunksFailed > 0 && chunked.meta.chunksSucceeded === 0) {
+          return jsonError(ERROR_MESSAGES.STATEMENT_ALL_CHUNKS_FAILED, 502);
+        }
+        return jsonError(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS, 422);
+      }
+
+      const discoveredCategories = collectNovelCategories(chunked.transactions);
+      const body: ParseStatementSuccess = {
+        transactions: chunked.transactions,
+        meta: {
+          source: "pdf",
+          count: chunked.transactions.length,
+          discoveredCategories,
+          ...chunked.meta,
+        },
+      };
+      return NextResponse.json(body);
     }
 
+    const text = normalizeStatementText(await entry.text());
     if (!text.trim()) {
       return jsonError(ERROR_MESSAGES.STATEMENT_EMPTY_TEXT, 400);
     }
 
-    const transactions = await parseStatementWithAi(text);
+    const parsed = await parseStatementWithAi(text);
 
-    if (transactions.length === 0) {
+    if (parsed.length === 0) {
       return jsonError(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS, 422);
     }
 
+    // Hard dedupe is client-side for CSV; AI second pass flags near-dupes for Review.
+    const { transactions, meta: aiNearDuplicate } = await flagNearDuplicatesWithAi(parsed);
     const discoveredCategories = collectNovelCategories(transactions);
 
     const body: ParseStatementSuccess = {
@@ -82,12 +136,35 @@ export async function POST(request: Request) {
         source: kind,
         count: transactions.length,
         discoveredCategories,
+        aiNearDuplicate,
       },
     };
     return NextResponse.json(body);
   } catch (err) {
-    const message = err instanceof Error && err.message ? err.message : ERROR_MESSAGES.PARSE_STATEMENT_FAILED;
-    const status = message === ERROR_MESSAGES.AI_API_KEY_MISSING ? 503 : message.includes("AI") ? 502 : 500;
-    return jsonError(message, status);
+    if (err instanceof UserAuthError) {
+      const unauthorized = err.status === 401;
+      return jsonError(
+        unauthorized ? ERROR_MESSAGES.AUTH_REQUIRED : err.message,
+        err.status,
+        unauthorized ? STATEMENT_IMPORT.AUTH_UNAUTHORIZED_CODE : undefined,
+      );
+    }
+    if (isPdfPasswordError(err)) {
+      const status =
+        err.code === STATEMENT_IMPORT.PDF_PASSWORD_CODES.INCORRECT
+          ? STATEMENT_IMPORT.PDF_PASSWORD_INCORRECT_HTTP_STATUS
+          : STATEMENT_IMPORT.PDF_PASSWORD_REQUIRED_HTTP_STATUS;
+      return jsonError(err.message, status, err.code);
+    }
+    const aiErr = classifyAiParseError(err);
+    if (aiErr) {
+      return jsonError(aiErr.message, aiErr.status, aiErr.code);
+    }
+    const message = err instanceof Error ? err.message : "";
+    if (message === ERROR_MESSAGES.STATEMENT_EMPTY_TEXT) {
+      return jsonError(message, 400);
+    }
+    // Never forward unexpected Error.message (may embed upstream bodies).
+    return jsonError(ERROR_MESSAGES.PARSE_STATEMENT_FAILED, 500);
   }
 }

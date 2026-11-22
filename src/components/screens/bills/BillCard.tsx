@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { CURRENCY_SYMBOL, UI_TEXT } from "@constants";
+import { CRED_DEFAULTS, CRED_UI_TEXT, CURRENCY_SYMBOL, UI_TEXT } from "@constants";
 
 import {
   AutorenewIcon,
@@ -230,6 +230,11 @@ function MobileBillCard({
             <StatusIcon status={display} />
             {statusLabel(display)}
           </span>
+          {bill.source === CRED_DEFAULTS.BILL_SOURCE && (
+            <span className="rounded-md bg-amber-50 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-800">
+              {CRED_UI_TEXT.SOURCE_BADGE}
+            </span>
+          )}
           <span className="text-xs font-medium text-gray-500">{dueText}</span>
         </div>
 
@@ -307,22 +312,29 @@ function DesktopBillCard({
       </div>
 
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={cn(
-            "inline-flex max-w-full items-center gap-1 truncate rounded px-2 py-1 text-xs font-semibold uppercase tracking-wide",
-            overdue
-              ? "bg-rose-100 text-expense"
-              : paid
-                ? "bg-emerald-50 text-income"
-                : "bg-surface-high text-gray-600",
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex max-w-full items-center gap-1 truncate rounded px-2 py-1 text-xs font-semibold uppercase tracking-wide",
+              overdue
+                ? "bg-rose-100 text-expense"
+                : paid
+                  ? "bg-emerald-50 text-income"
+                  : "bg-surface-high text-gray-600",
+            )}
+          >
+            {overdue && <WarningIcon className="h-3.5 w-3.5 shrink-0" />}
+            {paid && <CheckIcon className="motion-check-draw h-3.5 w-3.5 shrink-0" />}
+            {statusLabel(display)}
+            {" — "}
+            {dueText}
+          </span>
+          {bill.source === CRED_DEFAULTS.BILL_SOURCE && (
+            <span className="rounded px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-800 bg-amber-50">
+              {CRED_UI_TEXT.SOURCE_BADGE}
+            </span>
           )}
-        >
-          {overdue && <WarningIcon className="h-3.5 w-3.5 shrink-0" />}
-          {paid && <CheckIcon className="motion-check-draw h-3.5 w-3.5 shrink-0" />}
-          {statusLabel(display)}
-          {" — "}
-          {dueText}
-        </span>
+        </div>
         {showPay && (
           <button
             type="button"

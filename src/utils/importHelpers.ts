@@ -1,5 +1,7 @@
 import {
+  EXPENSE_CATEGORIES,
   IMPORT_PREVIEW_SORT_KEYS,
+  INCOME_CATEGORIES,
   NUMBER_FORMAT,
   SORT_DIRECTIONS,
   TRANSACTION_TYPES,
@@ -18,8 +20,12 @@ import {
 import { resolveCategoryName } from "@utils/categoryNormalize";
 import { nowISO } from "@utils/dateUtils";
 import type { DuplicateCheckable } from "@utils/duplicateDetection";
-import { categorizeTransaction } from "@utils/transactionCategorization";
+import {
+  applyKnownUpiPayeeCategory,
+  categorizeTransaction,
+} from "@utils/transactionCategorization";
 
+import type { ParsedStatementTransaction } from "@/lib/statement/types";
 import type { PaymentMode, Transaction, TransactionType } from "@/types";
 
 export interface StagingRow {
@@ -33,6 +39,15 @@ export interface StagingRow {
   selected: boolean;
   /** User edited fields in preview — skip AI/rule overwrite. */
   userOverridden?: boolean;
+  /** AI second-pass near-duplicate flag — review required, not auto-dropped. */
+  possibleAiDuplicate?: boolean;
+  aiDuplicateReason?: string;
+  aiDuplicatePeerKey?: string;
+  /** Stable source file / statement / attachment id for no-miss import accounting. */
+  sourceFileId?: string;
+  sourceFileName?: string;
+  sourceMessageId?: string;
+  sourceAttachmentId?: string;
 }
 
 export type ImportPreviewSortKey = (typeof IMPORT_PREVIEW_SORT_KEYS)[keyof typeof IMPORT_PREVIEW_SORT_KEYS];
@@ -41,7 +56,14 @@ export type SortDirection = (typeof SORT_DIRECTIONS)[keyof typeof SORT_DIRECTION
 
 /** Whether a staging row needs user review before import. */
 export function stagingRowNeedsReview(row: StagingRow, isDuplicate: boolean): boolean {
-  return isDuplicate || !row.category || !String(row.title || "").trim() || !row.date || !Number(row.amount);
+  return (
+    isDuplicate ||
+    Boolean(row.possibleAiDuplicate) ||
+    !row.category ||
+    !String(row.title || "").trim() ||
+    !row.date ||
+    !Number(row.amount)
+  );
 }
 
 function signedAmount(row: StagingRow): number {
@@ -172,6 +194,54 @@ function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+/** Map AI / Gmail parsed rows into import staging rows (shared by manual + Gmail flows). */
+export function parsedToStaging(rows: ParsedStatementTransaction[]): StagingRow[] {
+  const staged = rows.map((row) => {
+    const title = row.title || row.description || "";
+    const type: TransactionType = row.type === "income" ? "income" : "expense";
+    const other = type === "income" ? INCOME_CATEGORIES.OTHER : EXPENSE_CATEGORIES.OTHER;
+    let category = row.category || other;
+    if (!category || category.toLowerCase() === other.toLowerCase()) {
+      category = categorizeTransaction(title, type);
+    }
+    category = applyKnownUpiPayeeCategory(title, type, category);
+
+    let paymentMode = row.paymentMode || (TX_MODES.OTHER as PaymentMode);
+    if (!paymentMode || paymentMode === TX_MODES.OTHER) {
+      const detected = detectTransactionMode(title);
+      if (detected && detected !== TX_MODES.OTHER) {
+        paymentMode = detected as PaymentMode;
+      }
+    }
+
+    const possibleAiDuplicate = Boolean(row.possibleAiDuplicate);
+
+    return {
+      key: newId(),
+      title,
+      amount: Number(row.amount) || 0,
+      type,
+      category,
+      paymentMode,
+      date: row.date,
+      // Hard dups are unchecked later via withDuplicatesUnchecked; AI flags start unchecked.
+      selected: !possibleAiDuplicate,
+      possibleAiDuplicate: possibleAiDuplicate || undefined,
+      aiDuplicateReason: row.aiDuplicateReason,
+      aiDuplicatePeerKey: row.aiDuplicatePeerKey,
+    };
+  });
+
+  // Remap batch:N peer keys (from AI pass) onto generated staging keys.
+  return staged.map((row) => {
+    const peer = row.aiDuplicatePeerKey;
+    if (!peer?.startsWith("batch:")) return row;
+    const idx = Number(peer.slice("batch:".length));
+    if (!Number.isInteger(idx) || idx < 0 || idx >= staged.length) return row;
+    return { ...row, aiDuplicatePeerKey: staged[idx].key };
+  });
+}
+
 export function rawRowsToStaging(rows: ParsedRawRow[]): StagingRow[] {
   const result: StagingRow[] = [];
 
@@ -281,11 +351,18 @@ export function prepareTransactionsForImport(
 /** Map approved staging rows into Firestore-ready Transaction objects. */
 export function stagingToTransactions(rows: StagingRow[], userId: string): Transaction[] {
   const createdAt = nowISO();
-  return rows.map((row) => {
+  const prepared: Transaction[] = [];
+
+  for (const row of rows) {
+    const date = toStorageDate(row.date);
+    if (!date) continue;
+
     const title = row.title.trim();
-    const date = toStorageDate(row.date) || String(row.date).slice(0, 10);
-    return {
-      id: newId(),
+    if (!title) continue;
+
+    prepared.push({
+      // Stable id = staging key so resumed stream batches are idempotent (setDoc).
+      id: row.key,
       userId,
       title,
       description: title,
@@ -298,6 +375,8 @@ export function stagingToTransactions(rows: StagingRow[], userId: string): Trans
       isRecurring: false,
       createdAt,
       imported: true,
-    };
-  });
+    });
+  }
+
+  return prepared;
 }

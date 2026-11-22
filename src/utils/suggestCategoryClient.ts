@@ -1,4 +1,6 @@
+import { authedFetch } from "@/lib/authedApiClient";
 import type { TransactionType } from "@/types";
+
 
 export interface SuggestCategoryResponse {
   category: string;
@@ -33,9 +35,8 @@ export async function requestCategorySuggestion(
   }
 
   try {
-    const res = await fetch("/api/suggest-category", {
+    const res = await authedFetch("/api/suggest-category", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title,
         amount: input.amount,

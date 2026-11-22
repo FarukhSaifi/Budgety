@@ -1,17 +1,28 @@
 import { NextResponse } from "next/server";
 
-import { GMAIL_DEFAULTS, GMAIL_ENDPOINTS } from "@constants";
+import { GMAIL_ENDPOINTS, GMAIL_ERROR_MESSAGES } from "@constants";
+
+import { APP_ROUTES } from "@constants/routes";
 
 import { exchangeCodeForTokens } from "@/lib/gmail/googleAuth";
+import { verifyOAuthState } from "@/lib/gmail/oauthState";
 import { saveGmailTokens } from "@/lib/gmail/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function importRedirect(request: Request, params: Record<string, string>): NextResponse {
+  const url = new URL(APP_ROUTES.transactionsImport, request.url);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  return NextResponse.redirect(url);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const state = searchParams.get("state"); // userId passed as state
+  const state = searchParams.get("state");
   const error = searchParams.get("error");
 
   const host = request.headers.get("host") || "localhost:3000";
@@ -19,18 +30,21 @@ export async function GET(request: Request) {
   const redirectUri = `${proto}://${host}/api/auth/gmail/callback`;
 
   if (error || !code) {
-    return NextResponse.redirect(
-      new URL(
-        `/transactions/import?gmail_error=${encodeURIComponent(error || "No authorization code provided")}`,
-        request.url,
-      ),
-    );
+    return importRedirect(request, {
+      gmail_error: GMAIL_ERROR_MESSAGES.OAUTH_CONNECT_FAILED,
+    });
+  }
+
+  const userId = verifyOAuthState(state);
+  if (!userId) {
+    return importRedirect(request, {
+      gmail_error: GMAIL_ERROR_MESSAGES.OAUTH_STATE_INVALID,
+    });
   }
 
   try {
     const tokens = await exchangeCodeForTokens(code, redirectUri);
 
-    // Fetch user profile to get connected Gmail email address
     let email: string | null = null;
     try {
       const userinfoRes = await fetch(GMAIL_ENDPOINTS.USERINFO, {
@@ -44,7 +58,6 @@ export async function GET(request: Request) {
       // Non-fatal if userinfo fails
     }
 
-    const userId = state || GMAIL_DEFAULTS.DEFAULT_USER_ID;
     await saveGmailTokens(userId, {
       refreshToken: tokens.refresh_token || "",
       accessToken: tokens.access_token,
@@ -52,13 +65,13 @@ export async function GET(request: Request) {
       email,
     });
 
-    return NextResponse.redirect(
-      new URL(`/transactions/import?gmail=connected&email=${encodeURIComponent(email || "")}`, request.url),
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to connect Gmail";
-    return NextResponse.redirect(
-      new URL(`/transactions/import?gmail_error=${encodeURIComponent(message)}`, request.url),
-    );
+    return importRedirect(request, {
+      gmail: "connected",
+      email: email || "",
+    });
+  } catch {
+    return importRedirect(request, {
+      gmail_error: GMAIL_ERROR_MESSAGES.OAUTH_CONNECT_FAILED,
+    });
   }
 }

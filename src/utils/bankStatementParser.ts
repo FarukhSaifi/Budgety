@@ -147,17 +147,25 @@ export function detectTransactionType(
 ): string {
   if (typeField) {
     const lowerType = typeField.toLowerCase().trim();
+    // "Credit Card" is a payment mode / account label — not a bank credit (income).
+    // Strip it before matching "credit" so CSV Type="Credit Card" is not mislabeled income.
+    const withoutCard = lowerType
+      .replace(/credit\s*cards?/g, " ")
+      .replace(/creditcards?/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
     if (
-      lowerType.includes("credit") ||
-      lowerType === "cr" ||
-      lowerType.includes("income")
+      withoutCard === "cr" ||
+      withoutCard.includes("credit") ||
+      withoutCard.includes("income")
     ) {
       return TRANSACTION_TYPES.INCOME;
     }
     if (
-      lowerType.includes("debit") ||
-      lowerType === "dr" ||
-      lowerType.includes("expense")
+      withoutCard.includes("debit") ||
+      withoutCard === "dr" ||
+      withoutCard.includes("expense")
     ) {
       return TRANSACTION_TYPES.EXPENSE;
     }

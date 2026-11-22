@@ -1,161 +1,286 @@
 import { NextResponse } from "next/server";
 
-import { GMAIL_DEFAULTS, GMAIL_ERROR_MESSAGES } from "@constants";
+import { CRED_ERROR_MESSAGES, GMAIL_DEFAULTS, GMAIL_ERROR_MESSAGES } from "@constants";
 
-import type { GmailSyncOptions, GmailSyncResponse } from "@/types/gmail";
+import type { GmailLockedAttachment, GmailSyncResponse } from "@/types/gmail";
 
 import { collectNovelCategories } from "@utils/categoryNormalize";
-import { hasDuplicate, type DuplicateCheckable } from "@utils/duplicateDetection";
+import { hasDuplicate } from "@utils/duplicateDetection";
+import { runWithConcurrency } from "@utils/runWithConcurrency";
 
+import { GmailAuthError, resolveGmailAccessToken } from "@/lib/gmail/accessToken";
 import { buildGmailBankQuery } from "@/lib/gmail/bankFilters";
+import { syncCredEmails } from "@/lib/gmail/credSync";
 import { parseEmailAlert } from "@/lib/gmail/emailAlertParser";
-import { downloadGmailAttachment, getGmailMessage, searchGmailMessages } from "@/lib/gmail/gmailClient";
-import { refreshAccessToken } from "@/lib/gmail/googleAuth";
-import { getStoredGmailAccount, saveGmailTokens, updateLastSync } from "@/lib/gmail/storage";
+import {
+  downloadGmailAttachment,
+  getGmailMessage,
+  searchGmailMessages,
+  type GmailAttachment,
+  type GmailFetchedMessage,
+} from "@/lib/gmail/gmailClient";
+import { buildLockedAttachmentMeta } from "@/lib/gmail/lockedAttachmentMeta";
+import { updateLastSync } from "@/lib/gmail/storage";
+import { flagNearDuplicatesWithAi } from "@/lib/statement/aiNearDuplicate";
 import { parseStatementWithAi } from "@/lib/statement/aiParse";
-import { extractPdfText, normalizeStatementText } from "@/lib/statement/extractText";
+import { parsePdfStatementChunked } from "@/lib/statement/chunkedParse";
+import { normalizeStatementText } from "@/lib/statement/extractText";
+import { isPdfPasswordError } from "@/lib/statement/pdfPasswordError";
 import type { ParsedStatementTransaction } from "@/lib/statement/types";
+import { requireOwnedUserId, UserAuthError } from "@/lib/userAuth";
+
+import type { MessageParseResult, SyncRequestBody } from "./route.types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = GMAIL_DEFAULTS.MAX_DURATION_SECONDS;
 
-interface SyncRequestBody extends GmailSyncOptions {
-  userId?: string;
-  existingTransactions?: DuplicateCheckable[];
+function lockedAttachmentId(messageId: string, attachmentId: string): string {
+  return `${messageId}:${attachmentId}`;
+}
+
+function isStatementAttachment(att: GmailAttachment): { isPdf: boolean; isCsv: boolean } {
+  const filename = (att.filename || "").toLowerCase();
+  const isPdf = filename.endsWith(".pdf") || att.mimeType.includes("pdf");
+  const isCsv =
+    filename.endsWith(".csv") ||
+    filename.endsWith(".txt") ||
+    att.mimeType.includes("csv") ||
+    att.mimeType.includes("text");
+  return { isPdf, isCsv };
+}
+
+async function parseAttachment(
+  accessToken: string,
+  msg: GmailFetchedMessage,
+  att: GmailAttachment,
+  pdfPassword: string | undefined,
+): Promise<{
+  parsed: ParsedStatementTransaction[];
+  locked?: GmailLockedAttachment;
+  error?: string;
+}> {
+  const { isPdf, isCsv } = isStatementAttachment(att);
+  if (!isPdf && !isCsv) return { parsed: [] };
+
+  try {
+    const data = await downloadGmailAttachment(accessToken, msg.id, att.attachmentId);
+
+    if (isPdf) {
+      const arrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+      // Defer AI near-dupe to the final sync merge (cross-message + existing sample).
+      const chunked = await parsePdfStatementChunked(arrayBuffer, {
+        password: pdfPassword,
+        runAiNearDuplicate: false,
+      });
+      const errors: string[] = [];
+      if (chunked.meta.chunkErrors?.length) {
+        errors.push(...chunked.meta.chunkErrors);
+      }
+      if (!chunked.transactions.length && chunked.meta.chunksFailed > 0 && chunked.meta.chunksSucceeded === 0) {
+        return {
+          parsed: [],
+          error:
+            chunked.meta.chunkErrors?.[0] ??
+            GMAIL_ERROR_MESSAGES.ATTACHMENT_PARSE_FAILED.replace(
+              "{filename}",
+              att.filename || GMAIL_DEFAULTS.FALLBACK_ATTACHMENT_FILENAME,
+            ),
+        };
+      }
+      return {
+        parsed: chunked.transactions,
+        error: errors.length ? errors.join(" ") : undefined,
+      };
+    }
+
+    const extractedText = normalizeStatementText(new TextDecoder("utf-8").decode(data));
+    if (!extractedText.trim()) return { parsed: [] };
+
+    const parsedTxs = await parseStatementWithAi(extractedText);
+    return { parsed: parsedTxs?.length ? parsedTxs : [] };
+  } catch (attErr) {
+    if (isPdfPasswordError(attErr)) {
+      const filename = att.filename || GMAIL_DEFAULTS.FALLBACK_PDF_FILENAME;
+      const meta = buildLockedAttachmentMeta(msg, filename);
+      return {
+        parsed: [],
+        locked: {
+          id: lockedAttachmentId(msg.id, att.attachmentId),
+          messageId: msg.id,
+          attachmentId: att.attachmentId,
+          filename,
+          mimeType: att.mimeType || "application/pdf",
+          ...meta,
+        },
+      };
+    }
+    return {
+      parsed: [],
+      error: GMAIL_ERROR_MESSAGES.ATTACHMENT_PARSE_FAILED.replace(
+        "{filename}",
+        att.filename || GMAIL_DEFAULTS.FALLBACK_ATTACHMENT_FILENAME,
+      ),
+    };
+  }
+}
+
+async function processMessage(
+  accessToken: string,
+  messageId: string,
+  options: {
+    includeAttachments: boolean;
+    includeAlerts: boolean;
+    pdfPassword?: string;
+  },
+): Promise<MessageParseResult> {
+  const result: MessageParseResult = {
+    parsed: [],
+    locked: [],
+    errors: [],
+    statementAttachmentsFound: 0,
+    alertEmailsFound: 0,
+  };
+
+  try {
+    const msg = await getGmailMessage(accessToken, messageId);
+
+    if (options.includeAttachments && msg.attachments?.length) {
+      const statementAtts = msg.attachments.filter((att) => {
+        const { isPdf, isCsv } = isStatementAttachment(att);
+        return isPdf || isCsv;
+      });
+      result.statementAttachmentsFound = statementAtts.length;
+
+      const attResults = await Promise.allSettled(
+        statementAtts.map((att) => parseAttachment(accessToken, msg, att, options.pdfPassword)),
+      );
+
+      for (const settled of attResults) {
+        if (settled.status === "rejected") {
+          result.errors.push(
+            GMAIL_ERROR_MESSAGES.ATTACHMENT_PARSE_FAILED.replace(
+              "{filename}",
+              GMAIL_DEFAULTS.FALLBACK_ATTACHMENT_FILENAME,
+            ),
+          );
+          continue;
+        }
+        const value = settled.value;
+        if (value.parsed.length) result.parsed.push(...value.parsed);
+        if (value.locked) result.locked.push(value.locked);
+        if (value.error) result.errors.push(value.error);
+      }
+    }
+
+    if (options.includeAlerts) {
+      try {
+        const alertTxs = await parseEmailAlert(msg.subject, msg.bodyHtml, msg.bodyText, msg.date);
+        if (alertTxs?.length) {
+          result.alertEmailsFound = 1;
+          result.parsed.push(...alertTxs);
+        }
+      } catch {
+        result.errors.push(GMAIL_ERROR_MESSAGES.ALERT_PARSE_FAILED);
+      }
+    }
+  } catch {
+    result.errors.push(GMAIL_ERROR_MESSAGES.MESSAGE_PROCESS_FAILED);
+  }
+
+  return result;
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as SyncRequestBody;
-    const userId = body.userId || GMAIL_DEFAULTS.DEFAULT_USER_ID;
+    const { userId } = await requireOwnedUserId(request, body.userId);
     const daysBack = body.daysBack ?? GMAIL_DEFAULTS.DAYS_BACK;
     const startDate = body.startDate;
     const endDate = body.endDate;
     const includeAlerts = body.includeAlerts !== false;
     const includeAttachments = body.includeAttachments !== false;
-    const pdfPassword = body.pdfPassword;
+    const includeCred = body.includeCred !== false;
+    const pdfPassword = body.pdfPassword?.trim() || undefined;
     const existingTransactions = body.existingTransactions || [];
 
-    const account = await getStoredGmailAccount(userId);
-    if (!account || !account.refreshToken) {
+    let accessToken: string;
+    try {
+      ({ accessToken } = await resolveGmailAccessToken(userId));
+    } catch (authErr) {
+      if (authErr instanceof GmailAuthError) {
+        return NextResponse.json({ error: authErr.message }, { status: authErr.status });
+      }
       return NextResponse.json({ error: GMAIL_ERROR_MESSAGES.ACCOUNT_NOT_CONNECTED }, { status: 401 });
     }
 
-    // Refresh access token if expired or about to expire in next threshold
-    let accessToken = account.accessToken || "";
-    if (
-      !accessToken ||
-      !account.expiresAt ||
-      Date.now() > account.expiresAt - GMAIL_DEFAULTS.TOKEN_REFRESH_EXPIRY_THRESHOLD_MS
-    ) {
-      try {
-        const refreshed = await refreshAccessToken(account.refreshToken);
-        accessToken = refreshed.access_token;
-        await saveGmailTokens(userId, {
-          refreshToken: account.refreshToken,
-          accessToken: refreshed.access_token,
-          expiresIn: refreshed.expires_in,
-          email: account.email,
-        });
-      } catch (refreshErr) {
-        return NextResponse.json(
-          {
-            error: `${GMAIL_ERROR_MESSAGES.TOKEN_REFRESH_FAILED}: ${refreshErr instanceof Error ? refreshErr.message : "Unknown error"}. Please reconnect Gmail.`,
-          },
-          { status: 401 },
-        );
-      }
-    }
+    // Pass source toggles into the query so disabled alerts don't consume maxResults
+    // and crowd out statement PDFs (and vice versa).
+    const query = buildGmailBankQuery({
+      startDate,
+      endDate,
+      daysBack,
+      includeAlerts,
+      includeStatements: includeAttachments,
+    });
+    const messages = await searchGmailMessages(
+      accessToken,
+      query,
+      body.maxEmails || GMAIL_DEFAULTS.MAX_SEARCH_RESULTS,
+    );
 
-    // 1. Search bank emails
-    const query = buildGmailBankQuery({ startDate, endDate, daysBack });
-    const messages = await searchGmailMessages(accessToken, query, body.maxEmails || GMAIL_DEFAULTS.MAX_SEARCH_RESULTS);
+    const messageResults = await runWithConcurrency(messages, GMAIL_DEFAULTS.SYNC_MESSAGE_CONCURRENCY, (item) =>
+      processMessage(accessToken, item.id, {
+        includeAttachments,
+        includeAlerts,
+        pdfPassword,
+      }),
+    );
 
     const allParsed: ParsedStatementTransaction[] = [];
     const errors: string[] = [];
+    const lockedAttachments: GmailLockedAttachment[] = [];
     let statementAttachmentsFound = 0;
     let alertEmailsFound = 0;
 
-    // 2. Fetch and parse each matching message
-    for (const item of messages) {
+    for (const result of messageResults) {
+      allParsed.push(...result.parsed);
+      errors.push(...result.errors);
+      lockedAttachments.push(...result.locked);
+      statementAttachmentsFound += result.statementAttachmentsFound;
+      alertEmailsFound += result.alertEmailsFound;
+    }
+
+    // CRED Protect CC bills (separate query — does not compete with bank maxResults).
+    let credEmailsScanned = 0;
+    let credBills = [] as Awaited<ReturnType<typeof syncCredEmails>>["bills"];
+    if (includeCred) {
       try {
-        const msg = await getGmailMessage(accessToken, item.id);
-
-        // A. Handle Attachments (PDF / CSV e-Statements)
-        if (includeAttachments && msg.attachments && msg.attachments.length > 0) {
-          for (const att of msg.attachments) {
-            const filename = (att.filename || "").toLowerCase();
-            const isPdf = filename.endsWith(".pdf") || att.mimeType.includes("pdf");
-            const isCsv =
-              filename.endsWith(".csv") ||
-              filename.endsWith(".txt") ||
-              att.mimeType.includes("csv") ||
-              att.mimeType.includes("text");
-
-            if (!isPdf && !isCsv) continue;
-
-            statementAttachmentsFound++;
-
-            try {
-              const data = await downloadGmailAttachment(accessToken, msg.id, att.attachmentId);
-
-              let extractedText = "";
-              if (isPdf) {
-                // PDF buffer
-                const arrayBuffer = data.buffer.slice(
-                  data.byteOffset,
-                  data.byteOffset + data.byteLength,
-                ) as ArrayBuffer;
-                extractedText = await extractPdfText(arrayBuffer, pdfPassword);
-              } else {
-                extractedText = normalizeStatementText(new TextDecoder("utf-8").decode(data));
-              }
-
-              if (extractedText.trim()) {
-                const parsedTxs = await parseStatementWithAi(extractedText);
-                if (parsedTxs && parsedTxs.length > 0) {
-                  allParsed.push(...parsedTxs);
-                }
-              }
-            } catch (attErr) {
-              errors.push(
-                `Failed parsing attachment "${att.filename}": ${attErr instanceof Error ? attErr.message : "Unknown error"}`,
-              );
-            }
-          }
+        const credResult = await syncCredEmails(accessToken, {
+          daysBack,
+          startDate,
+          endDate,
+        });
+        credEmailsScanned = credResult.emailsScanned;
+        credBills = credResult.bills;
+        if (credResult.spendTransactions.length) {
+          allParsed.push(...credResult.spendTransactions);
         }
-
-        // B. Handle Transaction Alert Emails (HTML / Text body)
-        if (includeAlerts) {
-          try {
-            const alertTxs = await parseEmailAlert(msg.subject, msg.bodyHtml, msg.bodyText, msg.date);
-            if (alertTxs && alertTxs.length > 0) {
-              alertEmailsFound++;
-              allParsed.push(...alertTxs);
-            }
-          } catch (alertErr) {
-            errors.push(
-              `Failed parsing alert "${msg.subject}": ${alertErr instanceof Error ? alertErr.message : "Unknown error"}`,
-            );
-          }
+        if (credResult.errors.length) {
+          errors.push(...credResult.errors);
         }
-      } catch (msgErr) {
-        errors.push(
-          `Failed processing message ${item.id}: ${msgErr instanceof Error ? msgErr.message : "Unknown error"}`,
-        );
+      } catch {
+        errors.push(CRED_ERROR_MESSAGES.SYNC_FAILED);
       }
     }
 
-    // 3. Deduplicate transactions
     const uniqueBatch: ParsedStatementTransaction[] = [];
     let duplicatesCount = 0;
 
+    // First pass: exact hard dedupe (date + type + amount + description).
     for (const tx of allParsed) {
-      // Check against both existing DB transactions and transactions within this batch
       const isDupInDb = hasDuplicate(tx, existingTransactions);
       const isDupInBatch = hasDuplicate(tx, uniqueBatch);
-
       if (isDupInDb || isDupInBatch) {
         duplicatesCount++;
       } else {
@@ -163,32 +288,50 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Update sync timestamp
-    await updateLastSync(userId);
+    // Second pass: AI near-duplicates — flag for Review, never drop.
+    const { transactions: flaggedBatch, meta: aiNearDuplicate } = await flagNearDuplicatesWithAi(
+      uniqueBatch,
+      { existingTransactions },
+    );
 
-    const discoveredCategories = collectNovelCategories(uniqueBatch);
+    const hadUsableOutcome =
+      flaggedBatch.length > 0 ||
+      lockedAttachments.length > 0 ||
+      credBills.length > 0 ||
+      duplicatesCount > 0 ||
+      errors.length === 0;
+
+    if (hadUsableOutcome) {
+      await updateLastSync(userId);
+    }
+
+    const discoveredCategories = collectNovelCategories(flaggedBatch);
 
     const response: GmailSyncResponse = {
-      transactions: uniqueBatch,
+      transactions: flaggedBatch,
+      credBills,
       meta: {
-        emailsScanned: messages.length,
+        emailsScanned: messages.length + credEmailsScanned,
         statementAttachmentsFound,
         alertEmailsFound,
         totalParsed: allParsed.length,
-        newCount: uniqueBatch.length,
+        newCount: flaggedBatch.length,
         duplicatesCount,
         errors,
+        lockedAttachments,
         discoveredCategories,
+        aiNearDuplicate,
+        credEmailsScanned,
+        credBillsFound: credBills.length,
       },
     };
 
     return NextResponse.json(response);
   } catch (err) {
-    return NextResponse.json(
-      {
-        error: err instanceof Error ? err.message : "Failed to sync transactions from Gmail",
-      },
-      { status: 500 },
-    );
+    if (err instanceof UserAuthError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    // Never forward raw Error.message — upstream providers may embed response bodies.
+    return NextResponse.json({ error: GMAIL_ERROR_MESSAGES.SYNC_FAILED }, { status: 500 });
   }
 }

@@ -1,0 +1,16 @@
+---
+description: Standing security + code-quality review on every agent turn with file changes
+alwaysApply: true
+---
+
+# Continuous Code Review (Budgety)
+
+When you edit or create source files in this workspace:
+
+1. **Security** — Check for injection, auth bypass/IDOR, exposed secrets, unsafe deserialization, token/password leakage, unauthenticated expensive endpoints.
+2. **Code quality** — Bugs, races, unhandled errors, type issues, React hook mistakes, memory leaks.
+3. **Standards** — Remove unused imports/code; use `@constants` (no magic strings); path aliases (`@components`, `@utils`, etc.); proper error handling (no `console.log` for errors); maintainable React patterns.
+4. **Auto-fix** clear, safe issues in the same turn. Do not break Gmail sync, PDF unlock, or Import Review flows.
+5. **Queue** — Prefer the project hook queue at `.cursor/hooks/state/review-queue.json` and summaries under the agent store `code-review/`.
+
+Gmail/statement API routes must verify Firebase ID tokens and bind `userId` to the authenticated uid. Never trust client-supplied user ids alone.

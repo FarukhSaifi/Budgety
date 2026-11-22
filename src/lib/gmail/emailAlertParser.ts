@@ -3,8 +3,14 @@
  * Handles Indian banks (HDFC, ICICI, SBI, Axis, Kotak, AMEX, UPI).
  */
 
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@constants";
+
 import { resolveCategoryName } from "@utils/categoryNormalize";
-import { applyKnownUpiPayeeCategory } from "@utils/transactionCategorization";
+import { todayStorage, toStorageDate } from "@utils/dateUtils";
+import {
+  applyKnownUpiPayeeCategory,
+  categorizeTransaction,
+} from "@utils/transactionCategorization";
 
 import { parseStatementWithAi } from "@/lib/statement/aiParse";
 import type { ParsedStatementTransaction } from "@/lib/statement/types";
@@ -26,13 +32,13 @@ function cleanHtmlToText(html: string): string {
 }
 
 function parseDate(emailDateStr?: string): string {
+  // Local calendar day (via toStorageDate) — avoid UTC shift that moves IST evenings
+  // into the next month (e.g. 31 Oct evening → 1 Nov UTC).
   if (emailDateStr) {
-    const d = new Date(emailDateStr);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toISOString().slice(0, 10);
-    }
+    const stored = toStorageDate(emailDateStr);
+    if (stored) return stored;
   }
-  return new Date().toISOString().slice(0, 10);
+  return todayStorage();
 }
 
 function normalizeAmount(val: string): number {
@@ -55,6 +61,59 @@ function cleanMerchantName(raw: string): string {
 }
 
 /**
+ * Infer income vs expense from alert wording.
+ * Prefer debit when both appear — UPI alerts often say "debited … credited to merchant".
+ */
+function inferAlertType(fullText: string): TransactionType {
+  const hasDebit =
+    /\b(?:is\s+)?debited\b|\bspent\b|\bwithdrawn\b|\bcharged\b|\bpurchase\s+of\b|\bpaid\s+(?:via|to|using|for)\b|\bused\s+(?:for|at)\b|\btransaction\s+of\b/i.test(
+      fullText,
+    );
+  const hasCredit =
+    /\b(?:is\s+)?credited(?:\s+(?:with|by|to\s+your))?\b|\bdeposited\b|\brefund(?:ed)?\b|\breversed\b|\breceived\s+(?:INR|Rs\.?|₹)/i.test(
+      fullText,
+    );
+
+  if (hasDebit) return "expense";
+  if (hasCredit) return "income";
+  return "expense";
+}
+
+function inferAlertPaymentMode(fullText: string): PaymentMode {
+  if (/upi|vpa|google\s*pay|gpay|phonepe|paytm/i.test(fullText)) {
+    return "UPI";
+  }
+  // CC alerts: "spent on Credit Card", "HDFC Bank Credit Card ending", Amex/OneCard/Slice
+  if (
+    /credit\s*card|amex|american\s*express|onecard|uni\s*card|slice\s*card|\bcc\s*xx|\bcard\s*ending|\bpos\s*purchase/i.test(
+      fullText,
+    )
+  ) {
+    return "Card";
+  }
+  if (/debit\s*card/i.test(fullText)) {
+    return "Card";
+  }
+  if (/net\s*banking|neft|rtgs|imps/i.test(fullText)) {
+    return "Net Banking";
+  }
+  if (/\bwallet\b|paytm\s*wallet|amazon\s*pay/i.test(fullText)) {
+    return "Wallet";
+  }
+  return "Other";
+}
+
+function resolveAlertCategory(merchant: string, type: TransactionType): string {
+  const keyword = categorizeTransaction(merchant, type);
+  const other = type === "income" ? INCOME_CATEGORIES.OTHER : EXPENSE_CATEGORIES.OTHER;
+  const base =
+    keyword && keyword.toLowerCase() !== other.toLowerCase()
+      ? keyword
+      : resolveCategoryName(type, other).category;
+  return applyKnownUpiPayeeCategory(merchant, type, base);
+}
+
+/**
  * Fast regex parser for typical Indian transaction alert emails.
  */
 export function parseAlertEmailRegex(
@@ -66,27 +125,15 @@ export function parseAlertEmailRegex(
 
   // Check if this looks like a transaction email at all
   const isTxn =
-    /debited|credited|spent|withdrawn|transferred|transaction\s*alert|paid\s*via|charged|purchase\s*of/i.test(fullText);
+    /debited|credited|spent|withdrawn|transferred|transaction\s*alert|paid\s*via|charged|purchase\s*of/i.test(
+      fullText,
+    );
   if (!isTxn) return null;
 
-  // Determine income vs expense
-  const isCredit = /credited|deposited|refund|reversed|received/i.test(fullText);
-  const type: TransactionType = isCredit ? "income" : "expense";
+  const type = inferAlertType(fullText);
+  const paymentMode = inferAlertPaymentMode(fullText);
 
-  // Determine payment mode
-  let paymentMode: PaymentMode = "Other";
-  if (/upi|vpa|googlepay|phonepe|paytm/i.test(fullText)) {
-    paymentMode = "UPI";
-  } else if (/credit\s*card/i.test(fullText)) {
-    paymentMode = "Card";
-  } else if (/debit\s*card/i.test(fullText)) {
-    paymentMode = "Card";
-  } else if (/net\s*banking|neft|rtgs|imps/i.test(fullText)) {
-    paymentMode = "Net Banking";
-  }
-
-  // Extract amount
-  // Matches: INR 1,234.50, Rs. 1,234, Rs 1234, etc.
+  // Extract amount — Matches: INR 1,234.50, Rs. 1,234, Rs 1234, etc.
   const amountMatch = fullText.match(/(?:INR|Rs\.?|₹)\s*([\d,]+(?:\.\d{1,2})?)/i);
   if (!amountMatch) return null;
 
@@ -94,11 +141,6 @@ export function parseAlertEmailRegex(
   if (amount <= 0) return null;
 
   // Extract merchant / payee
-  // Patterns:
-  // "debited ... at SWIGGY"
-  // "used at AMAZON"
-  // "paid to ZOMATO"
-  // "vpa user@bank (NAME)"
   const merchantMatch =
     fullText.match(
       /(?:at|to|towards|for|info:)\s+([A-Za-z0-9\s\-&.'_]{2,40}?)(?:\s+(?:on|dated|ref|avl|bal|using|via|through|\.))/i,
@@ -109,8 +151,7 @@ export function parseAlertEmailRegex(
     : cleanMerchantName(subject.replace(/transaction\s*alert|bank|alert|hdfc|icici|sbi/gi, ""));
 
   const date = parseDate(emailDate);
-  const defaultCategory = resolveCategoryName(type, "Other").category;
-  const category = applyKnownUpiPayeeCategory(merchant, type, defaultCategory);
+  const category = resolveAlertCategory(merchant, type);
 
   return {
     title: merchant,

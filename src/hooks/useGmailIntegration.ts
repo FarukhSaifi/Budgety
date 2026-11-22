@@ -2,17 +2,24 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { GMAIL_DEFAULTS, GMAIL_ERROR_MESSAGES } from "@constants";
+import { GMAIL_DEFAULTS, GMAIL_ERROR_MESSAGES, GMAIL_UI_TEXT } from "@constants";
 
 import type { GmailConnectionStatus, GmailSyncOptions, GmailSyncResponse } from "@/types/gmail";
 
+import { useAppSelector } from "@store/hooks";
+import { applyCredBills, credBillsToastMessage } from "@utils/applyCredBills";
 import type { DuplicateCheckable } from "@utils/duplicateDetection";
-import { showError, showInfo, showSuccess } from "@utils/toast";
+import { toDuplicateCheckPayload } from "@utils/duplicatePayload";
+import { mergeLockedQueue } from "@utils/gmailLockedQueue";
+import { showError, showInfo, showSuccess, showWarning } from "@utils/toast";
 
-
+import { authedFetch } from "@/lib/authedApiClient";
 import type { ParsedStatementTransaction } from "@/lib/statement/types";
 
+
+
 export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER_ID) {
+  const existingBills = useAppSelector((s) => s.bills.items);
   const [status, setStatus] = useState<GmailConnectionStatus>({ connected: false });
   const [isConfigured, setIsConfigured] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -21,16 +28,21 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
   const [syncSummary, setSyncSummary] = useState<GmailSyncResponse["meta"] | null>(null);
 
   const fetchStatus = useCallback(async () => {
+    if (!userId || userId === GMAIL_DEFAULTS.DEFAULT_USER_ID) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const res = await fetch(`/api/gmail/status?userId=${encodeURIComponent(userId)}`);
+      const res = await authedFetch(`/api/gmail/status?userId=${encodeURIComponent(userId)}`);
       if (res.ok) {
         const data = (await res.json()) as GmailConnectionStatus & { isConfigured: boolean };
         setStatus(data);
         setIsConfigured(data.isConfigured !== false);
       }
     } catch {
-      // Safe fallback
+      // Status check is best-effort; UI stays on last known connection state.
     } finally {
       setLoading(false);
     }
@@ -39,7 +51,6 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
   useEffect(() => {
     fetchStatus();
 
-    // Check URL parameters for OAuth redirect notifications
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       const gmailConnected = url.searchParams.get("gmail");
@@ -47,11 +58,15 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
       const email = url.searchParams.get("email");
 
       if (gmailConnected === "connected") {
-        showSuccess(`Gmail connected successfully${email ? ` (${email})` : ""}!`);
+        showSuccess(
+          GMAIL_UI_TEXT.CONNECTED_TOAST.replace("{email}", email ? ` (${email})` : ""),
+        );
         fetchStatus();
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (gmailError) {
-        showError(`Gmail connection failed: ${decodeURIComponent(gmailError)}`);
+        showError(
+          GMAIL_UI_TEXT.CONNECTION_FAILED_TOAST.replace("{error}", decodeURIComponent(gmailError)),
+        );
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
@@ -59,7 +74,7 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
 
   const connectGmail = useCallback(async () => {
     try {
-      const res = await fetch(`/api/auth/gmail/url?userId=${encodeURIComponent(userId)}`);
+      const res = await authedFetch(`/api/auth/gmail/url?userId=${encodeURIComponent(userId)}`);
       const data = (await res.json()) as { url?: string; error?: string };
 
       if (!res.ok || !data.url) {
@@ -76,15 +91,16 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
   const disconnectGmail = useCallback(async () => {
     setDisconnecting(true);
     try {
-      const res = await fetch("/api/gmail/disconnect", {
+      const res = await authedFetch("/api/gmail/disconnect", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
       if (res.ok) {
         setStatus({ connected: false });
         setSyncSummary(null);
-        showInfo("Gmail account disconnected.");
+        showInfo(GMAIL_UI_TEXT.DISCONNECTED_TOAST);
+      } else {
+        showError(GMAIL_ERROR_MESSAGES.DISCONNECT_FAILED);
       }
     } catch {
       showError(GMAIL_ERROR_MESSAGES.DISCONNECT_FAILED);
@@ -96,9 +112,8 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
   const updateAutoSync = useCallback(
     async (autoSyncEnabled: boolean, autoSyncIntervalHours?: number) => {
       try {
-        const res = await fetch("/api/gmail/settings", {
+        const res = await authedFetch("/api/gmail/settings", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId,
             autoSyncEnabled,
@@ -111,10 +126,14 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
             autoSyncEnabled,
             autoSyncIntervalHours: autoSyncIntervalHours ?? prev.autoSyncIntervalHours,
           }));
-          showSuccess(autoSyncEnabled ? "Auto-sync enabled." : "Auto-sync disabled.");
+          showSuccess(
+            autoSyncEnabled ? GMAIL_UI_TEXT.AUTO_SYNC_ENABLED_TOAST : GMAIL_UI_TEXT.AUTO_SYNC_DISABLED_TOAST,
+          );
+        } else {
+          showError(GMAIL_ERROR_MESSAGES.SETTINGS_UPDATE_FAILED);
         }
       } catch {
-        showError("Failed to update auto-sync settings.");
+        showError(GMAIL_ERROR_MESSAGES.SETTINGS_UPDATE_FAILED);
       }
     },
     [userId],
@@ -130,9 +149,12 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
       setSyncSummary(null);
 
       try {
-        const res = await fetch("/api/gmail/sync", {
+        const existing = options.existingTransactions
+          ? toDuplicateCheckPayload(options.existingTransactions)
+          : [];
+
+        const res = await authedFetch("/api/gmail/sync", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId,
             daysBack: options.daysBack ?? GMAIL_DEFAULTS.DAYS_BACK,
@@ -141,7 +163,7 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
             pdfPassword: options.pdfPassword?.trim() || undefined,
             includeAlerts: options.includeAlerts !== false,
             includeAttachments: options.includeAttachments !== false,
-            existingTransactions: options.existingTransactions || [],
+            existingTransactions: existing,
           }),
         });
 
@@ -151,22 +173,47 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
           throw new Error(data.error || GMAIL_ERROR_MESSAGES.SYNC_FAILED);
         }
 
-        setSyncSummary(data.meta);
+        const locked = data.meta.lockedAttachments ?? [];
+        if (locked.length > 0) {
+          mergeLockedQueue(userId, locked);
+        }
+
+        const credBills = data.credBills ?? [];
+        let credUpserted = 0;
+        if (credBills.length > 0) {
+          const applied = await applyCredBills(userId, credBills, existingBills);
+          credUpserted = applied.upserted;
+        }
+
+        setSyncSummary({
+          ...data.meta,
+          lockedAttachments: locked,
+          credBillsFound: credUpserted || data.meta.credBillsFound,
+        });
         fetchStatus();
 
         if (data.transactions.length > 0) {
-          onSuccess?.(data.transactions, data.meta);
+          onSuccess?.(data.transactions, { ...data.meta, lockedAttachments: locked });
           if (!silent) {
-            showSuccess(`Found ${data.transactions.length} new transaction(s)! Added to staging for review.`);
+            showSuccess(GMAIL_UI_TEXT.SYNC_FOUND_STAGED.replace("{count}", String(data.transactions.length)));
           }
         } else if (data.meta.duplicatesCount > 0) {
           if (!silent) {
-            showInfo(
-              `All ${data.meta.duplicatesCount} transactions found are already imported. No new entries to stage.`,
-            );
+            showInfo(GMAIL_UI_TEXT.SYNC_ALL_DUPLICATES.replace("{count}", String(data.meta.duplicatesCount)));
           }
-        } else if (!silent) {
-          showInfo("No bank statement emails found in the selected time window.");
+        } else if (!silent && locked.length === 0 && credUpserted === 0) {
+          showInfo(GMAIL_UI_TEXT.SYNC_NONE_FOUND);
+        }
+
+        if (!silent && credUpserted > 0) {
+          showSuccess(credBillsToastMessage(credUpserted));
+        }
+
+        if (!silent && locked.length > 0) {
+          showWarning(GMAIL_UI_TEXT.SYNC_LOCKED_NEED_PASSWORD.replace("{count}", String(locked.length)));
+          if (data.transactions.length === 0) {
+            onSuccess?.([], { ...data.meta, lockedAttachments: locked });
+          }
         }
       } catch (err) {
         if (!silent) {
@@ -176,7 +223,7 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
         setSyncing(false);
       }
     },
-    [fetchStatus, userId],
+    [existingBills, fetchStatus, userId],
   );
 
   return {

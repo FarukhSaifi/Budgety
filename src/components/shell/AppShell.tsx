@@ -5,6 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import { AskBudgetyWidget } from "@components/features/chat/AskBudgetyWidget";
+import { GmailAutoSyncBanner } from "@components/features/transactions/GmailAutoSyncBanner";
 import { AddTransactionSheet } from "@components/mobile/AddTransactionSheet";
 
 import { useSyncActiveTabFromPath } from "@hooks/useAppNavigation";
@@ -28,7 +29,7 @@ export interface AppShellProps {
  */
 export function AppShell({ children }: AppShellProps) {
   useSyncActiveTabFromPath();
-  useGmailAutoSync();
+  const { autoSyncing } = useGmailAutoSync();
 
   const pathname = usePathname();
   const activeTab = useAppSelector((state) => state.ui.activeTab);
@@ -66,6 +67,7 @@ export function AppShell({ children }: AppShellProps) {
       </div>
       <BottomNav onFabClick={() => setSheetOpen(true)} />
       <AddTransactionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} budgetPct={budgetPct} />
+      <GmailAutoSyncBanner active={autoSyncing} />
       <AskBudgetyWidget />
     </div>
   );

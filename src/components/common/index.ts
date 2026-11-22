@@ -21,6 +21,8 @@ export { Modal } from "./Modal";
 export type { ModalProps, ModalSize } from "./Modal";
 export { ProgressBar } from "./ProgressBar";
 export type { ProgressBarProps } from "./ProgressBar";
+export { ProgressPercent } from "./ProgressPercent";
+export type { ProgressPercentProps } from "./ProgressPercent.types";
 export { PeriodShiftPill } from "./PeriodShiftPill";
 export type { PeriodShiftPillProps } from "./PeriodShiftPill";
 export { SegmentedPill } from "./SegmentedPill";

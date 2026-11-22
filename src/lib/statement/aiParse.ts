@@ -1,10 +1,17 @@
-import { ERROR_MESSAGES, STATEMENT_IMPORT, TRANSACTION_MODES } from "@constants";
+import {
+  ERROR_MESSAGES,
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+  STATEMENT_IMPORT,
+  TRANSACTION_MODES,
+} from "@constants";
 
 import { PAYMENT_MODES_LIST } from "@constants/firestore";
 
 import { builtInCategoriesForType, resolveCategoryName } from "@utils/categoryNormalize";
 import {
   applyKnownUpiPayeeCategory,
+  categorizeTransaction,
   formatKnownUpiPayeePromptRules,
 } from "@utils/transactionCategorization";
 
@@ -28,9 +35,12 @@ function buildSystemPrompt(): string {
     "Rules:",
     "- amount: positive number only (absolute value).",
     '- type: "income" for credits/deposits; "expense" for debits/withdrawals.',
+    '- If narration mentions both debit and credit (e.g. UPI "debited … credited to merchant"), type is expense.',
     "- category: Prefer an existing category from the lists below when it fits well.",
     "- You MAY invent a short Title Case category (2–4 words max) when none of the lists fit.",
     "- Do NOT invent vague labels like Misc or General when a specific merchant category is clear.",
+    '- Category "Credit Card" is ONLY for bank-account payments toward a credit-card bill (CRED, bil/onl, payment to card). Ordinary card purchases use the merchant category (Dining Out, Shopping, etc.) with paymentMode=Card.',
+    "- Credit-card statement purchases = expense + paymentMode Card. CC payment received / refund on the card statement = income (or refund).",
     `  Income categories: ${INCOME_LIST.join(", ")}`,
     `  Expense categories: ${EXPENSE_LIST.join(", ")}`,
     formatKnownUpiPayeePromptRules(),
@@ -38,7 +48,7 @@ function buildSystemPrompt(): string {
     "- date: ISO date YYYY-MM-DD. Prefer DD-MM-YYYY / DD.MM.YYYY interpretation for Indian statements.",
     "- title: concise merchant/narration (max ~120 chars). Prefer clean human-readable text.",
     "- Infer category from the description (e.g. Zomato → Dining Out, salary credit → Salary, UPI to petrol → Transportation).",
-    "- Infer paymentMode from narration codes (UPI, NEFT, IMPS, RTGS, CARD, etc.). Default to Other if unclear.",
+    "- Infer paymentMode from narration codes (UPI, NEFT, IMPS, RTGS, CARD, POS, etc.). Default to Other if unclear.",
     "- Skip opening/closing balance rows, headers, summaries, and non-transaction lines.",
     '- If nothing can be extracted, return {"transactions":[]}.',
   ].join("\n");
@@ -95,11 +105,13 @@ function coerceTransactions(raw: unknown): ParsedStatementTransaction[] {
     if (!title || !date || amount <= 0) continue;
 
     const paymentMode = normalizePaymentMode(row.paymentMode ?? row.mode);
-    const category = applyKnownUpiPayeeCategory(
-      title,
-      type,
-      normalizeCategory(type, row.category),
-    );
+    let category = normalizeCategory(type, row.category);
+    const other = type === "income" ? INCOME_CATEGORIES.OTHER : EXPENSE_CATEGORIES.OTHER;
+    // Keyword fallback when the model returns vague Other — same rules as Excel import.
+    if (!category || category.toLowerCase() === other.toLowerCase()) {
+      category = categorizeTransaction(title, type);
+    }
+    category = applyKnownUpiPayeeCategory(title, type, category);
 
     out.push({
       title,
@@ -150,10 +162,41 @@ function resolveProvider(): { provider: AiProvider; apiKey: string } | null {
   return null;
 }
 
-async function parseWithGoogle(statementText: string, apiKey: string): Promise<ParsedStatementTransaction[]> {
-  const model = STATEMENT_IMPORT.GEMINI_MODEL;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
+function isRetryableGeminiStatus(status: number): boolean {
+  return (STATEMENT_IMPORT.AI_RETRYABLE_HTTP_STATUSES as readonly number[]).includes(status);
+}
+
+function geminiModelsToTry(): string[] {
+  const primary = STATEMENT_IMPORT.GEMINI_MODEL;
+  const fallbacks = STATEMENT_IMPORT.GEMINI_MODEL_FALLBACKS as readonly string[];
+  return [primary, ...fallbacks.filter((m) => m !== primary)];
+}
+
+function throwForGeminiHttpStatus(status: number): never {
+  if (status === 429) {
+    throw new Error(ERROR_MESSAGES.AI_RATE_LIMITED);
+  }
+  if (status === 503) {
+    throw new Error(ERROR_MESSAGES.AI_UNAVAILABLE);
+  }
+  // Status only — never forward provider response bodies to API clients.
+  throw new Error(ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", `HTTP ${status}`));
+}
+
+type GeminiAttemptResult =
+  | { ok: true; transactions: ParsedStatementTransaction[] }
+  | { ok: false; status: number; rotateModel: boolean };
+
+async function attemptGeminiModel(
+  model: string,
+  apiKey: string,
+  statementText: string,
+): Promise<GeminiAttemptResult> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -202,35 +245,101 @@ async function parseWithGoogle(statementText: string, apiKey: string): Promise<P
     }),
   });
 
-  if (!response.ok) {
-    let detail = `HTTP ${response.status}`;
-    try {
-      const errBody = (await response.json()) as {
-        error?: { message?: string };
-      };
-      if (errBody?.error?.message) detail = errBody.error.message;
-    } catch {
-      // ignore body parse failure
+  if (response.ok) {
+    const data = (await response.json()) as {
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+      }>;
+    };
+    const content = data.candidates?.[0]?.content?.parts
+      ?.map((p) => p.text ?? "")
+      .join("")
+      .trim();
+
+    if (!content) {
+      throw new Error(ERROR_MESSAGES.AI_PARSE_EMPTY_RESPONSE);
     }
-    throw new Error(ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", detail));
+
+    const parsed = extractJsonPayload(content);
+    return { ok: true, transactions: coerceTransactions(parsed) };
   }
 
-  const data = (await response.json()) as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-    }>;
+  // Drain body so the socket can reuse; never surface upstream text.
+  await response.text().catch(() => undefined);
+
+  // 429 = model/quota exhausted → rotate immediately. 503 = retry same model briefly.
+  return {
+    ok: false,
+    status: response.status,
+    rotateModel: response.status === 429 || response.status === 404 || !isRetryableGeminiStatus(response.status),
   };
-  const content = data.candidates?.[0]?.content?.parts
-    ?.map((p) => p.text ?? "")
-    .join("")
-    .trim();
+}
 
-  if (!content) {
-    throw new Error(ERROR_MESSAGES.AI_PARSE_EMPTY_RESPONSE);
+async function parseWithGoogle(statementText: string, apiKey: string): Promise<ParsedStatementTransaction[]> {
+  const models = geminiModelsToTry();
+  let lastStatus = 0;
+
+  for (const model of models) {
+    const maxAttempts = STATEMENT_IMPORT.AI_RETRY_MAX_ATTEMPTS;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const result = await attemptGeminiModel(model, apiKey, statementText);
+      if (result.ok) return result.transactions;
+
+      lastStatus = result.status;
+      if (result.rotateModel) break;
+      if (attempt >= maxAttempts) break;
+
+      const delay =
+        STATEMENT_IMPORT.AI_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) + Math.floor(Math.random() * 200);
+      await sleep(delay);
+    }
   }
 
-  const parsed = extractJsonPayload(content);
-  return coerceTransactions(parsed);
+  throwForGeminiHttpStatus(lastStatus || 500);
+}
+
+/** Map thrown AI parse errors → stable API codes for unlock/parse clients. */
+export function classifyAiParseError(err: unknown): {
+  code: string;
+  message: string;
+  status: number;
+} | null {
+  if (!(err instanceof Error)) return null;
+  const message = err.message;
+
+  if (message === ERROR_MESSAGES.AI_RATE_LIMITED || message.includes("HTTP 429")) {
+    return {
+      code: STATEMENT_IMPORT.AI_ERROR_CODES.RATE_LIMITED,
+      message: ERROR_MESSAGES.AI_RATE_LIMITED,
+      status: STATEMENT_IMPORT.AI_UNAVAILABLE_HTTP_STATUS,
+    };
+  }
+  if (message === ERROR_MESSAGES.AI_UNAVAILABLE || message.includes("HTTP 503")) {
+    return {
+      code: STATEMENT_IMPORT.AI_ERROR_CODES.UNAVAILABLE,
+      message: ERROR_MESSAGES.AI_UNAVAILABLE,
+      status: STATEMENT_IMPORT.AI_UNAVAILABLE_HTTP_STATUS,
+    };
+  }
+  if (message === ERROR_MESSAGES.AI_API_KEY_MISSING) {
+    return {
+      code: STATEMENT_IMPORT.AI_ERROR_CODES.FAILED,
+      message,
+      status: 503,
+    };
+  }
+  if (
+    message === ERROR_MESSAGES.AI_PARSE_INVALID_JSON ||
+    message === ERROR_MESSAGES.AI_PARSE_EMPTY_RESPONSE ||
+    message.startsWith(ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", ""))
+  ) {
+    return {
+      code: STATEMENT_IMPORT.AI_ERROR_CODES.FAILED,
+      message,
+      status: 502,
+    };
+  }
+  return null;
 }
 
 async function parseWithOpenAi(statementText: string, apiKey: string): Promise<ParsedStatementTransaction[]> {
@@ -255,16 +364,10 @@ async function parseWithOpenAi(statementText: string, apiKey: string): Promise<P
   });
 
   if (!response.ok) {
-    let detail = `HTTP ${response.status}`;
-    try {
-      const errBody = (await response.json()) as {
-        error?: { message?: string };
-      };
-      if (errBody?.error?.message) detail = errBody.error.message;
-    } catch {
-      // ignore body parse failure
-    }
-    throw new Error(ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", detail));
+    // Status only — never forward provider response bodies to API clients.
+    throw new Error(
+      ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", `HTTP ${response.status}`),
+    );
   }
 
   const data = (await response.json()) as {

@@ -13,6 +13,7 @@ import { addChatMessage, setChatOpen, setChatStatus, toggleChatOpen } from "@sto
 import { cn } from "@utils/cn";
 
 import type { FinanceSnapshot } from "@/lib/assistant/prompt";
+import { authedFetch } from "@/lib/authedApiClient";
 
 const SUGGESTED_PROMPTS = [
   "How much did I spend this month?",
@@ -131,9 +132,8 @@ export function AskBudgetyWidget() {
     dispatch(setChatStatus({ status: "loading" }));
 
     try {
-      const res = await fetch("/api/assistant", {
+      const res = await authedFetch("/api/assistant", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: content, consent: true, snapshot }),
       });
       const data = (await res.json()) as { reply?: string; error?: string };

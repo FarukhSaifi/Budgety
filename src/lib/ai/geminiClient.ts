@@ -75,14 +75,10 @@ export async function generateGeminiJson(options: GeminiGenerateOptions): Promis
       });
 
       if (!response.ok) {
-        let detail = `HTTP ${response.status}`;
-        try {
-          const errBody = (await response.json()) as { error?: { message?: string } };
-          if (errBody?.error?.message) detail = errBody.error.message;
-        } catch {
-          // ignore
-        }
-        throw new Error(ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", detail));
+        // Status only — never forward provider response bodies to callers/clients.
+        throw new Error(
+          ERROR_MESSAGES.AI_PARSE_FAILED.replace("{message}", `HTTP ${response.status}`),
+        );
       }
 
       const data = (await response.json()) as {

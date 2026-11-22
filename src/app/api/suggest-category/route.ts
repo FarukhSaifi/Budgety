@@ -4,6 +4,7 @@ import { ERROR_MESSAGES } from "@constants";
 
 import { dedupeAsync, withTimeout } from "@/lib/ai/geminiClient";
 import { suggestCategoryWithAi, type SuggestCategoryResult } from "@/lib/category/suggestCategory";
+import { requireUserFromRequest, UserAuthError } from "@/lib/userAuth";
 import type { TransactionType } from "@/types";
 
 export const runtime = "nodejs";
@@ -41,6 +42,8 @@ const CACHE_TTL_MS = 60_000;
 
 export async function POST(request: Request) {
   try {
+    await requireUserFromRequest(request);
+
     let body: SuggestCategoryBody;
     try {
       body = (await request.json()) as SuggestCategoryBody;
@@ -96,18 +99,27 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    if (err instanceof UserAuthError) {
+      return jsonError(
+        err.message === "UNAUTHORIZED" ? ERROR_MESSAGES.AUTH_REQUIRED : err.message,
+        err.status,
+      );
+    }
+    const msg = err instanceof Error ? err.message : "";
     if (msg === "AI_REQUEST_TIMEOUT") {
       return jsonError(ERROR_MESSAGES.ASSISTANT_TIMEOUT, 504);
     }
-    const status =
-      msg === ERROR_MESSAGES.AI_API_KEY_MISSING
-        ? 503
-        : msg === ERROR_MESSAGES.SUGGEST_CATEGORY_TITLE_REQUIRED
-          ? 400
-          : msg.includes("AI")
-            ? 502
-            : 500;
-    return jsonError(msg || ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", "unknown error"), status);
+    if (msg === ERROR_MESSAGES.AI_API_KEY_MISSING) {
+      return jsonError(msg, 503);
+    }
+    if (msg === ERROR_MESSAGES.SUGGEST_CATEGORY_TITLE_REQUIRED) {
+      return jsonError(msg, 400);
+    }
+    const suggestPrefix = ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", "");
+    if (msg === ERROR_MESSAGES.AI_SUGGEST_CATEGORY_INVALID || msg.startsWith(suggestPrefix)) {
+      return jsonError(msg, 502);
+    }
+    // Never forward unexpected Error.message (may embed upstream bodies).
+    return jsonError(ERROR_MESSAGES.AI_SUGGEST_CATEGORY_FAILED.replace("{message}", "please try again"), 500);
   }
 }

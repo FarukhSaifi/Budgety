@@ -1,31 +1,32 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import {
   GMAIL_AUTO_SYNC_INTERVALS,
   GMAIL_DATE_PRESETS,
   GMAIL_DEFAULTS,
   GMAIL_ERROR_MESSAGES,
+  GMAIL_SYNC_PROGRESS_STAGES,
   GMAIL_UI_TEXT,
 } from "@constants";
 
-import type { GmailSyncResponse } from "@/types/gmail";
-
 import { Button } from "@components/common/Button";
+import { ProgressPercent } from "@components/common/ProgressPercent";
 import { Spinner } from "@components/common/Spinner";
 import { CheckCircleIcon, CloseIcon, CloudUploadIcon, RefreshIcon, WarningIcon } from "@components/icons";
 
+import { useEstimatedProgress } from "@hooks/useEstimatedProgress";
 import { useGmailIntegration } from "@hooks/useGmailIntegration";
 import { useAppSelector } from "@store/hooks";
 import { showError } from "@utils/toast";
 
-import type { ParsedStatementTransaction } from "@/lib/statement/types";
+import type { GmailSyncPanelProps } from "./GmailSyncPanel.types";
 
-interface GmailSyncPanelProps {
-  onTransactionsFetched: (transactions: ParsedStatementTransaction[], meta: GmailSyncResponse["meta"]) => void;
-}
-
+/**
+ * Manual / on-demand Gmail sync into the shared import staging table.
+ * Background auto-sync lives in `useGmailAutoSync` (AppShell) so it is not duplicated here.
+ */
 export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
   const userId = useAppSelector((s) => s.auth.user?.uid) || GMAIL_DEFAULTS.DEFAULT_USER_ID;
   const existingTransactions = useAppSelector((s) => s.transactions.items);
@@ -43,6 +44,8 @@ export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
     syncGmail,
   } = useGmailIntegration(userId);
 
+  const syncProgress = useEstimatedProgress(syncing, { stages: GMAIL_SYNC_PROGRESS_STAGES });
+
   const [showOptions, setShowOptions] = useState(false);
   const [rangeMode, setRangeMode] = useState<"preset" | "custom">("preset");
   const [daysBack, setDaysBack] = useState<number>(GMAIL_DEFAULTS.DAYS_BACK);
@@ -51,40 +54,6 @@ export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
   const [pdfPassword, setPdfPassword] = useState("");
   const [includeAlerts, setIncludeAlerts] = useState(true);
   const [includeAttachments, setIncludeAttachments] = useState(true);
-  const hasTriggeredAutoSync = useRef(false);
-
-  // Background auto-sync trigger on page open if enabled and due
-  useEffect(() => {
-    if (status.connected && status.autoSyncEnabled && !hasTriggeredAutoSync.current && !syncing) {
-      hasTriggeredAutoSync.current = true;
-      const intervalMs = (status.autoSyncIntervalHours || GMAIL_DEFAULTS.AUTO_SYNC_INTERVAL_HOURS) * 3600 * 1000;
-      const lastSyncTime = status.lastSyncAt ? new Date(status.lastSyncAt).getTime() : 0;
-
-      if (Date.now() - lastSyncTime > intervalMs) {
-        void syncGmail(
-          {
-            daysBack: GMAIL_DEFAULTS.AUTO_SYNC_DAYS_BACK,
-            pdfPassword,
-            includeAlerts: true,
-            includeAttachments: true,
-            existingTransactions,
-          },
-          onTransactionsFetched,
-          true,
-        );
-      }
-    }
-  }, [
-    status.connected,
-    status.autoSyncEnabled,
-    status.autoSyncIntervalHours,
-    status.lastSyncAt,
-    syncing,
-    pdfPassword,
-    existingTransactions,
-    onTransactionsFetched,
-    syncGmail,
-  ]);
 
   const setMonthRange = (offsetMonths: number) => {
     const now = new Date();
@@ -141,7 +110,7 @@ export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
                   </span>
                   {status.autoSyncEnabled && (
                     <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-                      ⚡ {GMAIL_UI_TEXT.AUTO_SYNC_ACTIVE}
+                      {GMAIL_UI_TEXT.AUTO_SYNC_ACTIVE}
                     </span>
                   )}
                 </>
@@ -219,10 +188,17 @@ export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
       {!isConfigured && (
         <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
           <WarningIcon className="h-4 w-4 shrink-0 text-amber-600" />
-          <span>
-            Google OAuth credentials are not set in <code>.env.local</code>. Please set <code>GOOGLE_CLIENT_ID</code>{" "}
-            and <code>GOOGLE_CLIENT_SECRET</code> to enable Gmail sync.
-          </span>
+          <span>{GMAIL_UI_TEXT.OAUTH_NOT_CONFIGURED_HINT}</span>
+        </div>
+      )}
+
+      {syncProgress.visible && (
+        <div className="mt-4 rounded-lg border border-brand-primary/10 bg-white/70 p-3 dark:bg-surface-low/60">
+          <ProgressPercent
+            value={syncProgress.percent}
+            label={syncProgress.label}
+            ariaLabel={GMAIL_UI_TEXT.SYNC_PROGRESS_ARIA}
+          />
         </div>
       )}
 
@@ -296,20 +272,20 @@ export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
                   </div>
                 </div>
                 <div className="flex gap-2 pt-1 text-[11px]">
-                  <span className="text-gray-400">Quick sets:</span>
+                  <span className="text-gray-400">{GMAIL_UI_TEXT.QUICK_SETS_LABEL}</span>
                   <button
                     type="button"
                     onClick={() => setMonthRange(0)}
                     className="text-brand-primary underline hover:opacity-80"
                   >
-                    This Month
+                    {GMAIL_UI_TEXT.QUICK_SET_THIS_MONTH}
                   </button>
                   <button
                     type="button"
                     onClick={() => setMonthRange(1)}
                     className="text-brand-primary underline hover:opacity-80"
                   >
-                    Last Month
+                    {GMAIL_UI_TEXT.QUICK_SET_LAST_MONTH}
                   </button>
                 </div>
               </div>
@@ -404,17 +380,29 @@ export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
 
       {/* Sync Summary Notification */}
       {syncSummary && (
-        <div className="mt-3 rounded-lg bg-white/80 p-3 text-xs shadow-xs border border-gray-100">
+        <div className="mt-3 rounded-lg border border-gray-100 bg-white/80 p-3 text-xs shadow-xs dark:border-outline-variant dark:bg-card">
           <div className="flex items-center justify-between font-semibold text-brand-deep">
-            <span className="flex items-center gap-1.5 text-emerald-600">
+            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-income">
               <CheckCircleIcon className="h-4 w-4" />
               {GMAIL_UI_TEXT.SYNC_SUMMARY}
             </span>
-            <button type="button" onClick={() => setSyncSummary(null)} className="text-gray-400 hover:text-gray-600">
+            <button
+              type="button"
+              onClick={() => setSyncSummary(null)}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-on-surface-variant"
+            >
               <CloseIcon className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="mt-1.5 grid grid-cols-2 gap-2 text-gray-600 sm:grid-cols-4">
+          <div className="mt-2 rounded-lg border border-primary-main/15 bg-primary-main/5 px-3 py-2">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-on-surface-variant">
+              {GMAIL_UI_TEXT.NEW_TRANSACTIONS}
+            </p>
+            <p className="mt-0.5 text-sm font-bold text-brand-deep">
+              {GMAIL_UI_TEXT.NEW_TRANSACTIONS_COUNT.replace("{count}", String(syncSummary.newCount ?? 0))}
+            </p>
+          </div>
+          <div className="mt-1.5 grid grid-cols-2 gap-2 text-gray-600 dark:text-on-surface-variant sm:grid-cols-5">
             <div>
               {GMAIL_UI_TEXT.EMAILS_SCANNED}:{" "}
               <span className="font-bold text-brand-deep">{syncSummary.emailsScanned}</span>
@@ -428,14 +416,27 @@ export function GmailSyncPanel({ onTransactionsFetched }: GmailSyncPanelProps) {
               <span className="font-bold text-brand-deep">{syncSummary.statementAttachmentsFound}</span>
             </div>
             <div>
+              {GMAIL_UI_TEXT.CRED_BILLS_FOUND}:{" "}
+              <span className="font-bold text-brand-deep">{syncSummary.credBillsFound ?? 0}</span>
+            </div>
+            <div>
               {GMAIL_UI_TEXT.DUPLICATES_SKIPPED}:{" "}
               <span className="font-bold text-amber-600">{syncSummary.duplicatesCount}</span>
             </div>
           </div>
+          {(() => {
+            const lockedCount = syncSummary.lockedAttachments?.length ?? 0;
+            if (lockedCount === 0) return null;
+            return (
+              <div className="mt-2 text-[11px] font-medium text-amber-800">
+                {GMAIL_UI_TEXT.LOCKED_FOUND}: <span className="font-bold">{lockedCount}</span>
+                {" — "}
+                {GMAIL_UI_TEXT.SYNC_LOCKED_NEED_PASSWORD.replace("{count}", String(lockedCount))}
+              </div>
+            );
+          })()}
           {syncSummary.errors.length > 0 && (
-            <div className="mt-2 text-[11px] text-rose-600">
-              {syncSummary.errors.length} notice(s) during sync (non-fatal): {syncSummary.errors[0]}
-            </div>
+            <div className="mt-2 text-[11px] text-rose-600">{syncSummary.errors[0]}</div>
           )}
         </div>
       )}

@@ -493,6 +493,7 @@ export const UI_TEXT = {
   CLEANUP_IMPORTED_DESCRIPTION:
     "This will permanently delete all transactions that were imported from files. This action cannot be undone.",
   CONFIRM_CLEANUP_IMPORTED: "Are you sure you want to delete all imported transactions? This action cannot be undone.",
+  CONFIRM_CLEANUP_IMPORTED_COUNT: "{count} transaction(s) will be deleted.",
   CLEANUP_IMPORTED_TITLE: "Delete All Imported Transactions",
   NO_IMPORTED_TRANSACTIONS: "No imported transactions found.",
   CLEANUP_SUCCESS: "Successfully deleted {count} imported transaction(s).",
@@ -501,10 +502,25 @@ export const UI_TEXT = {
   IMPORT_PARSE_ERROR_TITLE: "Couldn’t read this statement",
   IMPORT_PARSE_RETRY: "Retry",
   IMPORT_PARSE_CHOOSE_ANOTHER: "Choose another file",
+  IMPORT_PDF_LOCKED_TITLE: "Password-locked PDF",
+  IMPORT_PDF_LOCKED_BODY:
+    "This statement is encrypted. Enter the bank password (often DOB or PAN) to unlock and review transactions.",
+  IMPORT_PDF_LOCKED_WAITING: "{count} locked statement(s) waiting",
+  IMPORT_PDF_LOCKED_PROGRESS: "{unlocked} of {total} unlocked",
+  IMPORT_PDF_LOCKED_PROGRESS_ARIA: "PDF unlock progress",
+  IMPORT_PDF_PASSWORD_LABEL: "PDF password",
+  IMPORT_PDF_PASSWORD_PLACEHOLDER: "e.g. DOB / PAN / account password",
+  IMPORT_PDF_UNLOCK: "Unlock & review",
+  IMPORT_PDF_UNLOCKING: "Unlocking statement…",
   IMPORT_EDIT_TITLE: "Description",
   IMPORT_EDIT_AMOUNT: "Amount",
   IMPORT_EDIT_DATE: "Date",
   IMPORT_EDIT_TYPE: "Type",
+  IMPORT_EDIT_PAYMENT_MODE: "Payment mode",
+  IMPORT_EDIT_ROW: "Edit",
+  IMPORT_EDIT_DONE: "Done",
+  IMPORT_EDIT_ROW_ARIA: "Edit all fields for this transaction",
+  IMPORT_READY_TO_REVIEW: "{count} transactions ready to review",
   GOAL_ACHIEVED: "Goal Achieved! 🎉",
   UPDATE_AMOUNT: "Update amount",
   NO_END_DATE: "No end date",
@@ -550,16 +566,18 @@ export const UI_TEXT = {
   PARTICULARS: "PARTICULARS",
   IMPORT_BANK_STATEMENT: "Import Bank Statement",
   IMPORT_TRANSACTIONS: "Import Transactions",
-  IMPORT_TRANSACTIONS_SUBTITLE: "Upload your CSV bank statements to categorize and analyze wealth.",
+  IMPORT_TRANSACTIONS_SUBTITLE:
+    "Automate from Gmail or upload a PDF/CSV/Excel statement — review, categorize, then import.",
   HIDE_IMPORT: "Hide Import",
   UPLOAD_CSV_EXCEL: "Upload a PDF or CSV bank statement — AI extracts and categorizes transactions",
   UPLOAD_DROP_HINT: "Drag and drop statement here",
   UPLOAD_BROWSE_HINT: "Or click to browse your computer (Max {maxMb}MB)",
   UPLOAD_ACCEPTED_FORMATS: "PDF or CSV (XLSX also supported)",
   IMPORT_PARSING: "Reading statement with AI…",
+  IMPORT_PROGRESS_ARIA: "Import parse progress",
   IMPORT_PREVIEW_TITLE: "Import Preview",
   IMPORT_PREVIEW_SUBTITLE:
-    "Deselect any rows you want to skip. Duplicates are flagged and unchecked by default — re-select them if you still want to import.",
+    "Deselect any rows you want to skip. Exact and AI near-duplicates are flagged and unchecked by default — re-select them if you still want to import.",
   IMPORT_APPROVE: "Import selected",
   IMPORT_ITEMS: "Import {count} Items",
   IMPORT_SELECT_ALL: "Select all",
@@ -572,14 +590,17 @@ export const UI_TEXT = {
     "{count} possible duplicate(s) found — unchecked by default. Re-select any you still want to import ({selected} selected).",
   IMPORT_DUPLICATE_BANNER_NONE_SELECTED:
     "{count} possible duplicate(s) found — unchecked by default. Re-select any you still want to import.",
+  IMPORT_AI_DUPLICATE_BADGE: "Possible duplicate (AI)",
+  IMPORT_AI_DUPLICATE_BANNER:
+    "{count} AI-flagged near-duplicate(s) — unchecked for review. Confirm before importing ({selected} selected).",
+  IMPORT_AI_DUPLICATE_BANNER_NONE_SELECTED:
+    "{count} AI-flagged near-duplicate(s) — unchecked for review. Confirm before importing.",
   IMPORT_FILE_FORMAT_GUIDE_TITLE: "How it works",
   IMPORT_SUCCESS_COUNT: "Successfully imported {count} transaction(s)!",
   IMPORT_SUCCESS_WITH_DUPLICATES:
     "Successfully imported {count} transaction(s), including {duplicates} previously flagged duplicate(s).",
   IMPORT_SUCCESS_WITH_SKIPPED: "Successfully imported {count} transaction(s). {skipped} duplicate(s) were skipped.",
   IMPORT_NONE_SELECTED: "Select at least one transaction to import.",
-  IMPORT_TOO_LARGE:
-    "Too many rows selected ({count}). Import at most {max} at a time to stay within free-tier write limits.",
   IMPORT_SUPPORT: "Support",
   IMPORT_SUPPORT_TIP:
     "Upload a PDF/CSV bank statement. AI extracts rows, suggests categories, and flags duplicates before you import.",
@@ -1033,6 +1054,8 @@ export const ERROR_MESSAGES = {
   AI_NOT_CONFIGURED: "AI is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY) on the server.",
   LOAD_DATA_FAILED: "Could not refresh data from the server. Showing your last loaded data.",
   SAVE_FAILED: "Failed to save",
+  IMPORT_REQUIRES_SIGN_IN: "You must be signed in to import transactions. Please refresh and log in again.",
+  IMPORT_FIRESTORE_BLOCKED: "Firestore blocked the save. Deploy firestore.rules and ensure you are signed in.",
   SERVER_ERROR: "An error occurred. Please try again.",
   DB_NOT_CONFIGURED: "Database not configured",
   BOUNDARY_FALLBACK: "Something went wrong. Please refresh the page.",
@@ -1054,6 +1077,8 @@ export const ERROR_MESSAGES = {
   CSV_PARSE_ERROR:
     "Error parsing CSV file: {message}. Please ensure it's a valid CSV file with proper column headers (Date, Mode, Particulars, Deposits, Withdrawals, Balance).",
   PDF_PARSE_ERROR: "Error parsing PDF file: {message}. Please ensure it's a valid PDF file with readable text.",
+  PDF_PASSWORD_REQUIRED: "This PDF is password-locked. Enter the statement password to unlock it.",
+  PDF_PASSWORD_INCORRECT: "Incorrect PDF password. Check DOB/PAN (or the password your bank uses) and try again.",
   EXCEL_PARSE_ERROR:
     "Failed to parse Excel file: {message}. Please ensure the file is a valid Excel file (.xlsx format).",
   EXCEL_NO_SHEETS: "Excel file has no sheets. Please ensure the file contains data.",
@@ -1073,15 +1098,24 @@ export const ERROR_MESSAGES = {
   STATEMENT_FILE_TOO_LARGE: "File is too large. Maximum size is {maxMb} MB.",
   STATEMENT_EMPTY_TEXT: "Could not read any text from the uploaded file.",
   STATEMENT_NO_TRANSACTIONS: "No transactions were found in this statement. Try a clearer PDF/CSV export.",
+  STATEMENT_CHUNK_FAILED: "Could not parse pages {start}–{end} of this statement.",
+  STATEMENT_ALL_CHUNKS_FAILED: "Could not parse any pages of this statement. Please try again.",
   AI_API_KEY_MISSING:
     "AI parsing is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY), or OPENAI_API_KEY as fallback, in the server environment.",
   AI_PARSE_FAILED: "AI could not parse this statement: {message}",
   AI_PARSE_INVALID_JSON: "AI returned an unexpected response. Please try again.",
   AI_PARSE_EMPTY_RESPONSE: "AI returned an empty response. Please try again.",
+  /** Password may already be correct — AI provider throttled the parse. */
+  AI_RATE_LIMITED:
+    "Statement unlocked, but AI parsing is rate-limited right now. Wait a moment and tap Unlock again.",
+  /** Password may already be correct — AI provider temporarily down. */
+  AI_UNAVAILABLE:
+    "Statement unlocked, but AI parsing is temporarily unavailable. Wait a moment and tap Unlock again.",
   AI_SUGGEST_CATEGORY_FAILED: "AI could not suggest a category: {message}",
   AI_SUGGEST_CATEGORY_INVALID: "AI returned an invalid category suggestion.",
   PARSE_STATEMENT_FAILED: "Failed to parse bank statement. Please try again.",
   SUGGEST_CATEGORY_TITLE_REQUIRED: "A transaction title is required to suggest a category.",
+  AUTH_REQUIRED: "Sign in to continue.",
   ADMIN_SDK_NOT_CONFIGURED:
     "Admin is not configured. Set FIREBASE_ADMIN_* credentials (and ADMIN_UIDS for the first admin) on the server.",
   ADMIN_UNAUTHORIZED: "Sign in again to manage users.",
@@ -1103,10 +1137,27 @@ export const ERROR_MESSAGES = {
  */
 export const STATEMENT_IMPORT = {
   // gemini-2.5-flash is blocked for many new API keys; use current Flash.
-  GEMINI_MODEL: "gemini-3.6-flash",
+  /** Prefer models with separate free-tier capacity when primary is quota-exhausted. */
+  GEMINI_MODEL: "gemini-3.1-flash-lite",
+  /**
+   * Tried in order after the primary model on 404/429/503.
+   */
+  GEMINI_MODEL_FALLBACKS: ["gemini-flash-latest", "gemini-3.6-flash", "gemini-3.5-flash"] as const,
   OPENAI_MODEL: "gpt-4o-mini",
   MAX_FILE_BYTES: 10 * 1024 * 1024,
+  /** Max chars sent to the AI model per chunk (not the whole PDF). */
   MAX_TEXT_CHARS: 100_000,
+  /** Page-range size for chunked PDF AI parsing. Last chunk may be shorter. */
+  PAGES_PER_CHUNK: 5,
+  /**
+   * Max concurrent chunk AI parse calls.
+   * Keep low to avoid burning free-tier Gemini quota during unlock.
+   */
+  CHUNK_PARSE_CONCURRENCY: 1,
+  /** Retries for transient Gemini 429/503 before switching models. */
+  AI_RETRY_MAX_ATTEMPTS: 3,
+  AI_RETRY_BASE_DELAY_MS: 700,
+  AI_RETRYABLE_HTTP_STATUSES: [429, 503] as const,
   ACCEPTED_EXTENSIONS: [".pdf", ".csv", ".xlsx"],
   ACCEPTED_MIME: [
     "application/pdf",
@@ -1116,7 +1167,66 @@ export const STATEMENT_IMPORT = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ],
   FIELD_NAME: "file",
-};
+  PASSWORD_FIELD_NAME: "pdfPassword",
+  PDF_PASSWORD_CODES: {
+    REQUIRED: "PDF_PASSWORD_REQUIRED",
+    INCORRECT: "PDF_PASSWORD_INCORRECT",
+  },
+  AI_ERROR_CODES: {
+    RATE_LIMITED: "AI_RATE_LIMITED",
+    UNAVAILABLE: "AI_UNAVAILABLE",
+    FAILED: "AI_PARSE_FAILED",
+  },
+  /** Firebase / session auth failures — never confuse with PDF password errors. */
+  AUTH_UNAUTHORIZED_CODE: "UNAUTHORIZED",
+  /** Locked PDF needs a password (WebDAV-style locked). */
+  PDF_PASSWORD_REQUIRED_HTTP_STATUS: 423,
+  /** Wrong PDF password — not auth; keep distinct from 401 Unauthorized. */
+  PDF_PASSWORD_INCORRECT_HTTP_STATUS: 422,
+  /** AI temporarily unavailable / rate-limited after a successful PDF unlock. */
+  AI_UNAVAILABLE_HTTP_STATUS: 503,
+} as const;
+
+/**
+ * AI second-pass near-duplicate detection (after hard date+amount dedupe).
+ * Flags candidates for Review — never silently drops rows.
+ */
+export const AI_NEAR_DUPLICATE = {
+  /** Max candidate txs sent to the model per request. */
+  BATCH_SIZE: 40,
+  /** Max existing ledger txs sampled for cross-check (token budget). */
+  EXISTING_SAMPLE_CAP: 30,
+  /** Ignore model pairs below this confidence (0–1). */
+  MIN_CONFIDENCE: 0.72,
+  TIMEOUT_MS: 25_000,
+  TEMPERATURE: 0.1,
+  SYSTEM_INSTRUCTION: [
+    "You detect near-duplicate personal-finance transactions that exact matching misses.",
+    "Same purchase may appear with different wording (bank vs credit-card), slight date shifts (±2 days),",
+    "or small amount differences (fees/rounding). Return ONLY valid JSON.",
+    "Never invent transactions. Prefer high-precision pairs; skip weak matches.",
+  ].join(" "),
+  PROMPT_SCHEMA: [
+    "Return ONLY JSON matching:",
+    '{"pairs":[{"a":"string","b":"string","reason":"string","confidence":number}]}',
+    "",
+    "Rules:",
+    "- a and b must be ids from candidates (c0,c1,…) or existing (e0,e1,…).",
+    "- Flag likely duplicates only (same real-world payment/refund).",
+    "- confidence: 0 to 1. Omit pairs below 0.7.",
+    "- reason: short human-readable explanation (max 120 chars).",
+    "- Empty pairs array when none found.",
+    "- Do not flag exact same-id pairs. Each unordered pair at most once.",
+  ].join("\n"),
+  SKIP_REASONS: {
+    MISSING_API_KEY: "missing_api_key",
+    EMPTY: "empty",
+    ERROR: "error",
+    DISABLED: "disabled",
+  },
+  /** Client-safe meta.error when the AI pass throws (never forward provider bodies). */
+  USER_SAFE_ERROR: "Near-duplicate check skipped due to a temporary AI error.",
+} as const;
 
 /** Review-table column sort keys (Import Preview). */
 export const IMPORT_PREVIEW_SORT_KEYS = {
@@ -1363,6 +1473,29 @@ export const PERCENTAGE_THRESHOLDS = {
   WARNING: 80,
   MIN: 0,
 };
+
+/**
+ * Client-side estimated progress for long ops without streaming server %.
+ * Eases toward CAP while busy, then snaps to MAX on completion.
+ */
+export const ESTIMATED_PROGRESS = {
+  TICK_MS: 450,
+  START_PERCENT: 4,
+  CAP_PERCENT: 90,
+  COMPLETE_HOLD_MS: 600,
+  /** Fraction of remaining distance advanced each tick (eases toward cap). */
+  EASE_FACTOR: 0.12,
+  MIN_STEP: 1,
+} as const;
+
+/** Staged labels for statement parse progress (estimated client %). */
+export const IMPORT_PROGRESS_STAGES = [
+  { until: 25, label: "Reading file…" },
+  { until: 55, label: "Extracting transactions…" },
+  { until: 80, label: "Categorizing with AI…" },
+  { until: 90, label: "Preparing review…" },
+  { until: 100, label: "Ready for review" },
+] as const;
 
 // Date/Time Constants
 export const DATE_CONSTANTS = {
@@ -1622,3 +1755,5 @@ export const COLUMN_MAPPING_PATTERNS = {
 };
 
 export * from "./gmail";
+export * from "./cred";
+export * from "./importStream";
