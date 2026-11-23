@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { GMAIL_ERROR_MESSAGES } from "@constants";
 
-import { buildGoogleAuthUrl, isGoogleOAuthConfigured } from "@/lib/gmail/googleAuth";
+import { buildGoogleAuthUrl, isGoogleOAuthConfigured, resolveRedirectUri } from "@/lib/gmail/googleAuth";
 import { createOAuthState } from "@/lib/gmail/oauthState";
 import { requireOwnedUserId, UserAuthError } from "@/lib/userAuth";
 
@@ -24,16 +24,16 @@ export async function GET(request: Request) {
       );
     }
 
-    const host = request.headers.get("host") || "localhost:3000";
-    const proto = request.headers.get("x-forwarded-proto") || "http";
-    const redirectUri = `${proto}://${host}/api/auth/gmail/callback`;
-
+    const redirectUri = resolveRedirectUri(request);
     const state = createOAuthState(userId);
     const url = buildGoogleAuthUrl(state, redirectUri);
     return NextResponse.json({ url, isConfigured: true });
   } catch (err) {
     if (err instanceof UserAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    if (err instanceof Error && err.message === GMAIL_ERROR_MESSAGES.OAUTH_REDIRECT_URI_REQUIRED) {
+      return NextResponse.json({ error: err.message }, { status: 503 });
     }
     return NextResponse.json({ error: GMAIL_ERROR_MESSAGES.OAUTH_NOT_CONFIGURED }, { status: 500 });
   }

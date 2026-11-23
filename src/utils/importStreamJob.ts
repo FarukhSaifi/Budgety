@@ -30,9 +30,7 @@ function canUseSessionStorage(): boolean {
 
 function notifyJobChanged(userId: string): void {
   if (typeof window === "undefined" || !userId) return;
-  window.dispatchEvent(
-    new CustomEvent(IMPORT_STREAM.JOB_CHANGED_EVENT, { detail: { userId } }),
-  );
+  window.dispatchEvent(new CustomEvent(IMPORT_STREAM.JOB_CHANGED_EVENT, { detail: { userId } }));
 }
 
 function newJobId(): string {
@@ -329,13 +327,20 @@ export function writeImportStreamJob(userId: string, job: ImportStreamJob | null
 /**
  * Prefer the in-memory (or otherwise newer) job when sessionStorage lag/quota left a
  * stale resume map behind — critical after PERSIST_FAILED mid-stream.
+ * When `expectedUserId` is set, ignore jobs bound to a different user.
  */
 export function preferFresherImportJob(
   a: ImportStreamJob | null | undefined,
   b: ImportStreamJob | null | undefined,
+  expectedUserId?: string,
 ): ImportStreamJob | null {
-  const left = a ?? null;
-  const right = b ?? null;
+  const bind = (job: ImportStreamJob | null): ImportStreamJob | null => {
+    if (!job) return null;
+    if (expectedUserId && job.userId !== expectedUserId) return null;
+    return job;
+  };
+  const left = bind(a ?? null);
+  const right = bind(b ?? null);
   if (!left) return right;
   if (!right) return left;
   if (left.jobId === right.jobId) {
@@ -352,15 +357,32 @@ export function preferFresherImportJob(
   return (left.updatedAt || "") >= (right.updatedAt || "") ? left : right;
 }
 
+/** True when a STREAMING job looks abandoned (safe to auto-resume). */
+export function isStaleStreamingJob(job: ImportStreamJob, nowMs = Date.now()): boolean {
+  if (job.status !== IMPORT_JOB_STATUS.STREAMING) return false;
+  const updated = Date.parse(job.updatedAt || "");
+  if (!Number.isFinite(updated)) return true;
+  return nowMs - updated >= IMPORT_STREAM.STALE_STREAMING_MS;
+}
+
+/**
+ * Mount / hydrate auto-resume gate: INTERRUPTED/FAILED always;
+ * STREAMING only when stale (avoids double-runners on remount).
+ */
+export function shouldAutoResumeImportJob(job: ImportStreamJob, nowMs = Date.now()): boolean {
+  if (!jobHasRetryableWork(job)) return false;
+  if (job.status === IMPORT_JOB_STATUS.INTERRUPTED || job.status === IMPORT_JOB_STATUS.FAILED) {
+    return true;
+  }
+  return isStaleStreamingJob(job, nowMs);
+}
+
 export function clearImportStreamJob(userId: string): void {
   writeImportStreamJob(userId, null);
 }
 
 export function markJobInterrupted(job: ImportStreamJob): ImportStreamJob {
-  if (
-    job.status === IMPORT_JOB_STATUS.COMPLETED ||
-    job.status === IMPORT_JOB_STATUS.COMPLETED_WITH_ERRORS
-  ) {
+  if (job.status === IMPORT_JOB_STATUS.COMPLETED || job.status === IMPORT_JOB_STATUS.COMPLETED_WITH_ERRORS) {
     return job;
   }
   return {

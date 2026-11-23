@@ -1,11 +1,6 @@
 import { NUMBER_FORMAT } from "@constants";
 
-import {
-  IMPORT_FILE_STATUS,
-  IMPORT_JOB_STATUS,
-  IMPORT_RECORD_STATUS,
-  IMPORT_STREAM,
-} from "@constants/importStream";
+import { IMPORT_FILE_STATUS, IMPORT_JOB_STATUS, IMPORT_RECORD_STATUS, IMPORT_STREAM } from "@constants/importStream";
 
 import { chunkArray } from "@utils/chunkArray";
 import { nowISO } from "@utils/dateUtils";
@@ -110,6 +105,16 @@ export async function runImportStream(
   options: ImportStreamRunnerOptions,
 ): Promise<ImportStreamRunResult> {
   const persistEnabled = options.persist !== false;
+  if (!initialJob.userId?.trim()) {
+    const emptyUserJob: ImportStreamJob = {
+      ...initialJob,
+      status: IMPORT_JOB_STATUS.FAILED,
+      lastError: IMPORT_STREAM.USER_MISMATCH_REASON,
+      updatedAt: new Date().toISOString(),
+    };
+    options.onProgress?.(countRecordsByStatus(emptyUserJob), emptyUserJob);
+    return { job: emptyUserJob, savedIds: [...initialJob.importedTxIds], fullySuccessful: false };
+  }
   let job: ImportStreamJob = {
     ...initialJob,
     status: IMPORT_JOB_STATUS.STREAMING,
@@ -286,10 +291,7 @@ function clearOnFullSuccess(userId: string, persistEnabled: boolean): void {
 
 /** Mark job interrupted (page hide / remount) without losing inventory. */
 export function interruptImportStream(job: ImportStreamJob, persistEnabled = true): ImportStreamJob {
-  if (
-    job.status === IMPORT_JOB_STATUS.COMPLETED ||
-    job.status === IMPORT_JOB_STATUS.COMPLETED_WITH_ERRORS
-  ) {
+  if (job.status === IMPORT_JOB_STATUS.COMPLETED || job.status === IMPORT_JOB_STATUS.COMPLETED_WITH_ERRORS) {
     return job;
   }
   const next = {

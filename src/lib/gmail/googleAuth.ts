@@ -1,4 +1,4 @@
-import { GMAIL_ENDPOINTS, GMAIL_ERROR_MESSAGES, GMAIL_SCOPES } from "@constants";
+import { GMAIL_ENDPOINTS, GMAIL_ERROR_MESSAGES, GMAIL_OAUTH_LOOPBACK_HOSTNAMES, GMAIL_SCOPES } from "@constants";
 
 export interface GoogleTokens {
   access_token: string;
@@ -23,6 +23,49 @@ export function getGoogleOAuthCredentials(): {
 export function isGoogleOAuthConfigured(): boolean {
   const { clientId, clientSecret } = getGoogleOAuthCredentials();
   return Boolean(clientId && clientSecret);
+}
+
+/** Parse hostname from a Host / X-Forwarded-Host value (supports `[::1]:port`). */
+function hostnameFromHostHeader(hostHeader: string): string {
+  const trimmed = hostHeader.trim().toLowerCase();
+  if (trimmed.startsWith("[")) {
+    const end = trimmed.indexOf("]");
+    if (end > 1) return trimmed.slice(1, end);
+  }
+  return trimmed.split(":")[0] || "";
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  return (GMAIL_OAUTH_LOOPBACK_HOSTNAMES as readonly string[]).includes(hostname);
+}
+
+/**
+ * Resolves the OAuth redirect URI for the incoming request.
+ * Prefers GOOGLE_REDIRECT_URI when set (required in production).
+ * Derives from Host headers only for exact loopback hostnames — never trust
+ * forwarded Host on non-local requests (open redirect / token theft risk).
+ */
+export function resolveRedirectUri(request: Request): string {
+  const envUri = process.env.GOOGLE_REDIRECT_URI?.trim();
+  const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host") || "localhost:3000";
+  const host = hostHeader.split(",")[0]?.trim() || "localhost:3000";
+  const isLocalHost = isLoopbackHostname(hostnameFromHostHeader(host));
+
+  if (envUri) {
+    const envIsLocal = /:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(envUri);
+    if (!envIsLocal || isLocalHost) {
+      return envUri;
+    }
+  }
+
+  if (!isLocalHost) {
+    throw new Error(GMAIL_ERROR_MESSAGES.OAUTH_REDIRECT_URI_REQUIRED);
+  }
+
+  // Only allow http/https on loopback-derived URIs (never echo arbitrary X-Forwarded-Proto).
+  const rawProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+  const proto = rawProto === "https" ? "https" : "http";
+  return `${proto}://${host}/api/auth/gmail/callback`;
 }
 
 /**
@@ -69,6 +112,7 @@ export async function exchangeCodeForTokens(code: string, redirectUriOverride?: 
   });
 
   if (!response.ok) {
+    // Never attach provider response bodies — they can surface in redirects/logs.
     throw new Error(GMAIL_ERROR_MESSAGES.OAUTH_EXCHANGE_FAILED);
   }
 

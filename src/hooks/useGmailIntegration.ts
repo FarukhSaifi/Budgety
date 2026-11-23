@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { GMAIL_DEFAULTS, GMAIL_ERROR_MESSAGES, GMAIL_UI_TEXT } from "@constants";
+import { GMAIL_DEFAULTS, GMAIL_ENDPOINTS, GMAIL_ERROR_MESSAGES, GMAIL_UI_TEXT } from "@constants";
 
 import type { GmailConnectionStatus, GmailSyncOptions, GmailSyncResponse } from "@/types/gmail";
 
@@ -11,12 +11,11 @@ import { applyCredBills, credBillsToastMessage } from "@utils/applyCredBills";
 import type { DuplicateCheckable } from "@utils/duplicateDetection";
 import { toDuplicateCheckPayload } from "@utils/duplicatePayload";
 import { mergeLockedQueue } from "@utils/gmailLockedQueue";
+import { safeParseJsonResponse } from "@utils/safeApiJson";
 import { showError, showInfo, showSuccess, showWarning } from "@utils/toast";
 
 import { authedFetch } from "@/lib/authedApiClient";
 import type { ParsedStatementTransaction } from "@/lib/statement/types";
-
-
 
 export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER_ID) {
   const existingBills = useAppSelector((s) => s.bills.items);
@@ -36,8 +35,8 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
     try {
       setLoading(true);
       const res = await authedFetch(`/api/gmail/status?userId=${encodeURIComponent(userId)}`);
-      if (res.ok) {
-        const data = (await res.json()) as GmailConnectionStatus & { isConfigured: boolean };
+      const { ok, data } = await safeParseJsonResponse<GmailConnectionStatus & { isConfigured: boolean }>(res);
+      if (ok && data) {
         setStatus(data);
         setIsConfigured(data.isConfigured !== false);
       }
@@ -75,10 +74,20 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
   const connectGmail = useCallback(async () => {
     try {
       const res = await authedFetch(`/api/auth/gmail/url?userId=${encodeURIComponent(userId)}`);
-      const data = (await res.json()) as { url?: string; error?: string };
+      const { ok, data, error } = await safeParseJsonResponse<{ url?: string; error?: string }>(
+        res,
+        GMAIL_ERROR_MESSAGES.OAUTH_NOT_CONFIGURED,
+      );
 
-      if (!res.ok || !data.url) {
-        showError(data.error || GMAIL_ERROR_MESSAGES.OAUTH_NOT_CONFIGURED);
+      if (!ok || !data?.url) {
+        showError(error || data?.error || GMAIL_ERROR_MESSAGES.OAUTH_NOT_CONFIGURED);
+        return;
+      }
+
+      // Defense in depth: only navigate to Google's OAuth consent endpoint.
+      const authPrefix = `${GMAIL_ENDPOINTS.AUTH}?`;
+      if (!data.url.startsWith(authPrefix)) {
+        showError(GMAIL_ERROR_MESSAGES.OAUTH_NOT_CONFIGURED);
         return;
       }
 
@@ -95,12 +104,13 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
         method: "POST",
         body: JSON.stringify({ userId }),
       });
-      if (res.ok) {
+      const { ok, error } = await safeParseJsonResponse(res, GMAIL_ERROR_MESSAGES.DISCONNECT_FAILED);
+      if (ok) {
         setStatus({ connected: false });
         setSyncSummary(null);
         showInfo(GMAIL_UI_TEXT.DISCONNECTED_TOAST);
       } else {
-        showError(GMAIL_ERROR_MESSAGES.DISCONNECT_FAILED);
+        showError(error || GMAIL_ERROR_MESSAGES.DISCONNECT_FAILED);
       }
     } catch {
       showError(GMAIL_ERROR_MESSAGES.DISCONNECT_FAILED);
@@ -120,7 +130,11 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
             autoSyncIntervalHours,
           }),
         });
-        if (res.ok) {
+        const { ok, error } = await safeParseJsonResponse(
+          res,
+          GMAIL_ERROR_MESSAGES.SETTINGS_UPDATE_FAILED,
+        );
+        if (ok) {
           setStatus((prev) => ({
             ...prev,
             autoSyncEnabled,
@@ -130,7 +144,7 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
             autoSyncEnabled ? GMAIL_UI_TEXT.AUTO_SYNC_ENABLED_TOAST : GMAIL_UI_TEXT.AUTO_SYNC_DISABLED_TOAST,
           );
         } else {
-          showError(GMAIL_ERROR_MESSAGES.SETTINGS_UPDATE_FAILED);
+          showError(error || GMAIL_ERROR_MESSAGES.SETTINGS_UPDATE_FAILED);
         }
       } catch {
         showError(GMAIL_ERROR_MESSAGES.SETTINGS_UPDATE_FAILED);
@@ -167,10 +181,13 @@ export function useGmailIntegration(userId: string = GMAIL_DEFAULTS.DEFAULT_USER
           }),
         });
 
-        const data = (await res.json()) as GmailSyncResponse & { error?: string };
+        const { ok, data, error } = await safeParseJsonResponse<GmailSyncResponse & { error?: string }>(
+          res,
+          GMAIL_ERROR_MESSAGES.SYNC_FAILED,
+        );
 
-        if (!res.ok) {
-          throw new Error(data.error || GMAIL_ERROR_MESSAGES.SYNC_FAILED);
+        if (!ok || !data || !data.meta || !Array.isArray(data.transactions)) {
+          throw new Error(error || GMAIL_ERROR_MESSAGES.SYNC_FAILED);
         }
 
         const locked = data.meta.lockedAttachments ?? [];

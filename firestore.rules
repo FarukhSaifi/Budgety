@@ -99,5 +99,10 @@ service cloud.firestore {
       allow update: if ownsAndKeepsUserId();
       allow create: if createsOwnDoc();
     }
+
+    // Gmail tokens & auto-sync settings: server-only via Firebase Admin SDK.
+    match /gmailIntegrations/{docId} {
+      allow read, write: if false;
+    }
   }
 }

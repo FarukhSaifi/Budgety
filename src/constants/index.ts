@@ -1044,6 +1044,12 @@ export const UI_TEXT = {
 // User-facing error messages (for API, loading, import/export)
 export const ERROR_MESSAGES = {
   REQUEST_FAILED: "Request failed",
+  /** Non-JSON / empty HTTP error bodies — status-specific fallbacks for safeApiJson. */
+  API_NOT_FOUND: "API endpoint not found (404). Ensure the latest deployment succeeded.",
+  API_SERVICE_UNAVAILABLE: "Service unavailable (503). Check server/OAuth configuration.",
+  API_GATEWAY_ERROR: "Gateway error ({status}). Server timed out or is restarting.",
+  API_INTERNAL_ERROR: "Server error (500). Check Vercel environment variables & logs.",
+  API_STATUS_FAILED: "{fallback} ({status})",
   ASSISTANT_BAD_REQUEST: "Invalid assistant request.",
   ASSISTANT_CONSENT_REQUIRED: "Please accept AI data use to chat with Budgety Assistant.",
   ASSISTANT_EMPTY_MESSAGE: "Type a question first.",

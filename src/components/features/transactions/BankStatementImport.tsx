@@ -96,15 +96,18 @@ import {
   clearImportStreamJob,
   countRecordsByStatus,
   createImportStreamJob,
+  isStaleStreamingJob,
   jobHasRetryableWork,
   listFailedFileNames,
   listFailedRecordSamples,
   markJobInterrupted,
   preferFresherImportJob,
   readImportStreamJob,
+  shouldAutoResumeImportJob,
   writeImportStreamJob,
 } from "@utils/importStreamJob";
 import { interruptImportStream, runImportStream } from "@utils/importStreamRunner";
+import { safeParseJsonResponse } from "@utils/safeApiJson";
 import { showError, showInfo, showSuccess } from "@utils/toast";
 
 import { authedFetch } from "@/lib/authedApiClient";
@@ -354,6 +357,13 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       showError(IMPORT_STREAM_UI.BUSY_DISCARD);
       return;
     }
+    // Remount / other-tab: importInFlightRef is local — still block discard on fresh STREAMING.
+    const stored = userId ? readImportStreamJob(userId) : null;
+    const live = preferFresherImportJob(streamJobSnapshot, stored, userId || undefined);
+    if (live?.status === IMPORT_JOB_STATUS.STREAMING && !isStaleStreamingJob(live)) {
+      showError(IMPORT_STREAM_UI.BUSY_DISCARD);
+      return;
+    }
     setStaging([]);
     setFile(null);
     setParsing(false);
@@ -373,7 +383,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
       clearImportStreamJob(userId);
     }
     if (inputRef.current) inputRef.current.value = "";
-  }, [userId]);
+  }, [streamJobSnapshot, userId]);
 
   const resetImport = useCallback(() => {
     resetStaging();
@@ -420,15 +430,23 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         body: form,
       });
 
-      const data = (await res.json()) as {
+      type ParseStatementBody = {
         transactions?: ParsedStatementTransaction[];
         meta?: { discoveredCategories?: DiscoveredCategories };
         error?: string;
         code?: string;
       };
+      const { ok, status, data, error } = await safeParseJsonResponse<ParseStatementBody>(
+        res,
+        ERROR_MESSAGES.PARSE_STATEMENT_FAILED,
+      );
 
-      if (!res.ok) {
-        const mapped = mapStatementApiError(res.status, data, ERROR_MESSAGES.PARSE_STATEMENT_FAILED);
+      if (!ok) {
+        const mapped = mapStatementApiError(
+          status,
+          data ?? { error: error ?? undefined },
+          ERROR_MESSAGES.PARSE_STATEMENT_FAILED,
+        );
         const err = new Error(mapped.message) as Error & { code?: string };
         if (mapped.kind === "pdf_password" && mapped.code) {
           err.code = mapped.code;
@@ -436,7 +454,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         throw err;
       }
 
-      if (!data.transactions?.length) {
+      if (!data?.transactions?.length) {
         throw new Error(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS);
       }
 
@@ -708,15 +726,23 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         }),
       });
 
-      const data = (await res.json()) as {
+      type UnlockAttachmentBody = {
         transactions?: ParsedStatementTransaction[];
         meta?: { discoveredCategories?: DiscoveredCategories };
         error?: string;
         code?: string;
       };
+      const { ok, status, data, error } = await safeParseJsonResponse<UnlockAttachmentBody>(
+        res,
+        GMAIL_ERROR_MESSAGES.UNLOCK_ATTACHMENT_FAILED,
+      );
 
-      if (!res.ok) {
-        const mapped = mapStatementApiError(res.status, data, GMAIL_ERROR_MESSAGES.UNLOCK_ATTACHMENT_FAILED);
+      if (!ok) {
+        const mapped = mapStatementApiError(
+          status,
+          data ?? { error: error ?? undefined },
+          GMAIL_ERROR_MESSAGES.UNLOCK_ATTACHMENT_FAILED,
+        );
         if (mapped.kind === "pdf_password") {
           setPdfPasswordError(mapped.message);
           return;
@@ -727,7 +753,7 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         return;
       }
 
-      if (!data.transactions?.length) {
+      if (!data?.transactions?.length) {
         throw new Error(ERROR_MESSAGES.STATEMENT_NO_TRANSACTIONS);
       }
 
@@ -891,6 +917,11 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         return;
       }
 
+      if (job.lastError === IMPORT_STREAM.USER_MISMATCH_REASON) {
+        showError(ERROR_MESSAGES.IMPORT_USER_MISMATCH);
+        return;
+      }
+
       if (job.lastError === IMPORT_STREAM.PERSIST_FAILED_REASON) {
         showError(IMPORT_STREAM_UI.PERSIST_FAILED);
         // Mid-stream interrupt: persist warning is enough. After completed_with_errors, keep banners.
@@ -999,7 +1030,14 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     const selectedKeys = selected.map((r) => r.key);
     const fingerprint = buildImportFingerprint(selectedKeys);
     // Prefer live snapshot over sessionStorage when persist failed mid-stream (stale resume map).
-    const existing = preferFresherImportJob(streamJobSnapshot, readImportStreamJob(userId));
+    const existing = preferFresherImportJob(streamJobSnapshot, readImportStreamJob(userId), userId);
+    // Fresh STREAMING (any fingerprint) = another runner is likely live; don't start a second stream.
+    if (existing?.status === IMPORT_JOB_STATUS.STREAMING && !isStaleStreamingJob(existing)) {
+      setStreamJobSnapshot(existing);
+      setImportProgress(countRecordsByStatus(existing));
+      showInfo(IMPORT_STREAM_UI.BUSY_IN_PROGRESS);
+      return;
+    }
     // Only auto-resume when the pending job matches the current selection fingerprint.
     if (existing && jobHasRetryableWork(existing) && existing.fingerprint === fingerprint) {
       showInfo(
@@ -1024,9 +1062,15 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
 
   const handleRetryFailedImport = useCallback(async () => {
     if (!userId) return;
-    const job = preferFresherImportJob(streamJobSnapshot, readImportStreamJob(userId));
+    const job = preferFresherImportJob(streamJobSnapshot, readImportStreamJob(userId), userId);
     if (!job || !jobHasRetryableWork(job)) {
       showError(UI_TEXT.IMPORT_NONE_SELECTED);
+      return;
+    }
+    if (job.status === IMPORT_JOB_STATUS.STREAMING && !isStaleStreamingJob(job)) {
+      setStreamJobSnapshot(job);
+      setImportProgress(countRecordsByStatus(job));
+      showInfo(IMPORT_STREAM_UI.BUSY_IN_PROGRESS);
       return;
     }
     showInfo(
@@ -1043,13 +1087,8 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
     if (!userId) return;
 
     const existing = readImportStreamJob(userId);
-    if (
-      existing &&
-      jobHasRetryableWork(existing) &&
-      (existing.status === IMPORT_JOB_STATUS.INTERRUPTED ||
-        existing.status === IMPORT_JOB_STATUS.FAILED ||
-        existing.status === IMPORT_JOB_STATUS.STREAMING)
-    ) {
+    // Storage key is per-user; still require job.userId bind before resume/UI hydrate.
+    if (existing && existing.userId === userId && shouldAutoResumeImportJob(existing)) {
       setStreamJobSnapshot(existing);
       setImportProgress(countRecordsByStatus(existing));
       showInfo(
@@ -1059,7 +1098,8 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
         ),
       );
       void executeImportStream(existing, 0);
-    } else if (existing) {
+    } else if (existing && existing.userId === userId) {
+      // Fresh STREAMING: show progress only — another runner may still be live.
       setStreamJobSnapshot(existing);
       setImportProgress(countRecordsByStatus(existing));
     }
@@ -1714,7 +1754,16 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                 </p>
               </div>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                <Button onClick={resetImport} variant="ghost" disabled={importing} className="sm:min-w-30">
+                <Button
+                  onClick={resetImport}
+                  variant="ghost"
+                  disabled={
+                    importing ||
+                    (streamJobSnapshot?.status === IMPORT_JOB_STATUS.STREAMING &&
+                      !isStaleStreamingJob(streamJobSnapshot))
+                  }
+                  className="sm:min-w-30"
+                >
                   {UI_TEXT.IMPORT_DISCARD_ALL}
                 </Button>
                 {streamJobSnapshot &&
@@ -1733,7 +1782,11 @@ export default function BankStatementImport({ onClose }: BankStatementImportProp
                   <Button
                     onClick={() => void handleImport()}
                     variant="primary"
-                    loading={importing}
+                    loading={
+                      importing ||
+                      (streamJobSnapshot?.status === IMPORT_JOB_STATUS.STREAMING &&
+                        !isStaleStreamingJob(streamJobSnapshot))
+                    }
                     className="sm:min-w-40"
                   >
                     {UI_TEXT.IMPORT_ITEMS.replace("{count}", String(selectedCount))}

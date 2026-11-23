@@ -27,6 +27,14 @@ export const IMPORT_STREAM = {
   BATCH_FAILED_REASON: "IMPORT_BATCH_FAILED",
   /** sessionStorage quota / write failure — resume state may be incomplete. */
   PERSIST_FAILED_REASON: "IMPORT_PERSIST_FAILED",
+  /** Job / auth userId binding failed (defense in depth before Firestore writes). */
+  USER_MISMATCH_REASON: "IMPORT_USER_MISMATCH",
+  /**
+   * Auto-resume STREAMING only when updatedAt is older than this (ms).
+   * Fresh STREAMING usually means another runner (or Strict Mode remount) is live —
+   * restarting would double-commit overlapping batches.
+   */
+  STALE_STREAMING_MS: 15_000,
 } as const;
 
 export const IMPORT_RECORD_STATUS = {
@@ -75,6 +83,9 @@ export const IMPORT_STREAM_UI = {
     "Import cannot finish successfully while {pending} transaction(s) are still pending.",
   BUSY_DISCARD:
     "Import is still running. Wait for it to finish before discarding the review session.",
+  /** Clicked Import / discard while another runner still owns a fresh STREAMING job. */
+  BUSY_IN_PROGRESS:
+    "Import is already in progress. Wait for the current upload to finish before starting another.",
   PERSIST_FAILED:
     "Could not save import progress for resume (browser storage full or blocked). Keep this tab open and retry failed rows if interrupted.",
   RETRY_FAILED: "Retry failed ({count})",

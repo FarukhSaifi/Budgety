@@ -10,6 +10,9 @@ export const GMAIL_ENDPOINTS = {
   DEFAULT_REDIRECT_URI: "http://localhost:3000/api/auth/gmail/callback",
 } as const;
 
+/** Exact hostnames allowed for Host-header-derived OAuth redirect URIs (never use startsWith). */
+export const GMAIL_OAUTH_LOOPBACK_HOSTNAMES = ["localhost", "127.0.0.1", "::1"] as const;
+
 export const GMAIL_SCOPES = {
   READONLY: "https://www.googleapis.com/auth/gmail.readonly",
 } as const;
@@ -22,8 +25,8 @@ export const GMAIL_DATE_RANGE_MODES = {
 export const GMAIL_DATE_PRESETS = [
   { label: "Last 7 days", value: 7 },
   { label: "Last 14 days", value: 14 },
-  { label: "Last 30 days", value: 30 },
-  { label: "Last 45 days (Recommended)", value: 45 },
+  { label: "Last 30 days (Recommended)", value: 30 },
+  { label: "Last 45 days", value: 45 },
   { label: "Last 60 days", value: 60 },
   { label: "Last 90 days (Quarter)", value: 90 },
   { label: "Last 180 days (6 Months)", value: 180 },
@@ -33,16 +36,15 @@ export const GMAIL_DATE_PRESETS = [
 export const GMAIL_AUTO_SYNC_INTERVALS = [
   { label: "Every 6 hours", hours: 6 },
   { label: "Every 12 hours (Twice daily)", hours: 12 },
-  { label: "Every 24 hours (Daily)", hours: 24 },
+  { label: "Every 24 hours (Daily, Recommended)", hours: 24 },
   { label: "Every 48 hours (Every 2 days)", hours: 48 },
 ] as const;
 
 export const GMAIL_DEFAULTS = {
   /**
-   * Manual sync default. 45 days covers one full monthly statement cycle
-   * (statement emailed ~1–5 days after month-end) without requiring custom range.
+   * Manual sync default. 30 days covers the current statement cycle.
    */
-  DAYS_BACK: 45,
+  DAYS_BACK: 30,
   /**
    * Cap on messages fetched per sync. Was 35 — daily UPI/CC alerts alone exceed that
    * in ~2 weeks and silently dropped e-statement PDFs past maxResults.
@@ -61,12 +63,12 @@ export const GMAIL_DEFAULTS = {
   /** Signed OAuth `state` lifetime (HMAC payload expiry). */
   OAUTH_STATE_TTL_MS: 10 * 60 * 1000,
   DEFAULT_USER_ID: "default_user",
-  AUTO_SYNC_INTERVAL_HOURS: 12,
+  AUTO_SYNC_INTERVAL_HOURS: 24,
   /**
    * Auto-sync lookback. Match DAYS_BACK so overnight catch-up still sees
    * last month’s CC/bank e-statement if the user was offline mid-cycle.
    */
-  AUTO_SYNC_DAYS_BACK: 45,
+  AUTO_SYNC_DAYS_BACK: 30,
   /** Max Gmail messages processed in parallel during sync. */
   SYNC_MESSAGE_CONCURRENCY: 4,
   /** Max controlled auto-sync retries after a soft failure. */
@@ -138,10 +140,8 @@ export const GMAIL_UI_TEXT = {
   AUTO_SYNC_ACTIVE: "Auto-Sync Enabled",
   AUTO_SYNC_RUNNING: "Running background auto-sync...",
   AUTO_SYNC_SUCCESS: "{count} transactions ready to review",
-  AUTO_SYNC_PARTIAL:
-    "{count} transaction(s) ready to review. {locked} password-locked statement(s) still need unlock.",
-  AUTO_SYNC_LOCKED_ONLY:
-    "{locked} password-locked statement(s) from Gmail need a password — open Import to unlock.",
+  AUTO_SYNC_PARTIAL: "{count} transaction(s) ready to review. {locked} password-locked statement(s) still need unlock.",
+  AUTO_SYNC_LOCKED_ONLY: "{locked} password-locked statement(s) from Gmail need a password — open Import to unlock.",
   AUTO_SYNC_FAILED: "Gmail auto-sync couldn’t finish. You can sync manually from Import anytime.",
   AUTO_SYNC_ENABLED_TOAST: "Auto-sync enabled.",
   AUTO_SYNC_DISABLED_TOAST: "Auto-sync disabled.",
@@ -151,8 +151,7 @@ export const GMAIL_UI_TEXT = {
   SYNC_FOUND_STAGED: "Found {count} new transaction(s)! Added to staging for review.",
   SYNC_ALL_DUPLICATES: "All {count} transactions found are already imported. No new entries to stage.",
   SYNC_NONE_FOUND: "No bank statement emails found in the selected time window.",
-  SYNC_LOCKED_NEED_PASSWORD:
-    "{count} password-locked statement(s) need a password — unlock them in Review below.",
+  SYNC_LOCKED_NEED_PASSWORD: "{count} password-locked statement(s) need a password — unlock them in Review below.",
   OAUTH_NOT_CONFIGURED_HINT:
     "Google OAuth credentials are not set in .env.local. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable Gmail sync.",
   PDF_PASSWORD: "PDF Statement Password",
@@ -321,8 +320,7 @@ export const GMAIL_ERROR_MESSAGES = {
   OAUTH_NOT_CONFIGURED: "Google OAuth credentials are not configured in environment variables.",
   OAUTH_EXCHANGE_FAILED: "Failed to exchange Google OAuth code",
   TOKEN_REFRESH_FAILED: "Failed to refresh Google access token",
-  TOKEN_REFRESH_RECONNECT:
-    "Could not refresh Gmail access. Please reconnect Gmail and try again.",
+  TOKEN_REFRESH_RECONNECT: "Could not refresh Gmail access. Please reconnect Gmail and try again.",
   ACCOUNT_NOT_CONNECTED: "Gmail account not connected. Please connect your Gmail first.",
   ATTACHMENT_DOWNLOAD_FAILED: "Failed to download attachment from Gmail API",
   ATTACHMENT_EMPTY: "Empty attachment data received from Gmail API",
@@ -331,8 +329,7 @@ export const GMAIL_ERROR_MESSAGES = {
   SYNC_FAILED: "Failed to sync transactions from Gmail",
   DISCONNECT_FAILED: "Failed to disconnect Gmail",
   INVALID_DATE_RANGE: "Start date cannot be after end date.",
-  PDF_LOCKED_ATTACHMENT:
-    '"{filename}" is password-locked. Unlock it in Import Review with the statement password.',
+  PDF_LOCKED_ATTACHMENT: '"{filename}" is password-locked. Unlock it in Import Review with the statement password.',
   ATTACHMENT_PARSE_FAILED: 'Couldn’t read "{filename}". Try again or upload the file manually.',
   ALERT_PARSE_FAILED: "Couldn’t read one transaction alert email. Other items were still synced.",
   MESSAGE_PROCESS_FAILED: "Couldn’t process one Gmail message. Other items were still synced.",
@@ -344,5 +341,7 @@ export const GMAIL_ERROR_MESSAGES = {
   OAUTH_USER_REQUIRED: "Sign in before connecting Gmail.",
   OAUTH_STATE_INVALID: "Gmail connection link expired or was invalid. Try connecting again.",
   OAUTH_CONNECT_FAILED: "Failed to connect Gmail. Please try again.",
+  OAUTH_REDIRECT_URI_REQUIRED:
+    "GOOGLE_REDIRECT_URI must be set for non-local hosts (Host headers are not trusted in production).",
   UNAUTHORIZED: "Sign in to continue.",
 } as const;
