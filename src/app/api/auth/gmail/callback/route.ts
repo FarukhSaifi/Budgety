@@ -4,7 +4,7 @@ import { GMAIL_ENDPOINTS, GMAIL_ERROR_MESSAGES } from "@constants";
 
 import { APP_ROUTES } from "@constants/routes";
 
-import { exchangeCodeForTokens, resolveRedirectUri } from "@/lib/gmail/googleAuth";
+import { exchangeCodeForTokens, parseSafeOAuthRedirectUri, resolveRedirectUri } from "@/lib/gmail/googleAuth";
 import { verifyOAuthState } from "@/lib/gmail/oauthState";
 import { saveGmailTokens } from "@/lib/gmail/storage";
 
@@ -14,20 +14,21 @@ export const dynamic = "force-dynamic";
 /**
  * Prefer GOOGLE_REDIRECT_URI origin so post-OAuth redirects never follow a forged Host.
  * Fall back to loopback-resolved origin, then the known local default — never raw request.url alone.
+ * parseSafeOAuthRedirectUri blocks userinfo tricks (`localhost:3000@evil.com` → evil.com).
  */
 function trustedAppOrigin(request: Request): string {
   const envUri = process.env.GOOGLE_REDIRECT_URI?.trim();
   if (envUri) {
     try {
-      return new URL(envUri).origin;
+      return parseSafeOAuthRedirectUri(envUri).origin;
     } catch {
-      // Invalid env URI — continue to safer fallbacks.
+      // Invalid / unsafe env URI — continue to safer fallbacks.
     }
   }
   try {
-    return new URL(resolveRedirectUri(request)).origin;
+    return parseSafeOAuthRedirectUri(resolveRedirectUri(request)).origin;
   } catch {
-    return new URL(GMAIL_ENDPOINTS.DEFAULT_REDIRECT_URI).origin;
+    return parseSafeOAuthRedirectUri(GMAIL_ENDPOINTS.DEFAULT_REDIRECT_URI).origin;
   }
 }
 

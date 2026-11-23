@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
-const firebaseProjectId =
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "budgety-e7e94";
+const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "budgety-e7e94";
 
 const nextConfig = {
   reactStrictMode: true,

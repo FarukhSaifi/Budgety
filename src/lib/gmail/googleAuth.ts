@@ -1,4 +1,10 @@
-import { GMAIL_ENDPOINTS, GMAIL_ERROR_MESSAGES, GMAIL_OAUTH_LOOPBACK_HOSTNAMES, GMAIL_SCOPES } from "@constants";
+import {
+  GMAIL_ENDPOINTS,
+  GMAIL_ERROR_MESSAGES,
+  GMAIL_OAUTH_LOOPBACK_HOST_HEADER_PATTERN,
+  GMAIL_OAUTH_LOOPBACK_HOSTNAMES,
+  GMAIL_SCOPES,
+} from "@constants";
 
 export interface GoogleTokens {
   access_token: string;
@@ -25,18 +31,35 @@ export function isGoogleOAuthConfigured(): boolean {
   return Boolean(clientId && clientSecret);
 }
 
-/** Parse hostname from a Host / X-Forwarded-Host value (supports `[::1]:port`). */
-function hostnameFromHostHeader(hostHeader: string): string {
-  const trimmed = hostHeader.trim().toLowerCase();
-  if (trimmed.startsWith("[")) {
-    const end = trimmed.indexOf("]");
-    if (end > 1) return trimmed.slice(1, end);
-  }
-  return trimmed.split(":")[0] || "";
+function isLoopbackHostname(hostname: string): boolean {
+  // WHATWG URL.hostname may return IPv6 with brackets (`[::1]`); allowlist stores bare `::1`.
+  const normalized = hostname.toLowerCase().replace(/^\[(.*)\]$/, "$1");
+  return (GMAIL_OAUTH_LOOPBACK_HOSTNAMES as readonly string[]).includes(normalized);
 }
 
-function isLoopbackHostname(hostname: string): boolean {
-  return (GMAIL_OAUTH_LOOPBACK_HOSTNAMES as readonly string[]).includes(hostname);
+/** True when Host / X-Forwarded-Host is an exact loopback authority (no userinfo). */
+function isSafeLoopbackHostHeader(hostHeader: string): boolean {
+  return GMAIL_OAUTH_LOOPBACK_HOST_HEADER_PATTERN.test(hostHeader.trim());
+}
+
+/**
+ * Parses an OAuth redirect URI and rejects userinfo / non-http(s) shapes that can
+ * turn `http://localhost:3000@evil.com/...` into an open redirect via URL.origin.
+ */
+export function parseSafeOAuthRedirectUri(uri: string): URL {
+  let parsed: URL;
+  try {
+    parsed = new URL(uri);
+  } catch {
+    throw new Error(GMAIL_ERROR_MESSAGES.OAUTH_REDIRECT_URI_REQUIRED);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(GMAIL_ERROR_MESSAGES.OAUTH_REDIRECT_URI_REQUIRED);
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error(GMAIL_ERROR_MESSAGES.OAUTH_REDIRECT_URI_REQUIRED);
+  }
+  return parsed;
 }
 
 /**
@@ -49,10 +72,12 @@ export function resolveRedirectUri(request: Request): string {
   const envUri = process.env.GOOGLE_REDIRECT_URI?.trim();
   const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host") || "localhost:3000";
   const host = hostHeader.split(",")[0]?.trim() || "localhost:3000";
-  const isLocalHost = isLoopbackHostname(hostnameFromHostHeader(host));
+  const isLocalHost = isSafeLoopbackHostHeader(host);
 
   if (envUri) {
-    const envIsLocal = /:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(envUri);
+    // Validate shape (no userinfo / non-http) but return the exact registered string.
+    const parsedEnv = parseSafeOAuthRedirectUri(envUri);
+    const envIsLocal = isLoopbackHostname(parsedEnv.hostname);
     if (!envIsLocal || isLocalHost) {
       return envUri;
     }
@@ -65,7 +90,12 @@ export function resolveRedirectUri(request: Request): string {
   // Only allow http/https on loopback-derived URIs (never echo arbitrary X-Forwarded-Proto).
   const rawProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
   const proto = rawProto === "https" ? "https" : "http";
-  return `${proto}://${host}/api/auth/gmail/callback`;
+  const candidate = `${proto}://${host}/api/auth/gmail/callback`;
+  const parsed = parseSafeOAuthRedirectUri(candidate);
+  if (!isLoopbackHostname(parsed.hostname)) {
+    throw new Error(GMAIL_ERROR_MESSAGES.OAUTH_REDIRECT_URI_REQUIRED);
+  }
+  return `${parsed.origin}/api/auth/gmail/callback`;
 }
 
 /**

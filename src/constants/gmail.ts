@@ -13,6 +13,12 @@ export const GMAIL_ENDPOINTS = {
 /** Exact hostnames allowed for Host-header-derived OAuth redirect URIs (never use startsWith). */
 export const GMAIL_OAUTH_LOOPBACK_HOSTNAMES = ["localhost", "127.0.0.1", "::1"] as const;
 
+/**
+ * Strict Host / X-Forwarded-Host shapes for local OAuth redirect derivation.
+ * Rejects userinfo tricks like `localhost:3000@evil.com` that bypass hostname allowlists.
+ */
+export const GMAIL_OAUTH_LOOPBACK_HOST_HEADER_PATTERN = /^(localhost|127\.0\.0\.1)(:\d+)?$|^\[::1\](:\d+)?$/i;
+
 export const GMAIL_SCOPES = {
   READONLY: "https://www.googleapis.com/auth/gmail.readonly",
 } as const;
